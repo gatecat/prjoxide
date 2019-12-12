@@ -33,6 +33,9 @@ mkdir -p "$2.tmp"
 cp "$2.v" "$2.tmp/input.v"
 
 cd "$2.tmp"
+if [ -n "$STRUCT_VER" ]; then
+"$fpgabindir"/sv2udb -o par.udb input.v
+else
 "$fpgabindir"/synthesis -a "$LSE_ARCH" -p "$DEVICE" -t "$PACKAGE" \
 			-use_io_insertion 1 -use_io_reg auto -use_carry_chain 1 \
 			-ver input.v \
@@ -43,6 +46,8 @@ cd "$2.tmp"
 
 "$fpgabindir"/map -o map.udb synth.udb
 "$fpgabindir"/par map.udb par.udb
+fi
+
 if [ -n "$GEN_RBF" ]; then
 "$fpgabindir"/bitgen -b -d -w par.udb
 else
