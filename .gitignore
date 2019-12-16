@@ -7,3 +7,4 @@ __pycache__
 *.rbt
 *.sdf
 *.vo
+/user_environment.sh
