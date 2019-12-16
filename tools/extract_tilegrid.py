@@ -19,7 +19,8 @@ import json, argparse
 
 tile_re = re.compile(
     r'^Tile\s+([A-Z0-9a-z_/]+)\s+\((\d+), (\d+)\)\s+bitmap offset\s+\((\d+), (\d+)\)\s+\<([A-Z0-9a-z_/]+)>\s*$')
-
+end_digit_re = re.compile(
+    r'(\d+)$')
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('infile', type=argparse.FileType('r'),
@@ -32,10 +33,10 @@ rc_re = re.compile(r'R(\d+)C(\d+)')
 # For some reason TAP tiles don't have a column in their name. Restore them,
 # using locations determined from Radiant physical view (for now)
 tap_frame_to_col = {
-	16: 14,
-	22: 38,
-	28: 62,
-	34: 74
+    16: 14,
+    22: 38,
+    28: 62,
+    34: 74
 }
 
 def main(argv):
@@ -50,15 +51,19 @@ def main(argv):
                 "type": tile_m.group(1),
                 "start_bit": int(tile_m.group(4)),
                 "start_frame": int(tile_m.group(5)),
-                "rows": int(tile_m.group(2)),
-                "cols": int(tile_m.group(3)),
-                "sites": []
+                "bits": int(tile_m.group(2)),
+                "frames": int(tile_m.group(3)),
             }
-            identifier = name + ":" + tile_m.group(1)
-            #assert identifier not in tiles
-            #tiles[identifier] = current_tile
             if not rc_re.search(name):
-            	assert current_tile["start_frame"] in tap_frame_to_col
-            	print("! {} {} {} {}".format(name, current_tile["type"], current_tile["start_bit"], current_tile["start_frame"]))
+                assert current_tile["start_frame"] in tap_frame_to_col
+                # Regularise tile name for TAP tiles
+                col = tap_frame_to_col[current_tile["start_frame"]]
+                em = end_digit_re.search(name)
+                row = int(em.group(1))
+                name = "{}_R{}C{}".format(name[0:-len(em.group(1))], row, col)
+            identifier = name + ":" + tile_m.group(1)
+            assert identifier not in tiles
+            tiles[identifier] = current_tile
+    json.dump(tiles, args.outfile, sort_keys=True, indent=4)
 if __name__ == "__main__":
     main(sys.argv)
