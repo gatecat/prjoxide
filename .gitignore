@@ -1,0 +1,9 @@
+__pycache__
+*.o
+*.bit
+*.bin
+*.config
+*.dump
+*.rbt
+*.sdf
+*.vo
