@@ -1,20 +1,21 @@
 {
   "families": {
-    "LIFCL": {
-      "devices": {
-            "LIFCL-40": {
-                "packages": ["QFN72", "csfBGA289", "caBGA400"],
-                "idcode": "0x41111043",
-                "frames": 9172,
-                "bits_per_frame": 662,
-                "pad_bits_after_frame": 0,
-                "pad_bits_before_frame": 4,
-                "frame_ecc_bits": 14,
-                "max_row" : 56,
-                "max_col" : 87,
-                "col_bias" : 0,
-                "fuzz": 1
-            },
+        "LIFCL": {
+          "devices": {
+                "LIFCL-40": {
+                    "packages": ["QFN72", "csfBGA289", "caBGA400"],
+                    "idcode": "0x010F1043",
+                    "frames": 9172,
+                    "bits_per_frame": 662,
+                    "pad_bits_after_frame": 0,
+                    "pad_bits_before_frame": 4,
+                    "frame_ecc_bits": 14,
+                    "max_row" : 56,
+                    "max_col" : 87,
+                    "col_bias" : 0,
+                    "fuzz": 1
+                }
+            }
         }
     }
 }

@@ -12,7 +12,7 @@ fi
 
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE:-$0}")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
-PYTHONLIBS_DIR="${SCRIPT_DIR}/util"
+PYTHONLIBS_DIR="${SCRIPT_DIR}/util:${SCRIPT_DIR}/util/common"
 export PYTHONPATH="${PYTHONLIBS_DIR}:${PYTHONPATH}"
 
 USER_ENV="${SCRIPT_DIR}/user_environment.sh"

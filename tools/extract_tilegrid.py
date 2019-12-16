@@ -65,5 +65,6 @@ def main(argv):
             assert identifier not in tiles
             tiles[identifier] = current_tile
     json.dump(tiles, args.outfile, sort_keys=True, indent=4)
+    args.outfile.write("\n")
 if __name__ == "__main__":
     main(sys.argv)
