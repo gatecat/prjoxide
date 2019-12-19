@@ -8,3 +8,5 @@ __pycache__
 *.sdf
 *.vo
 /user_environment.sh
+libprjoxide/target
+Cargo.lock
