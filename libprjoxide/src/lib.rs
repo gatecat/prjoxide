@@ -1,4 +1,8 @@
 use pyo3::prelude::*;
+use pyo3::wrap_pyfunction;
+
+use std::fs::File;
+use std::io::*;
 
 mod bitstream;
 mod chip;
@@ -21,8 +25,26 @@ impl Database {
     }
 }
 
+#[pyfunction]
+fn parse_bitstream(_d: &Database, file: &str) -> PyResult<()> {
+    let mut f = File::open(file)?;
+    let mut buffer = Vec::new();
+    // read the whole file
+    f.read_to_end(&mut buffer)?;
+    let mut parser = bitstream::BitstreamParser::new(&buffer);
+    let parse_result = parser.parse();
+    match parse_result {
+        Err(x) => {
+            println!("Parse error: {}", x);
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
 #[pymodule]
 fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_class::<Database>()?;
     Ok(())
 }
