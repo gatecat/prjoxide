@@ -4,7 +4,7 @@
           "devices": {
                 "LIFCL-40": {
                     "packages": ["QFN72", "csfBGA289", "caBGA400"],
-                    "idcode": "0x010F1043",
+                    "idcode": 17764419,
                     "frames": 9172,
                     "bits_per_frame": 662,
                     "pad_bits_after_frame": 0,
@@ -13,7 +13,7 @@
                     "max_row" : 56,
                     "max_col" : 87,
                     "col_bias" : 0,
-                    "fuzz": 1
+                    "fuzz": true
                 }
             }
         }

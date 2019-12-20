@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt;
 use std::fs::File;
-use std::io;
 use std::io::prelude::*;
 // Deserialization of 'devices.json'
 
@@ -57,9 +57,24 @@ pub struct ConfigBit {
     pub invert: bool,
 }
 
+impl fmt::Debug for ConfigBit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}F{}B{}",
+            match self.invert {
+                true => "!",
+                false => "",
+            },
+            self.frame,
+            self.bit
+        )
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ConfigArcData {
-    pub to_wire: String,
+    pub from_wire: String,
     pub bits: BTreeSet<ConfigBit>,
 }
 
@@ -77,7 +92,7 @@ pub struct ConfigEnumData {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct FixedConnectionData {
-    pub to_wire: String,
+    pub from_wire: String,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -95,20 +110,41 @@ pub struct TileBitsData {
 }
 
 impl TileBitsData {
-    pub fn new(tiletype: &str, db: &TileBitsDatabase) -> TileBitsData {
+    pub fn new(tiletype: &str, db: TileBitsDatabase) -> TileBitsData {
         TileBitsData {
             tiletype: tiletype.to_string(),
             db: db.clone(),
             dirty: false,
         }
     }
-    pub fn add_arc(&mut self, from: &str, to: &str, bits: ConfigBit) {}
+    pub fn add_arc(&mut self, from: &str, to: &str, bits: BTreeSet<ConfigBit>) {
+        if !self.db.arcs.contains_key(to) {
+            self.db.arcs.insert(to.to_string(), Vec::new());
+        }
+        let ac = self.db.arcs.get_mut(to).unwrap();
+        for ad in ac.iter() {
+            if ad.from_wire == from {
+                if bits != ad.bits {
+                    panic!(
+                        "Bit conflict for {}.{}<-{} existing: {:?} new: {:?}",
+                        self.tiletype, from, to, ad.bits, bits
+                    );
+                }
+                return;
+            }
+        }
+        self.dirty = true;
+        ac.push(ConfigArcData {
+            from_wire: from.to_string(),
+            bits: bits.clone(),
+        });
+    }
 }
 
 pub struct Database {
     root: String,
     devices: DevicesDatabase,
-    tilegrids: HashMap<String, DeviceTilegrid>,
+    tilegrids: HashMap<(String, String), DeviceTilegrid>,
     tilebits: HashMap<(String, String), TileBitsData>,
 }
 
@@ -126,5 +162,60 @@ impl Database {
             tilegrids: HashMap::new(),
             tilebits: HashMap::new(),
         }
+    }
+    // Both functions return a (family, name, data) 3-tuple
+    pub fn device_by_name(&self, name: &str) -> Option<(String, String, &DeviceData)> {
+        for (f, fd) in self.devices.families.iter() {
+            for (d, data) in fd.devices.iter() {
+                if d == name {
+                    return Some((f.to_string(), d.to_string(), data));
+                }
+            }
+        }
+        None
+    }
+    pub fn device_by_idcode(&self, idcode: u32) -> Option<(String, String, &DeviceData)> {
+        for (f, fd) in self.devices.families.iter() {
+            for (d, data) in fd.devices.iter() {
+                if data.idcode == idcode {
+                    return Some((f.to_string(), d.to_string(), data));
+                }
+            }
+        }
+        None
+    }
+    // Tilegrid for a device by family and name
+    pub fn device_tilegrid(&mut self, family: &str, device: &str) -> &DeviceTilegrid {
+        let key = (family.to_string(), device.to_string());
+        if !self.tilegrids.contains_key(&key) {
+            let mut tg_json_buf = String::new();
+            // read the whole file
+            File::open(format!("{}/{}/{}/tilegrid.json", self.root, family, device))
+                .unwrap()
+                .read_to_string(&mut tg_json_buf)
+                .unwrap();
+            let tg = serde_json::from_str(&tg_json_buf).unwrap();
+            self.tilegrids.insert(key.clone(), tg);
+        }
+        self.tilegrids.get(&key).unwrap()
+    }
+    // Bit database for a tile by family and tile type
+    pub fn tile_bitdb(&mut self, family: &str, tiletype: &str) -> &mut TileBitsData {
+        let key = (family.to_string(), tiletype.to_string());
+        if !self.tilebits.contains_key(&key) {
+            let mut tt_json_buf = String::new();
+            // read the whole file
+            File::open(format!(
+                "{}/{}/tiletypes/{}.json",
+                self.root, family, tiletype
+            ))
+            .unwrap()
+            .read_to_string(&mut tt_json_buf)
+            .unwrap();
+            let tb = serde_json::from_str(&tt_json_buf).unwrap();
+            self.tilebits
+                .insert(key.clone(), TileBitsData::new(tiletype.clone(), tb));
+        }
+        self.tilebits.get_mut(&key).unwrap()
     }
 }

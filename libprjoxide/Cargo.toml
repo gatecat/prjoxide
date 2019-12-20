@@ -13,6 +13,6 @@ pyo3 = { version = "0.8.4", features = ["extension-module"] }
 multimap = "0.8.0"
 
 [lib]
-name = "libprjoxide"
+name = "prjoxide"
 crate-type = ["cdylib"]
 
