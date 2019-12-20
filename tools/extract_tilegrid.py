@@ -48,19 +48,25 @@ def main(argv):
         if tile_m:
             name = tile_m.group(6)
             current_tile = {
-                "type": tile_m.group(1),
+                "tiletype": tile_m.group(1),
                 "start_bit": int(tile_m.group(4)),
                 "start_frame": int(tile_m.group(5)),
                 "bits": int(tile_m.group(2)),
                 "frames": int(tile_m.group(3)),
             }
-            if not rc_re.search(name):
+            s =  rc_re.search(name)
+            if not s:
                 assert current_tile["start_frame"] in tap_frame_to_col
                 # Regularise tile name for TAP tiles
                 col = tap_frame_to_col[current_tile["start_frame"]]
                 em = end_digit_re.search(name)
                 row = int(em.group(1))
                 name = "{}_R{}C{}".format(name[0:-len(em.group(1))], row, col)
+                current_tile["row"] = row
+                current_tile["col"] = col
+            else:
+                current_tile["row"] = int(s.group(1))
+                current_tile["col"] = int(s.group(2))
             identifier = name + ":" + tile_m.group(1)
             assert identifier not in tiles
             tiles[identifier] = current_tile

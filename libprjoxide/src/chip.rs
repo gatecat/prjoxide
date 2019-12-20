@@ -1,6 +1,7 @@
 use crate::database::*;
 use multimap::MultiMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::io::Write;
 
 // 2D bit array
 pub struct BitMatrix {
@@ -61,6 +62,14 @@ impl BitMatrix {
             })
             .collect()
     }
+    // Pretty-print a list of frame-bits
+    pub fn print(&self, mut out: &mut dyn Write) {
+        for (i, _x) in self.data.iter().enumerate().filter(|(_i, x)| **x) {
+            let f = i / self.frames;
+            let b = i % self.frames;
+            writeln!(&mut out, "F{}B{}", f, b).unwrap();
+        }
+    }
 }
 
 struct Chip {
@@ -75,7 +84,7 @@ struct Chip {
     // All of the tiles in the chip
     tiles: Vec<Tile>,
     // IP core and EBR configuration
-    ipconfig: HashMap<u32, u32>,
+    ipconfig: BTreeMap<u32, u32>,
     // Fast references to tiles
     tiles_by_name: HashMap<String, usize>,
     tiles_by_loc: MultiMap<(u32, u32), usize>,
@@ -95,7 +104,7 @@ impl Chip {
                 .iter()
                 .map(|(name, data)| Tile::new(name, data))
                 .collect(),
-            ipconfig: HashMap::new(),
+            ipconfig: BTreeMap::new(),
             tiles_by_name: HashMap::new(),
             tiles_by_loc: MultiMap::new(),
             metadata: Vec::new(),
@@ -127,6 +136,59 @@ impl Chip {
             self.cram.copy_window(&t.cram, t.start_frame, t.start_bit);
         }
     }
+    // Get a tile by name
+    pub fn tile_by_name(&self, name: &str) -> Result<&Tile, &'static str> {
+        match self.tiles_by_name.get(name) {
+            None => {
+                println!("no tile named {}", name);
+                Err("unknown tile name")
+            }
+            Some(i) => Ok(&self.tiles[*i]),
+        }
+    }
+    // Get a mutable tile by name
+    pub fn tile_by_name_mut(&mut self, name: &str) -> Result<&mut Tile, &'static str> {
+        match self.tiles_by_name.get(name) {
+            None => {
+                println!("no tile named {}", name);
+                Err("unknown tile name")
+            }
+            Some(i) => Ok(&mut self.tiles[*i]),
+        }
+    }
+    // Get all tiles at a location
+    pub fn tiles_by_xy(&self, x: u32, y: u32) -> Vec<&Tile> {
+        match self.tiles_by_loc.get_vec(&(x, y)) {
+            None => Vec::new(),
+            Some(v) => v.iter().map(|i| &self.tiles[*i]).collect(),
+        }
+    }
+    // Compare two chips
+    pub fn delta(&self, base: &Self) -> BTreeMap<String, Vec<(usize, usize, bool)>> {
+        base.tiles
+            .iter()
+            .zip(self.tiles.iter())
+            .map(|(t1, t2)| {
+                assert_eq!(t1.name, t2.name);
+                (t1.name.to_string(), t2.cram.delta(&t1.cram))
+            })
+            .filter(|(_k, v)| v.len() > 0)
+            .collect()
+    }
+    // Dump chip to a simple text format for debugging
+    pub fn print(&self, mut out: &mut dyn Write) {
+        writeln!(&mut out, ".device {}", self.device).unwrap();
+        for m in self.metadata.iter() {
+            writeln!(&mut out, ".metadata {}", m).unwrap();
+        }
+        for t in self.tiles.iter() {
+            t.print(&mut out);
+            writeln!(&mut out, "").unwrap();
+        }
+        for (addr, data) in self.ipconfig.iter() {
+            writeln!(&mut out, ".write 0x{:08x} 0x{:08x}", addr, data).unwrap();
+        }
+    }
 }
 
 // Actual instance of a tile
@@ -145,11 +207,15 @@ impl Tile {
         Tile {
             name: name.to_string(),
             tiletype: data.tiletype.to_string(),
-            x: 0, // FIXME
-            y: 0,
+            x: data.x,
+            y: data.y,
             start_bit: data.start_bit,
             start_frame: data.start_frame,
             cram: BitMatrix::new(data.frames, data.bits),
         }
+    }
+    pub fn print(&self, mut out: &mut dyn Write) {
+        writeln!(&mut out, ".tile {}:{}", self.name, self.tiletype).unwrap();
+        self.cram.print(&mut out);
     }
 }
