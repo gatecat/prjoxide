@@ -1,7 +1,8 @@
 use pyo3::prelude::*;
 
 mod bitstream;
-mod database;
+mod chip;
+pub mod database;
 
 #[pymodule]
 fn pyprjoxide(py: Python, m: &PyModule) -> PyResult<()> {

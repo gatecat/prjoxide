@@ -4,17 +4,17 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 // Deserialization of 'devices.json'
 
 #[derive(Deserialize)]
-struct DevicesDatabase {
+pub struct DevicesDatabase {
     families: HashMap<String, FamilyData>,
 }
 
 #[derive(Deserialize)]
-struct FamilyData {
+pub struct FamilyData {
     devices: HashMap<String, DeviceData>,
 }
 
 #[derive(Deserialize)]
-struct DeviceData {
+pub struct DeviceData {
     packages: Vec<String>,
     idcode: u32,
     frames: usize,
@@ -31,12 +31,12 @@ struct DeviceData {
 // Deserialization of 'tilegrid.json'
 
 #[derive(Deserialize)]
-struct DeviceTilegrid {
+pub struct DeviceTilegrid {
     tiles: HashMap<String, TileData>,
 }
 
 #[derive(Deserialize)]
-struct TileData {
+pub struct TileData {
     tiletype: String,
     start_bit: usize,
     start_frame: usize,
@@ -47,39 +47,39 @@ struct TileData {
 // Tile bit database structures
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
-struct ConfigBit {
+pub struct ConfigBit {
     frame: usize,
     bit: usize,
     invert: bool,
 }
 
 #[derive(Deserialize, Serialize)]
-struct ConfigArcData {
+pub struct ConfigArcData {
     from_wire: String,
     to_wire: String,
     bits: BTreeSet<ConfigBit>,
 }
 
 #[derive(Deserialize, Serialize)]
-struct ConfigWordData {
+pub struct ConfigWordData {
     defval: Vec<bool>,
     bits: Vec<BTreeSet<ConfigBit>>,
 }
 
 #[derive(Deserialize, Serialize)]
-struct ConfigEnumData {
+pub struct ConfigEnumData {
     defval: String,
     bits: BTreeMap<String, BTreeSet<ConfigBit>>,
 }
 
 #[derive(Deserialize, Serialize)]
-struct FixedConnectionData {
+pub struct FixedConnectionData {
     from_wire: String,
     to_wire: String,
 }
 
 #[derive(Deserialize, Serialize)]
-struct TileBitsDatabase {
+pub struct TileBitsDatabase {
     arcs: Vec<ConfigArcData>,
     words: Vec<ConfigWordData>,
     enums: Vec<ConfigEnumData>,
