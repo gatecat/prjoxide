@@ -222,6 +222,7 @@ impl BitstreamParser {
                             return Err("got bitstream before idcode");
                         }
                     }
+                    println!("write {} frames at 0x{:08x}", count, curr_frame);
                     let mut frame_bytes = vec![0 as u8; (bits_per_frame + 7) / 8 + 2];
                     assert_eq!(cfg, 0x91);
                     for _ in 0..count {
@@ -232,9 +233,10 @@ impl BitstreamParser {
                                 & 0x01)
                                 == 0x01
                             {
-                                if (curr_frame as usize) < chip.cram.frames {
+                                let decoded_frame = chip.frame_addr_to_idx(curr_frame);
+                                if decoded_frame < chip.cram.frames {
                                     // FIXME: frame addressing
-                                    chip.cram.set(curr_frame as usize, j, true);
+                                    chip.cram.set(decoded_frame, j, true);
                                 }
                                 if self.verbose {
                                     println!("F0x{:08x}B{:04}", curr_frame, j);

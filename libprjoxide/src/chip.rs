@@ -52,8 +52,8 @@ impl BitMatrix {
             .zip(self.data.iter())
             .enumerate()
             .filter_map(|(i, (o, n))| {
-                let f = i / self.frames;
-                let b = i % self.frames;
+                let f = i / self.bits;
+                let b = i % self.bits;
                 match (o, n) {
                     (false, true) => Some((f, b, true)),  // going high
                     (true, false) => Some((f, b, false)), // going low
@@ -65,8 +65,8 @@ impl BitMatrix {
     // Pretty-print a list of frame-bits
     pub fn print(&self, mut out: &mut dyn Write) {
         for (i, _x) in self.data.iter().enumerate().filter(|(_i, x)| **x) {
-            let f = i / self.frames;
-            let b = i % self.frames;
+            let f = i / self.bits;
+            let b = i % self.bits;
             writeln!(&mut out, "F{}B{}", f, b).unwrap();
         }
     }
@@ -199,6 +199,16 @@ impl Chip {
         }
         for (addr, data) in self.ipconfig.iter() {
             writeln!(&mut out, ".write 0x{:08x} 0x{:08x}", addr, data).unwrap();
+        }
+    }
+    // Convert frame address to flat frame index
+    pub fn frame_addr_to_idx(&self, addr: u32) -> usize {
+        match addr {
+            0x0000..=0x7FFF => (self.cram.frames - 1) - (addr as usize),
+            0x8000..=0x800F => (addr - 0x8000) as usize, // left side IO
+            0x8010..=0x801F => ((addr - 0x8010) as usize) + 40, // right side IO
+            0x8020..=0x8037 => ((addr - 0x8020) as usize) + 16, // TAPs (row-segment clocking)
+            _ => panic!("unable to process frame address 0x{:08x}", addr),
         }
     }
 }
