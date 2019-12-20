@@ -1,8 +1,9 @@
 use crate::database::*;
+use multimap::MultiMap;
 use std::collections::HashMap;
 
 // 2D bit array
-struct BitMatrix {
+pub struct BitMatrix {
     frames: usize,
     bits: usize,
     data: Vec<bool>,
@@ -16,28 +17,6 @@ impl BitMatrix {
             bits: bits,
             data: vec![false; frames * bits],
         }
-    }
-    // Create a bitmatrix as a window of a larger one
-    pub fn from_window(
-        base: &Self,
-        start_frame: usize,
-        start_bit: usize,
-        frames: usize,
-        bits: usize,
-    ) -> BitMatrix {
-        let mut m = BitMatrix {
-            frames: frames,
-            bits: bits,
-            data: vec![false; frames * bits],
-        };
-
-        for f in 0..frames {
-            for b in 0..bits {
-                m.data[f * bits + b] = base.data[(f + start_frame) * base.bits + (b + start_bit)];
-            }
-        }
-
-        m
     }
     // Getting and setting bits
     pub fn get(&self, frame: usize, bit: usize) -> bool {
@@ -54,6 +33,33 @@ impl BitMatrix {
                     from.data[f * from.bits + b];
             }
         }
+    }
+    // Copy a window another bitmatrix  to this one
+    pub fn copy_from_window(&mut self, from: &Self, start_frame: usize, start_bit: usize) {
+        for f in 0..self.frames {
+            for b in 0..self.bits {
+                self.data[f * self.bits + b] =
+                    from.data[(f + start_frame) * from.bits + (b + start_bit)];
+            }
+        }
+    }
+    // Get a list of the differences
+    // as a tuple (frame, bit, new value)
+    pub fn delta(&self, base: &Self) -> Vec<(usize, usize, bool)> {
+        base.data
+            .iter()
+            .zip(self.data.iter())
+            .enumerate()
+            .filter_map(|(i, (o, n))| {
+                let f = i / self.frames;
+                let b = i % self.frames;
+                match (o, n) {
+                    (false, true) => Some((f, b, true)),  // going high
+                    (true, false) => Some((f, b, false)), // going low
+                    _ => None,
+                }
+            })
+            .collect()
     }
 }
 
@@ -72,20 +78,78 @@ struct Chip {
     ipconfig: HashMap<u32, u32>,
     // Fast references to tiles
     tiles_by_name: HashMap<String, usize>,
-    tiles_by_loc: HashMap<(u32, u32), usize>,
+    tiles_by_loc: MultiMap<(u32, u32), usize>,
     // Metadata (comment strings in bitstream)
     metadata: Vec<String>,
 }
 
-// Actual instance of a tile
-struct Tile {
-    name: String,
-    tiletype: String,
-    x: u32,
-    y: u32,
-    start_bit: usize,
-    start_frame: usize,
-    cram: BitMatrix,
+impl Chip {
+    pub fn new(family: &str, device: &str, data: &DeviceData, tiles: &DeviceTilegrid) -> Chip {
+        let mut c = Chip {
+            family: family.to_string(),
+            device: device.to_string(),
+            data: data.clone(),
+            cram: BitMatrix::new(data.frames, data.bits_per_frame),
+            tiles: tiles
+                .tiles
+                .iter()
+                .map(|(name, data)| Tile::new(name, data))
+                .collect(),
+            ipconfig: HashMap::new(),
+            tiles_by_name: HashMap::new(),
+            tiles_by_loc: MultiMap::new(),
+            metadata: Vec::new(),
+        };
+        c.tiles_by_name = c
+            .tiles
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (t.name.to_string(), i))
+            .collect();
+        c.tiles_by_loc = c
+            .tiles
+            .iter()
+            .enumerate()
+            .map(|(i, t)| ((t.x, t.y), i))
+            .collect();
+        c
+    }
+    // Copy the whole-chip CRAM to the per-tile CRAM
+    pub fn cram_to_tiles(&mut self) {
+        for t in self.tiles.iter_mut() {
+            t.cram
+                .copy_from_window(&self.cram, t.start_frame, t.start_bit);
+        }
+    }
+    // Copy the per-tile CRAM windows to the whole chip CRAM
+    pub fn tiles_to_cram(&mut self) {
+        for t in self.tiles.iter() {
+            self.cram.copy_window(&t.cram, t.start_frame, t.start_bit);
+        }
+    }
 }
 
-// The differences between two chips
+// Actual instance of a tile
+pub struct Tile {
+    pub name: String,
+    pub tiletype: String,
+    pub x: u32,
+    pub y: u32,
+    pub start_bit: usize,
+    pub start_frame: usize,
+    pub cram: BitMatrix,
+}
+
+impl Tile {
+    pub fn new(name: &str, data: &TileData) -> Tile {
+        Tile {
+            name: name.to_string(),
+            tiletype: data.tiletype.to_string(),
+            x: 0, // FIXME
+            y: 0,
+            start_bit: data.start_bit,
+            start_frame: data.start_frame,
+            cram: BitMatrix::new(data.frames, data.bits),
+        }
+    }
+}

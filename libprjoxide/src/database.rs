@@ -5,83 +5,81 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 #[derive(Deserialize)]
 pub struct DevicesDatabase {
-    families: HashMap<String, FamilyData>,
+    pub families: HashMap<String, FamilyData>,
 }
 
 #[derive(Deserialize)]
 pub struct FamilyData {
-    devices: HashMap<String, DeviceData>,
+    pub devices: HashMap<String, DeviceData>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct DeviceData {
-    packages: Vec<String>,
-    idcode: u32,
-    frames: usize,
-    bits_per_frame: usize,
-    pad_bits_after_frame: usize,
-    pad_bits_before_frame: usize,
-    frame_ecc_bits: usize,
-    max_row: u32,
-    max_col: u32,
-    col_bias: u32,
-    fuzz: bool,
+    pub packages: Vec<String>,
+    pub idcode: u32,
+    pub frames: usize,
+    pub bits_per_frame: usize,
+    pub pad_bits_after_frame: usize,
+    pub pad_bits_before_frame: usize,
+    pub frame_ecc_bits: usize,
+    pub max_row: u32,
+    pub max_col: u32,
+    pub col_bias: u32,
+    pub fuzz: bool,
 }
 
 // Deserialization of 'tilegrid.json'
 
 #[derive(Deserialize)]
 pub struct DeviceTilegrid {
-    tiles: HashMap<String, TileData>,
+    pub tiles: HashMap<String, TileData>,
 }
 
 #[derive(Deserialize)]
 pub struct TileData {
-    tiletype: String,
-    start_bit: usize,
-    start_frame: usize,
-    bits: usize,
-    frames: usize,
+    pub tiletype: String,
+    pub start_bit: usize,
+    pub start_frame: usize,
+    pub bits: usize,
+    pub frames: usize,
 }
 
 // Tile bit database structures
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ConfigBit {
-    frame: usize,
-    bit: usize,
-    invert: bool,
+    pub frame: usize,
+    pub bit: usize,
+    pub invert: bool,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct ConfigArcData {
-    from_wire: String,
-    to_wire: String,
-    bits: BTreeSet<ConfigBit>,
+    pub to_wire: String,
+    pub bits: BTreeSet<ConfigBit>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct ConfigWordData {
-    defval: Vec<bool>,
-    bits: Vec<BTreeSet<ConfigBit>>,
+    pub defval: Vec<bool>,
+    pub bits: Vec<BTreeSet<ConfigBit>>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct ConfigEnumData {
-    defval: String,
-    bits: BTreeMap<String, BTreeSet<ConfigBit>>,
+    pub defval: String,
+    pub bits: BTreeMap<String, BTreeSet<ConfigBit>>,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct FixedConnectionData {
-    from_wire: String,
-    to_wire: String,
+    pub to_wire: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct TileBitsDatabase {
-    arcs: Vec<ConfigArcData>,
-    words: Vec<ConfigWordData>,
-    enums: Vec<ConfigEnumData>,
-    conns: Vec<FixedConnectionData>,
+    pub arcs: BTreeMap<String, Vec<ConfigArcData>>,
+    pub words: BTreeMap<String, ConfigWordData>,
+    pub enums: BTreeMap<String, ConfigEnumData>,
+    pub conns: BTreeMap<String, Vec<FixedConnectionData>>,
 }
