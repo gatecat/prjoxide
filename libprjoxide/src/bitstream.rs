@@ -1,6 +1,5 @@
-use std::fs::File;
-use std::io;
-use std::io::prelude::*;
+use crate::chip::*;
+use crate::database::*;
 
 pub struct BitstreamParser {
     data: Vec<u8>,
@@ -44,7 +43,7 @@ impl BitstreamParser {
             data: bitstream.to_vec(),
             index: 0,
             crc16: CRC16_INIT,
-            verbose: true,
+            verbose: false,
         }
     }
     // Add a single byte to the running CRC16 accumulator
@@ -175,8 +174,9 @@ impl BitstreamParser {
     }
 
     // Parse the bitstream itself
-    fn parse_bitstream(&mut self) -> Result<(), &'static str> {
+    fn parse_bitstream(&mut self, db: &mut Database) -> Result<Chip, &'static str> {
         let mut curr_frame = 0;
+        let mut curr_chip = None;
         while !self.done() {
             let cmd = self.get_opcode_byte();
             match cmd {
@@ -193,6 +193,7 @@ impl BitstreamParser {
                 VERIFY_ID => {
                     self.skip_bytes(3);
                     let idcode = self.get_u32();
+                    curr_chip = Some(Chip::from_idcode(db, idcode));
                     println!("check IDCODE is 0x{:08X}", idcode);
                 }
                 LSC_INIT_ADDRESS => {
@@ -208,11 +209,22 @@ impl BitstreamParser {
                 LSC_PROG_INCR_RTI => {
                     let cfg = self.get_byte();
                     let count = self.get_u16();
-                    let bits_per_frame = 662;
-                    let pad_bits = 14;
+                    let bits_per_frame: usize;
+                    let pad_bits: usize;
+                    let chip: &mut Chip;
+                    match curr_chip.as_mut() {
+                        Some(ch) => {
+                            bits_per_frame = ch.data.bits_per_frame;
+                            pad_bits = ch.data.frame_ecc_bits + ch.data.pad_bits_after_frame;
+                            chip = ch;
+                        }
+                        None => {
+                            return Err("got bitstream before idcode");
+                        }
+                    }
                     let mut frame_bytes = vec![0 as u8; (bits_per_frame + 7) / 8 + 2];
                     assert_eq!(cfg, 0x91);
-                    for i in 0..count {
+                    for _ in 0..count {
                         self.copy_bytes(&mut frame_bytes);
                         for j in 0..bits_per_frame {
                             let ofs = (j + pad_bits) as usize;
@@ -220,14 +232,22 @@ impl BitstreamParser {
                                 & 0x01)
                                 == 0x01
                             {
-                                println!("F0x{:08x}B{:04}", curr_frame, j);
+                                if (curr_frame as usize) < chip.cram.frames {
+                                    // FIXME: frame addressing
+                                    chip.cram.set(curr_frame as usize, j, true);
+                                }
+                                if self.verbose {
+                                    println!("F0x{:08x}B{:04}", curr_frame, j);
+                                }
                             }
                         }
                         let parity = (frame_bytes[frame_bytes.len() - 1] as u16) << 8
                             | (frame_bytes[frame_bytes.len() - 2] as u16);
-                        for j in 0..14 {
-                            if (parity >> j) & 0x1 == 0x1 {
-                                println!("F0x{:08x}P{:02}", curr_frame, j);
+                        if self.verbose {
+                            for j in 0..14 {
+                                if (parity >> j) & 0x1 == 0x1 {
+                                    println!("F0x{:08x}P{:02}", curr_frame, j);
+                                }
                             }
                         }
                         self.check_crc16();
@@ -261,12 +281,15 @@ impl BitstreamParser {
                 }
             }
         }
-        Ok(())
+        match curr_chip {
+            Some(x) => Ok(x),
+            None => Err("missing bitstream content"),
+        }
     }
 
-    pub fn parse(&mut self) -> Result<(), &'static str> {
+    pub fn parse(&mut self, db: &mut Database) -> Result<Chip, &'static str> {
         self.parse_container()?;
-        self.parse_bitstream()?;
-        Ok(())
+        let c = self.parse_bitstream(db)?;
+        Ok(c)
     }
 }

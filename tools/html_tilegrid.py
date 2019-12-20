@@ -41,7 +41,7 @@ def get_colour(ttype):
 
 def main(argv):
     args = parser.parse_args(argv[1:])
-    tilegrid = database.get_tilegrid(args.family, args.device)
+    tilegrid = database.get_tilegrid(args.family, args.device)["tiles"]
     device_info = database.get_devices()["families"][args.family]["devices"][args.device]
 
     max_row = device_info["max_row"]
@@ -57,8 +57,8 @@ def main(argv):
     for identifier, data in sorted(tilegrid.items()):
         name = identifier.split(":")[0]
         row, col = tilelib.pos_from_name(name)
-        colour = get_colour(data["type"])
-        tiles[row][col].append((name, data["type"], colour))
+        colour = get_colour(data["tiletype"])
+        tiles[row][col].append((name, data["tiletype"], colour))
 
     f = args.outfile
     print(

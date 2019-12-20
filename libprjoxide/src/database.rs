@@ -7,12 +7,12 @@ use std::io::prelude::*;
 
 #[derive(Deserialize)]
 pub struct DevicesDatabase {
-    pub families: HashMap<String, FamilyData>,
+    pub families: BTreeMap<String, FamilyData>,
 }
 
 #[derive(Deserialize)]
 pub struct FamilyData {
-    pub devices: HashMap<String, DeviceData>,
+    pub devices: BTreeMap<String, DeviceData>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -34,7 +34,7 @@ pub struct DeviceData {
 
 #[derive(Deserialize)]
 pub struct DeviceTilegrid {
-    pub tiles: HashMap<String, TileData>,
+    pub tiles: BTreeMap<String, TileData>,
 }
 
 #[derive(Deserialize)]
@@ -164,21 +164,21 @@ impl Database {
         }
     }
     // Both functions return a (family, name, data) 3-tuple
-    pub fn device_by_name(&self, name: &str) -> Option<(String, String, &DeviceData)> {
+    pub fn device_by_name(&self, name: &str) -> Option<(String, String, DeviceData)> {
         for (f, fd) in self.devices.families.iter() {
             for (d, data) in fd.devices.iter() {
                 if d == name {
-                    return Some((f.to_string(), d.to_string(), data));
+                    return Some((f.to_string(), d.to_string(), data.clone()));
                 }
             }
         }
         None
     }
-    pub fn device_by_idcode(&self, idcode: u32) -> Option<(String, String, &DeviceData)> {
+    pub fn device_by_idcode(&self, idcode: u32) -> Option<(String, String, DeviceData)> {
         for (f, fd) in self.devices.families.iter() {
             for (d, data) in fd.devices.iter() {
                 if data.idcode == idcode {
-                    return Some((f.to_string(), d.to_string(), data));
+                    return Some((f.to_string(), d.to_string(), data.clone()));
                 }
             }
         }

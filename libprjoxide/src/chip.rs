@@ -5,8 +5,8 @@ use std::io::Write;
 
 // 2D bit array
 pub struct BitMatrix {
-    frames: usize,
-    bits: usize,
+    pub frames: usize,
+    pub bits: usize,
     data: Vec<bool>,
 }
 
@@ -70,26 +70,30 @@ impl BitMatrix {
             writeln!(&mut out, "F{}B{}", f, b).unwrap();
         }
     }
+    // Return true if any bit is set
+    pub fn any(&self) -> bool {
+        return self.data.iter().any(|x| *x);
+    }
 }
 
-struct Chip {
+pub struct Chip {
     // Family name
-    family: String,
+    pub family: String,
     // Device name
-    device: String,
+    pub device: String,
     // Device data
-    data: DeviceData,
+    pub data: DeviceData,
     // Entire main bitstream content
-    cram: BitMatrix,
+    pub cram: BitMatrix,
     // All of the tiles in the chip
-    tiles: Vec<Tile>,
+    pub tiles: Vec<Tile>,
     // IP core and EBR configuration
-    ipconfig: BTreeMap<u32, u32>,
+    pub ipconfig: BTreeMap<u32, u32>,
     // Fast references to tiles
     tiles_by_name: HashMap<String, usize>,
     tiles_by_loc: MultiMap<(u32, u32), usize>,
     // Metadata (comment strings in bitstream)
-    metadata: Vec<String>,
+    pub metadata: Vec<String>,
 }
 
 impl Chip {
@@ -123,6 +127,15 @@ impl Chip {
             .collect();
         c
     }
+    // Create a new chip from the database based on IDCODE or name
+    pub fn from_idcode(db: &mut Database, idcode: u32) -> Chip {
+        let (fam, device, data) = db.device_by_idcode(idcode).expect(&format!(
+            "no device in database with IDCODE {:08x}\n",
+            idcode
+        ));
+        Chip::new(&fam, &device, &data, db.device_tilegrid(&fam, &device))
+    }
+
     // Copy the whole-chip CRAM to the per-tile CRAM
     pub fn cram_to_tiles(&mut self) {
         for t in self.tiles.iter_mut() {
@@ -183,7 +196,6 @@ impl Chip {
         }
         for t in self.tiles.iter() {
             t.print(&mut out);
-            writeln!(&mut out, "").unwrap();
         }
         for (addr, data) in self.ipconfig.iter() {
             writeln!(&mut out, ".write 0x{:08x} 0x{:08x}", addr, data).unwrap();
@@ -215,7 +227,9 @@ impl Tile {
         }
     }
     pub fn print(&self, mut out: &mut dyn Write) {
-        writeln!(&mut out, ".tile {}:{}", self.name, self.tiletype).unwrap();
-        self.cram.print(&mut out);
+        if self.cram.any() {
+            writeln!(&mut out, ".tile {}:{}", self.name, self.tiletype).unwrap();
+            self.cram.print(&mut out);
+        }
     }
 }

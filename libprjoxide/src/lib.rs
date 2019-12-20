@@ -26,19 +26,23 @@ impl Database {
 }
 
 #[pyfunction]
-fn parse_bitstream(_d: &Database, file: &str) -> PyResult<()> {
+fn parse_bitstream(d: &mut Database, file: &str) -> PyResult<()> {
     let mut f = File::open(file)?;
     let mut buffer = Vec::new();
     // read the whole file
     f.read_to_end(&mut buffer)?;
     let mut parser = bitstream::BitstreamParser::new(&buffer);
-    let parse_result = parser.parse();
+    let parse_result = parser.parse(&mut d.db);
     match parse_result {
         Err(x) => {
             println!("Parse error: {}", x);
             Ok(())
         }
-        _ => Ok(()),
+        Ok(mut chip) => {
+            chip.cram_to_tiles();
+            chip.print(&mut std::io::stdout());
+            Ok(())
+        }
     }
 }
 

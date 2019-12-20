@@ -62,15 +62,15 @@ def main(argv):
                 em = end_digit_re.search(name)
                 row = int(em.group(1))
                 name = "{}_R{}C{}".format(name[0:-len(em.group(1))], row, col)
-                current_tile["row"] = row
-                current_tile["col"] = col
+                current_tile["y"] = row
+                current_tile["x"] = col
             else:
-                current_tile["row"] = int(s.group(1))
-                current_tile["col"] = int(s.group(2))
+                current_tile["y"] = int(s.group(1))
+                current_tile["x"] = int(s.group(2))
             identifier = name + ":" + tile_m.group(1)
             assert identifier not in tiles
             tiles[identifier] = current_tile
-    json.dump(tiles, args.outfile, sort_keys=True, indent=4)
+    json.dump({"tiles": tiles}, args.outfile, sort_keys=True, indent=4)
     args.outfile.write("\n")
 if __name__ == "__main__":
     main(sys.argv)
