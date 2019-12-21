@@ -96,6 +96,8 @@ pub struct Chip {
     pub metadata: Vec<String>,
 }
 
+pub type ChipDelta = BTreeMap<String, Vec<(usize, usize, bool)>>;
+
 impl Chip {
     pub fn new(family: &str, device: &str, data: &DeviceData, tiles: &DeviceTilegrid) -> Chip {
         let mut c = Chip {
@@ -177,7 +179,7 @@ impl Chip {
         }
     }
     // Compare two chips
-    pub fn delta(&self, base: &Self) -> BTreeMap<String, Vec<(usize, usize, bool)>> {
+    pub fn delta(&self, base: &Self) -> ChipDelta {
         base.tiles
             .iter()
             .zip(self.tiles.iter())

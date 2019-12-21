@@ -73,7 +73,7 @@ impl fmt::Debug for ConfigBit {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-pub struct ConfigArcData {
+pub struct ConfigPipData {
     pub from_wire: String,
     pub bits: BTreeSet<ConfigBit>,
 }
@@ -97,7 +97,7 @@ pub struct FixedConnectionData {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct TileBitsDatabase {
-    pub arcs: BTreeMap<String, Vec<ConfigArcData>>,
+    pub pips: BTreeMap<String, Vec<ConfigPipData>>,
     pub words: BTreeMap<String, ConfigWordData>,
     pub enums: BTreeMap<String, ConfigEnumData>,
     pub conns: BTreeMap<String, Vec<FixedConnectionData>>,
@@ -117,11 +117,11 @@ impl TileBitsData {
             dirty: false,
         }
     }
-    pub fn add_arc(&mut self, from: &str, to: &str, bits: BTreeSet<ConfigBit>) {
-        if !self.db.arcs.contains_key(to) {
-            self.db.arcs.insert(to.to_string(), Vec::new());
+    pub fn add_pip(&mut self, from: &str, to: &str, bits: BTreeSet<ConfigBit>) {
+        if !self.db.pips.contains_key(to) {
+            self.db.pips.insert(to.to_string(), Vec::new());
         }
-        let ac = self.db.arcs.get_mut(to).unwrap();
+        let ac = self.db.pips.get_mut(to).unwrap();
         for ad in ac.iter() {
             if ad.from_wire == from {
                 if bits != ad.bits {
@@ -134,10 +134,24 @@ impl TileBitsData {
             }
         }
         self.dirty = true;
-        ac.push(ConfigArcData {
+        ac.push(ConfigPipData {
             from_wire: from.to_string(),
             bits: bits.clone(),
         });
+    }
+    pub fn add_conn(&mut self, from: &str, to: &str) {
+        if !self.db.conns.contains_key(to) {
+            self.db.conns.insert(to.to_string(), Vec::new());
+        }
+        let pc = self.db.conns.get_mut(to).unwrap();
+        if pc.iter().any(|fc| fc.from_wire == from) {
+            // Connection already exists
+        } else {
+            self.dirty = true;
+            pc.push(FixedConnectionData {
+                from_wire: from.to_string(),
+            });
+        }
     }
 }
 

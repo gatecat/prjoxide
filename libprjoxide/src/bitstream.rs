@@ -1,6 +1,9 @@
 use crate::chip::*;
 use crate::database::*;
 
+use std::fs::File;
+use std::io::Read;
+
 pub struct BitstreamParser {
     data: Vec<u8>,
     index: usize,
@@ -46,6 +49,17 @@ impl BitstreamParser {
             verbose: false,
         }
     }
+
+    pub fn parse_file(db: &mut Database, filename: &str) -> Result<Chip, &'static str> {
+        let mut f = File::open(filename).map_err(|_x| "failed to open file")?;
+        let mut buffer = Vec::new();
+        // read the whole file
+        f.read_to_end(&mut buffer)
+            .map_err(|_x| "failed to read file")?;
+        let mut parser = BitstreamParser::new(&buffer);
+        parser.parse(db)
+    }
+
     // Add a single byte to the running CRC16 accumulator
     fn update_crc16(&mut self, val: u8) {
         let mut bit_flag = 0;

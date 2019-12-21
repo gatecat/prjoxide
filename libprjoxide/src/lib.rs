@@ -7,6 +7,7 @@ use std::io::*;
 mod bitstream;
 mod chip;
 pub mod database;
+pub mod fuzz;
 
 #[pyclass]
 struct Database {
