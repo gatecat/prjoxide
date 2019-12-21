@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub enum FuzzMode {
     Pip {
         to_wire: String,
-        full_mux: bool, // if true, explicit 0s instead of empty will be created for unset bits for a setting
+        full_mux: bool, // if true, explicit 0s instead of base will be created for unset bits for a setting
         skip_fixed: bool, // if true, skip pips that have no bits associated with them (rather than created fixed conns)
         fixed_conn_tile: String,
     },
@@ -16,7 +16,7 @@ pub enum FuzzMode {
     },
     Enum {
         name: String,
-        include_zeros: bool, // if true, explicit 0s instead of empty will be created for unset bits for a setting
+        include_zeros: bool, // if true, explicit 0s instead of base will be created for unset bits for a setting
         disambiguate: bool,  // add explicit 0s to disambiguate settings only
     },
 }
@@ -24,21 +24,21 @@ pub enum FuzzMode {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 enum FuzzKey {
     PipKey { from_wire: String },
-    WordKey { bit: Option<usize> },
+    WordKey { bit: usize },
     EnumKey { option: String },
 }
 
 pub struct Fuzzer<'a> {
     mode: FuzzMode,
     tiles: BTreeSet<String>,
-    empty: &'a Chip,                      // bitstream with nothing set
+    base: &'a Chip,                       // bitstream with nothing set
     deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs and words
     tilebits: BTreeMap<FuzzKey, Vec<BTreeMap<String, BitMatrix>>>, // used for enums
 }
 
 impl Fuzzer<'_> {
     pub fn init_pip_fuzzer<'a>(
-        empty_bit: &'a Chip,
+        base_bit: &'a Chip,
         fuzz_tiles: &BTreeSet<String>,
         to_wire: &str,
         fixed_conn_tile: &str,
@@ -53,20 +53,56 @@ impl Fuzzer<'_> {
                 fixed_conn_tile: fixed_conn_tile.to_string(),
             },
             tiles: fuzz_tiles.clone(),
-            empty: empty_bit,
+            base: base_bit,
             deltas: BTreeMap::new(),
             tilebits: BTreeMap::new(),
         }
     }
-    pub fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, bitfile: &str) {
+    pub fn init_word_fuzzer<'a>(
+        db: &mut Database,
+        base_bit: &'a Chip,
+        fuzz_tiles: &BTreeSet<String>,
+        name: &str,
+        width: usize,
+        zero_bitfile: &str,
+    ) -> Fuzzer<'a> {
+        Fuzzer {
+            mode: FuzzMode::Word {
+                name: name.to_string(),
+                width: width,
+            },
+            tiles: fuzz_tiles.clone(),
+            base: base_bit,
+            deltas: BTreeMap::new(),
+            tilebits: BTreeMap::new(),
+        }
+    }
+    fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
         let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
-        let delta = parsed_bitstream.delta(self.empty);
-        let key = FuzzKey::PipKey {
-            from_wire: from_wire.to_string(),
-        };
+        let delta = parsed_bitstream.delta(self.base);
         self.deltas.insert(key, delta);
     }
+    pub fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, bitfile: &str) {
+        self.add_sample(
+            db,
+            FuzzKey::PipKey {
+                from_wire: from_wire.to_string(),
+            },
+            bitfile,
+        );
+    }
+    pub fn add_word_sample(&mut self, db: &mut Database, index: usize, bitfile: &str) {
+        self.add_sample(db, FuzzKey::WordKey { bit: index }, bitfile);
+    }
     pub fn solve(&mut self, db: &mut Database) {
+        // Get a set of tiles that have been changed
+        let changed_tiles: BTreeSet<String> = self
+            .deltas
+            .iter()
+            .flat_map(|(_k, v)| v.keys())
+            .filter(|t| self.tiles.contains(*t))
+            .map(String::to_string)
+            .collect();
         match &self.mode {
             FuzzMode::Pip {
                 to_wire,
@@ -74,14 +110,6 @@ impl Fuzzer<'_> {
                 skip_fixed,
                 fixed_conn_tile,
             } => {
-                // Get a set of tiles that have been changed
-                let changed_tiles: BTreeSet<String> = self
-                    .deltas
-                    .iter()
-                    .flat_map(|(_k, v)| v.keys())
-                    .filter(|t| self.tiles.contains(*t))
-                    .map(String::to_string)
-                    .collect();
                 // In full mux mode; we need the coverage sets of the changes
                 let mut coverage: BTreeMap<String, BTreeSet<(usize, usize)>> = BTreeMap::new();
                 if *full_mux {
@@ -109,8 +137,8 @@ impl Fuzzer<'_> {
                             if *skip_fixed {
                                 continue;
                             }
-                            let db_tile = self.empty.tile_by_name(fixed_conn_tile).unwrap();
-                            let tile_db = db.tile_bitdb(&self.empty.family, &db_tile.tiletype);
+                            let db_tile = self.base.tile_by_name(fixed_conn_tile).unwrap();
+                            let tile_db = db.tile_bitdb(&self.base.family, &db_tile.tiletype);
                             tile_db.add_conn(&from_wire, to_wire);
                         } else {
                             for tile in changed_tiles.iter() {
@@ -134,7 +162,7 @@ impl Fuzzer<'_> {
                                         })
                                         .collect()
                                 } else {
-                                    // Get the changed bits in this tile as ConfigBits; or the empty set if the tile didn't change
+                                    // Get the changed bits in this tile as ConfigBits; or the base set if the tile didn't change
                                     value
                                         .get(tile)
                                         .iter()
@@ -148,16 +176,43 @@ impl Fuzzer<'_> {
                                         .collect()
                                 };
                                 // Add the pip to the tile data
-                                let tile_data = self.empty.tile_by_name(tile).unwrap();
-                                let tile_db =
-                                    db.tile_bitdb(&self.empty.family, &tile_data.tiletype);
+                                let tile_data = self.base.tile_by_name(tile).unwrap();
+                                let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
                                 tile_db.add_pip(&from_wire, to_wire, bits);
                             }
                         }
                     }
                 }
             }
-            FuzzMode::Word { name, width } => {}
+            FuzzMode::Word { name, width } => {
+                for tile in changed_tiles.iter() {
+                    let mut cbits = Vec::new();
+                    for i in 0..*width {
+                        let key = FuzzKey::WordKey { bit: i };
+                        let b = match self.deltas.get(&key) {
+                            None => BTreeSet::new(),
+                            Some(delta) => match delta.get(tile) {
+                                None => BTreeSet::new(),
+                                Some(td) => td
+                                    .iter()
+                                    .map(|(f, b, v)| ConfigBit {
+                                        frame: *f,
+                                        bit: *b,
+                                        invert: !(*v),
+                                    })
+                                    .collect(),
+                            },
+                        };
+                        cbits.push(b);
+                    }
+                    // FIXME: get default value
+                    let defval = vec![false; *width];
+                    // Add the word to the tile data
+                    let tile_data = self.base.tile_by_name(tile).unwrap();
+                    let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
+                    tile_db.add_word(&name, defval, cbits);
+                }
+            }
             FuzzMode::Enum {
                 name,
                 include_zeros,

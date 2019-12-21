@@ -139,6 +139,39 @@ impl TileBitsData {
             bits: bits.clone(),
         });
     }
+    pub fn add_word(&mut self, name: &str, defval: Vec<bool>, bits: Vec<BTreeSet<ConfigBit>>) {
+        self.dirty = true;
+        match self.db.words.get(name) {
+            None => {
+                self.db.words.insert(
+                    name.to_string(),
+                    ConfigWordData {
+                        defval: defval,
+                        bits: bits.clone(),
+                    },
+                );
+            }
+            Some(word) => {
+                if bits.len() != word.bits.len() {
+                    panic!(
+                        "Width conflict {}.{} existing: {:?} new: {:?}",
+                        self.tiletype,
+                        name,
+                        word.bits.len(),
+                        bits.len()
+                    );
+                }
+                for (bit, (e, n)) in word.bits.iter().zip(bits.iter()).enumerate() {
+                    if e != n {
+                        panic!(
+                            "Bit conflict for {}.{}[{}] existing: {:?} new: {:?}",
+                            self.tiletype, name, bit, e, n
+                        );
+                    }
+                }
+            }
+        }
+    }
     pub fn add_conn(&mut self, from: &str, to: &str) {
         if !self.db.conns.contains_key(to) {
             self.db.conns.insert(to.to_string(), Vec::new());
@@ -234,7 +267,9 @@ impl Database {
     }
     // Flush tile bit database changes to disk
     pub fn flush(&mut self) {
-        for ((family, tiletype), tilebits) in self.tilebits.iter_mut() {
+        for kv in self.tilebits.iter_mut() {
+            let (family, tiletype) = kv.0;
+            let tilebits = kv.1;
             if !tilebits.dirty {
                 continue;
             }
