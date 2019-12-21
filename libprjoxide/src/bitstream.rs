@@ -57,7 +57,9 @@ impl BitstreamParser {
         f.read_to_end(&mut buffer)
             .map_err(|_x| "failed to read file")?;
         let mut parser = BitstreamParser::new(&buffer);
-        parser.parse(db)
+        let mut c = parser.parse(db)?;
+        c.cram_to_tiles();
+        Ok(c)
     }
 
     // Add a single byte to the running CRC16 accumulator

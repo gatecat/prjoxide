@@ -211,7 +211,6 @@ impl Fuzzer {
                     let tile_data = self.base.tile_by_name(tile).unwrap();
                     let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
                     tile_db.add_word(&name, defval, cbits);
-                    print!("add word {} to tile {}", name, tile);
                 }
             }
             FuzzMode::Enum {
