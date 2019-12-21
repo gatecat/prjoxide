@@ -1,3 +1,4 @@
+use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
@@ -252,14 +253,14 @@ impl Database {
         let key = (family.to_string(), tiletype.to_string());
         if !self.tilebits.contains_key(&key) {
             // read the whole file
-            let filename = format!("{}/{}/tiletypes/{}.json", self.root, family, tiletype);
+            let filename = format!("{}/{}/tiletypes/{}.ron", self.root, family, tiletype);
             let tb = if Path::new(&filename).exists() {
-                let mut tt_json_buf = String::new();
+                let mut tt_ron_buf = String::new();
                 File::open(filename)
                     .unwrap()
-                    .read_to_string(&mut tt_json_buf)
+                    .read_to_string(&mut tt_ron_buf)
                     .unwrap();
-                serde_json::from_str(&tt_json_buf).unwrap()
+                ron::de::from_str(&tt_ron_buf).unwrap()
             } else {
                 TileBitsDatabase {
                     pips: BTreeMap::new(),
@@ -281,13 +282,20 @@ impl Database {
             if !tilebits.dirty {
                 continue;
             }
-            let tt_json_buf = serde_json::to_vec(&tilebits.db).unwrap();
+            let pretty = PrettyConfig {
+                depth_limit: 5,
+                new_line: "\n".to_string(),
+                indentor: "  ".to_string(),
+                enumerate_arrays: false,
+                separate_tuple_members: false,
+            };
+            let tt_ron_buf = ron::ser::to_string_pretty(&tilebits.db, pretty).unwrap();
             File::create(format!(
-                "{}/{}/tiletypes/{}.json",
+                "{}/{}/tiletypes/{}.ron",
                 self.root, family, tiletype
             ))
             .unwrap()
-            .write_all(&tt_json_buf)
+            .write_all(tt_ron_buf.as_bytes())
             .unwrap();
             tilebits.dirty = false;
         }
