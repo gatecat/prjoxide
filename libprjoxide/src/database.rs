@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
 // Deserialization of 'devices.json'
 
 #[derive(Deserialize)]
@@ -250,16 +251,23 @@ impl Database {
     pub fn tile_bitdb(&mut self, family: &str, tiletype: &str) -> &mut TileBitsData {
         let key = (family.to_string(), tiletype.to_string());
         if !self.tilebits.contains_key(&key) {
-            let mut tt_json_buf = String::new();
             // read the whole file
-            File::open(format!(
-                "{}/{}/tiletypes/{}.json",
-                self.root, family, tiletype
-            ))
-            .unwrap()
-            .read_to_string(&mut tt_json_buf)
-            .unwrap();
-            let tb = serde_json::from_str(&tt_json_buf).unwrap();
+            let filename = format!("{}/{}/tiletypes/{}.json", self.root, family, tiletype);
+            let tb = if Path::new(&filename).exists() {
+                let mut tt_json_buf = String::new();
+                File::open(filename)
+                    .unwrap()
+                    .read_to_string(&mut tt_json_buf)
+                    .unwrap();
+                serde_json::from_str(&tt_json_buf).unwrap()
+            } else {
+                TileBitsDatabase {
+                    pips: BTreeMap::new(),
+                    words: BTreeMap::new(),
+                    enums: BTreeMap::new(),
+                    conns: BTreeMap::new(),
+                }
+            };
             self.tilebits
                 .insert(key.clone(), TileBitsData::new(tiletype.clone(), tb));
         }

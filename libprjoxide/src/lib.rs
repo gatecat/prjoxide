@@ -1,4 +1,5 @@
 use pyo3::prelude::*;
+use pyo3::types::PySet;
 use pyo3::wrap_pyfunction;
 
 use std::fs::File;
@@ -23,6 +24,49 @@ impl Database {
                 db: database::Database::new(root),
             }
         });
+    }
+}
+
+#[pyclass]
+struct Fuzzer {
+    fz: fuzz::Fuzzer,
+}
+
+#[pymethods]
+impl Fuzzer {
+    #[staticmethod]
+    pub fn word_fuzzer(
+        db: &mut Database,
+        base_bitfile: &str,
+        fuzz_tiles: &PySet,
+        name: &str,
+        width: usize,
+        zero_bitfile: &str,
+    ) -> Fuzzer {
+        let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
+
+        Fuzzer {
+            fz: fuzz::Fuzzer::init_word_fuzzer(
+                &mut db.db,
+                &base_chip,
+                &fuzz_tiles
+                    .iter()
+                    .unwrap()
+                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .collect(),
+                name,
+                width,
+                zero_bitfile,
+            ),
+        }
+    }
+
+    fn add_word_sample(&mut self, db: &mut Database, index: usize, base_bitfile: &str) {
+        self.fz.add_word_sample(&mut db.db, index, base_bitfile);
+    }
+
+    fn solve(&mut self, db: &mut Database) {
+        self.fz.solve(&mut db.db);
     }
 }
 
@@ -51,5 +95,6 @@ fn parse_bitstream(d: &mut Database, file: &str) -> PyResult<()> {
 fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_class::<Database>()?;
+    m.add_class::<Fuzzer>()?;
     Ok(())
 }

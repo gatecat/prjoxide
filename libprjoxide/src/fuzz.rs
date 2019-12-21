@@ -28,23 +28,23 @@ enum FuzzKey {
     EnumKey { option: String },
 }
 
-pub struct Fuzzer<'a> {
+pub struct Fuzzer {
     mode: FuzzMode,
     tiles: BTreeSet<String>,
-    base: &'a Chip,                       // bitstream with nothing set
+    base: Chip,                           // bitstream with nothing set
     deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs and words
     tilebits: BTreeMap<FuzzKey, Vec<BTreeMap<String, BitMatrix>>>, // used for enums
 }
 
-impl Fuzzer<'_> {
-    pub fn init_pip_fuzzer<'a>(
-        base_bit: &'a Chip,
+impl Fuzzer {
+    pub fn init_pip_fuzzer(
+        base_bit: &Chip,
         fuzz_tiles: &BTreeSet<String>,
         to_wire: &str,
         fixed_conn_tile: &str,
         full_mux: bool,
         skip_fixed: bool,
-    ) -> Fuzzer<'a> {
+    ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Pip {
                 to_wire: to_wire.to_string(),
@@ -53,33 +53,33 @@ impl Fuzzer<'_> {
                 fixed_conn_tile: fixed_conn_tile.to_string(),
             },
             tiles: fuzz_tiles.clone(),
-            base: base_bit,
+            base: base_bit.clone(),
             deltas: BTreeMap::new(),
             tilebits: BTreeMap::new(),
         }
     }
-    pub fn init_word_fuzzer<'a>(
+    pub fn init_word_fuzzer(
         db: &mut Database,
-        base_bit: &'a Chip,
+        base_bit: &Chip,
         fuzz_tiles: &BTreeSet<String>,
         name: &str,
         width: usize,
         zero_bitfile: &str,
-    ) -> Fuzzer<'a> {
+    ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Word {
                 name: name.to_string(),
                 width: width,
             },
             tiles: fuzz_tiles.clone(),
-            base: base_bit,
+            base: base_bit.clone(),
             deltas: BTreeMap::new(),
             tilebits: BTreeMap::new(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
         let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
-        let delta = parsed_bitstream.delta(self.base);
+        let delta = parsed_bitstream.delta(&self.base);
         self.deltas.insert(key, delta);
     }
     pub fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, bitfile: &str) {
@@ -211,6 +211,7 @@ impl Fuzzer<'_> {
                     let tile_data = self.base.tile_by_name(tile).unwrap();
                     let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
                     tile_db.add_word(&name, defval, cbits);
+                    print!("add word {} to tile {}", name, tile);
                 }
             }
             FuzzMode::Enum {

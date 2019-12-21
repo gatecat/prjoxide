@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 
 // 2D bit array
+#[derive(Clone)]
 pub struct BitMatrix {
     pub frames: usize,
     pub bits: usize,
@@ -76,6 +77,7 @@ impl BitMatrix {
     }
 }
 
+#[derive(Clone)]
 pub struct Chip {
     // Family name
     pub family: String,
@@ -216,6 +218,7 @@ impl Chip {
 }
 
 // Actual instance of a tile
+#[derive(Clone)]
 pub struct Tile {
     pub name: String,
     pub tiletype: String,
