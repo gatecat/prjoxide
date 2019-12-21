@@ -232,4 +232,21 @@ impl Database {
         }
         self.tilebits.get_mut(&key).unwrap()
     }
+    // Flush tile bit database changes to disk
+    pub fn flush(&mut self) {
+        for ((family, tiletype), tilebits) in self.tilebits.iter_mut() {
+            if !tilebits.dirty {
+                continue;
+            }
+            let tt_json_buf = serde_json::to_vec(&tilebits.db).unwrap();
+            File::create(format!(
+                "{}/{}/tiletypes/{}.json",
+                self.root, family, tiletype
+            ))
+            .unwrap()
+            .write_all(&tt_json_buf)
+            .unwrap();
+            tilebits.dirty = false;
+        }
+    }
 }

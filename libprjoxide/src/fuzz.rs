@@ -74,6 +74,14 @@ impl Fuzzer<'_> {
                 skip_fixed,
                 fixed_conn_tile,
             } => {
+                // Get a set of tiles that have been changed
+                let changed_tiles: BTreeSet<String> = self
+                    .deltas
+                    .iter()
+                    .flat_map(|(_k, v)| v.keys())
+                    .filter(|t| self.tiles.contains(*t))
+                    .map(String::to_string)
+                    .collect();
                 // In full mux mode; we need the coverage sets of the changes
                 let mut coverage: BTreeMap<String, BTreeSet<(usize, usize)>> = BTreeMap::new();
                 if *full_mux {
@@ -96,8 +104,8 @@ impl Fuzzer<'_> {
                             // If this pip affects tiles outside of the fuzz region, skip it
                             continue;
                         }
-                        if value.len() == 0 && (!(*full_mux) || self.deltas.len() == 1) {
-                            // Value has no changes; it is a fixed connection
+                        if changed_tiles.len() == 0 {
+                            // No changes; it is a fixed connection
                             if *skip_fixed {
                                 continue;
                             }
@@ -105,14 +113,45 @@ impl Fuzzer<'_> {
                             let tile_db = db.tile_bitdb(&self.empty.family, &db_tile.tiletype);
                             tile_db.add_conn(&from_wire, to_wire);
                         } else {
-                            for tile in self.tiles.iter() {
+                            for tile in changed_tiles.iter() {
                                 if !(*full_mux) && !value.contains_key(tile) {
                                     continue;
                                 }
                                 // Get the set of bits for this config
-                                let bits = if *full_mux {
+                                let bits: BTreeSet<ConfigBit> = if *full_mux {
+                                    // In full mux mode, we add a value for all bits even if they didn't change
+                                    let value_bits = value.get(tile);
+                                    coverage
+                                        .get(tile)
+                                        .unwrap()
+                                        .iter()
+                                        .map(|(f, b)| ConfigBit {
+                                            frame: *f,
+                                            bit: *b,
+                                            invert: value_bits
+                                                .iter()
+                                                .any(|x| x.contains(&(*f, *b, true))),
+                                        })
+                                        .collect()
                                 } else {
+                                    // Get the changed bits in this tile as ConfigBits; or the empty set if the tile didn't change
+                                    value
+                                        .get(tile)
+                                        .iter()
+                                        .map(|x| *x)
+                                        .flatten()
+                                        .map(|(f, b, v)| ConfigBit {
+                                            frame: *f,
+                                            bit: *b,
+                                            invert: !(*v),
+                                        })
+                                        .collect()
                                 };
+                                // Add the pip to the tile data
+                                let tile_data = self.empty.tile_by_name(tile).unwrap();
+                                let tile_db =
+                                    db.tile_bitdb(&self.empty.family, &tile_data.tiletype);
+                                tile_db.add_pip(&from_wire, to_wire, bits);
                             }
                         }
                     }
@@ -125,5 +164,6 @@ impl Fuzzer<'_> {
                 disambiguate,
             } => {}
         }
+        db.flush();
     }
 }
