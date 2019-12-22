@@ -82,14 +82,12 @@ pub struct ConfigPipData {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ConfigWordData {
-    pub defval: Vec<bool>,
     pub bits: Vec<BTreeSet<ConfigBit>>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ConfigEnumData {
-    pub defval: String,
-    pub bits: BTreeMap<String, BTreeSet<ConfigBit>>,
+    pub options: BTreeMap<String, BTreeSet<ConfigBit>>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -141,17 +139,13 @@ impl TileBitsData {
             bits: bits.clone(),
         });
     }
-    pub fn add_word(&mut self, name: &str, defval: Vec<bool>, bits: Vec<BTreeSet<ConfigBit>>) {
+    pub fn add_word(&mut self, name: &str, bits: Vec<BTreeSet<ConfigBit>>) {
         self.dirty = true;
         match self.db.words.get(name) {
             None => {
-                self.db.words.insert(
-                    name.to_string(),
-                    ConfigWordData {
-                        defval: defval,
-                        bits: bits.clone(),
-                    },
-                );
+                self.db
+                    .words
+                    .insert(name.to_string(), ConfigWordData { bits: bits.clone() });
             }
             Some(word) => {
                 if bits.len() != word.bits.len() {
@@ -171,6 +165,31 @@ impl TileBitsData {
                         );
                     }
                 }
+            }
+        }
+    }
+    pub fn add_enum_option(&mut self, name: &str, option: &str, bits: BTreeSet<ConfigBit>) {
+        if !self.db.enums.contains_key(name) {
+            self.db.enums.insert(
+                name.to_string(),
+                ConfigEnumData {
+                    options: BTreeMap::new(),
+                },
+            );
+        }
+        let ec = self.db.enums.get_mut(name).unwrap();
+        match ec.options.get(option) {
+            Some(old_bits) => {
+                if bits != *old_bits {
+                    panic!(
+                        "Bit conflict for {}.{}={} existing: {:?} new: {:?}",
+                        self.tiletype, name, option, old_bits, bits
+                    );
+                }
+            }
+            None => {
+                ec.options.insert(option.to_string(), bits);
+                self.dirty = true;
             }
         }
     }

@@ -1,7 +1,9 @@
 use crate::bitstream::*;
 use crate::chip::*;
 use crate::database::*;
+use crate::wires;
 use std::collections::{BTreeMap, BTreeSet};
+use std::iter::FromIterator;
 
 pub enum FuzzMode {
     Pip {
@@ -139,7 +141,10 @@ impl Fuzzer {
                             }
                             let db_tile = self.base.tile_by_name(fixed_conn_tile).unwrap();
                             let tile_db = db.tile_bitdb(&self.base.family, &db_tile.tiletype);
-                            tile_db.add_conn(&from_wire, to_wire);
+                            tile_db.add_conn(
+                                &wires::normalize_wire(&self.base, db_tile, from_wire),
+                                &wires::normalize_wire(&self.base, db_tile, to_wire),
+                            );
                         } else {
                             for tile in changed_tiles.iter() {
                                 if !(*full_mux) && !value.contains_key(tile) {
@@ -178,7 +183,11 @@ impl Fuzzer {
                                 // Add the pip to the tile data
                                 let tile_data = self.base.tile_by_name(tile).unwrap();
                                 let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                                tile_db.add_pip(&from_wire, to_wire, bits);
+                                tile_db.add_pip(
+                                    &wires::normalize_wire(&self.base, tile_data, from_wire),
+                                    &wires::normalize_wire(&self.base, tile_data, to_wire),
+                                    bits,
+                                );
                             }
                         }
                     }
@@ -205,19 +214,65 @@ impl Fuzzer {
                         };
                         cbits.push(b);
                     }
-                    // FIXME: get default value
-                    let defval = vec![false; *width];
                     // Add the word to the tile data
                     let tile_data = self.base.tile_by_name(tile).unwrap();
                     let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                    tile_db.add_word(&name, defval, cbits);
+                    tile_db.add_word(&name, cbits);
                 }
             }
             FuzzMode::Enum {
                 name,
                 include_zeros,
-                disambiguate,
-            } => {}
+                disambiguate: _,
+            } => {
+                if self.deltas.len() < 2 {
+                    return;
+                }
+                for tile in changed_tiles {
+                    let mut bit_sets = self
+                        .deltas
+                        .values()
+                        .filter_map(|v| v.get(&tile))
+                        .map(|v| BTreeSet::from_iter(v.iter().map(|(f, b, v)| (*f, *b, *v))));
+                    let all_changed_bits: BTreeSet<(usize, usize, bool)> = self
+                        .deltas
+                        .values()
+                        .filter_map(|v| v.get(&tile))
+                        .flatten()
+                        .map(|&x| x)
+                        .collect();
+                    match bit_sets.next() {
+                        None => continue, // no changes in this tile
+                        Some(set0) => {
+                            let unchanged_bits = bit_sets.fold(set0, |set1, set2| &set1 & &set2);
+                            let changed_bits: BTreeSet<(usize, usize, bool)> = all_changed_bits
+                                .difference(&unchanged_bits)
+                                .map(|&x| x)
+                                .collect();
+                            for (option, delta) in self.deltas.iter() {
+                                let b = match delta.get(&tile) {
+                                    None => BTreeSet::new(),
+                                    Some(td) => changed_bits
+                                        .iter()
+                                        .filter(|(f, b, v)| {
+                                            *include_zeros || *v || td.contains(&(*f, *b, *v))
+                                        })
+                                        .map(|(f, b, v)| ConfigBit {
+                                            frame: *f,
+                                            bit: *b,
+                                            invert: if td.contains(&(*f, *b, *v)) {
+                                                !(*v)
+                                            } else {
+                                                *v
+                                            },
+                                        })
+                                        .collect(),
+                                };
+                            }
+                        }
+                    }
+                }
+            }
         }
         db.flush();
     }
