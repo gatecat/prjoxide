@@ -93,12 +93,40 @@ impl Fuzzer {
         }
     }
 
+    #[staticmethod]
+    pub fn enum_fuzzer(
+        db: &mut Database,
+        base_bitfile: &str,
+        fuzz_tiles: &PySet,
+        name: &str,
+        include_zeros: bool,
+    ) -> Fuzzer {
+        let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
+
+        Fuzzer {
+            fz: fuzz::Fuzzer::init_enum_fuzzer(
+                &base_chip,
+                &fuzz_tiles
+                    .iter()
+                    .unwrap()
+                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .collect(),
+                name,
+                include_zeros,
+            ),
+        }
+    }
+
     fn add_word_sample(&mut self, db: &mut Database, index: usize, base_bitfile: &str) {
         self.fz.add_word_sample(&mut db.db, index, base_bitfile);
     }
 
     fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, base_bitfile: &str) {
         self.fz.add_pip_sample(&mut db.db, from_wire, base_bitfile);
+    }
+
+    fn add_enum_sample(&mut self, db: &mut Database, option: &str, base_bitfile: &str) {
+        self.fz.add_enum_sample(&mut db.db, option, base_bitfile);
     }
 
     fn solve(&mut self, db: &mut Database) {

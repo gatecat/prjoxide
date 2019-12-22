@@ -34,8 +34,7 @@ pub struct Fuzzer {
     mode: FuzzMode,
     tiles: BTreeSet<String>,
     base: Chip,                           // bitstream with nothing set
-    deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs and words
-    tilebits: BTreeMap<FuzzKey, Vec<BTreeMap<String, BitMatrix>>>, // used for enums
+    deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs, words and enums
 }
 
 impl Fuzzer {
@@ -57,7 +56,6 @@ impl Fuzzer {
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
-            tilebits: BTreeMap::new(),
         }
     }
     pub fn init_word_fuzzer(
@@ -76,7 +74,23 @@ impl Fuzzer {
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
-            tilebits: BTreeMap::new(),
+        }
+    }
+    pub fn init_enum_fuzzer(
+        base_bit: &Chip,
+        fuzz_tiles: &BTreeSet<String>,
+        name: &str,
+        include_zeros: bool,
+    ) -> Fuzzer {
+        Fuzzer {
+            mode: FuzzMode::Enum {
+                name: name.to_string(),
+                include_zeros: include_zeros,
+                disambiguate: false, // fixme
+            },
+            tiles: fuzz_tiles.clone(),
+            base: base_bit.clone(),
+            deltas: BTreeMap::new(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
@@ -95,6 +109,15 @@ impl Fuzzer {
     }
     pub fn add_word_sample(&mut self, db: &mut Database, index: usize, bitfile: &str) {
         self.add_sample(db, FuzzKey::WordKey { bit: index }, bitfile);
+    }
+    pub fn add_enum_sample(&mut self, db: &mut Database, option: &str, bitfile: &str) {
+        self.add_sample(
+            db,
+            FuzzKey::EnumKey {
+                option: option.to_string(),
+            },
+            bitfile,
+        );
     }
     pub fn solve(&mut self, db: &mut Database) {
         // Get a set of tiles that have been changed
@@ -229,11 +252,10 @@ impl Fuzzer {
                     return;
                 }
                 for tile in changed_tiles {
-                    let mut bit_sets = self
-                        .deltas
-                        .values()
-                        .filter_map(|v| v.get(&tile))
-                        .map(|v| BTreeSet::from_iter(v.iter().map(|(f, b, v)| (*f, *b, *v))));
+                    let mut bit_sets = self.deltas.values().map(|v| match v.get(&tile) {
+                        Some(td) => BTreeSet::from_iter(td.iter().map(|(f, b, v)| (*f, *b, *v))),
+                        None => BTreeSet::new(),
+                    });
                     let all_changed_bits: BTreeSet<(usize, usize, bool)> = self
                         .deltas
                         .values()
@@ -249,25 +271,46 @@ impl Fuzzer {
                                 .difference(&unchanged_bits)
                                 .map(|&x| x)
                                 .collect();
-                            for (option, delta) in self.deltas.iter() {
-                                let b = match delta.get(&tile) {
-                                    None => BTreeSet::new(),
-                                    Some(td) => changed_bits
-                                        .iter()
-                                        .filter(|(f, b, v)| {
-                                            *include_zeros || *v || td.contains(&(*f, *b, *v))
-                                        })
-                                        .map(|(f, b, v)| ConfigBit {
-                                            frame: *f,
-                                            bit: *b,
-                                            invert: if td.contains(&(*f, *b, *v)) {
-                                                !(*v)
+                            for (key, delta) in self.deltas.iter() {
+                                if let FuzzKey::EnumKey { option } = key {
+                                    let b = match delta.get(&tile) {
+                                        None => {
+                                            if *include_zeros {
+                                                // All bits as default
+                                                changed_bits
+                                                    .iter()
+                                                    .map(|(f, b, v)| ConfigBit {
+                                                        frame: *f,
+                                                        bit: *b,
+                                                        invert: *v,
+                                                    })
+                                                    .collect()
                                             } else {
-                                                *v
-                                            },
-                                        })
-                                        .collect(),
-                                };
+                                                BTreeSet::new()
+                                            }
+                                        }
+                                        Some(td) => changed_bits
+                                            .iter()
+                                            .filter(|(f, b, v)| {
+                                                *include_zeros || *v || td.contains(&(*f, *b, *v))
+                                            })
+                                            .map(|(f, b, v)| ConfigBit {
+                                                frame: *f,
+                                                bit: *b,
+                                                invert: if td.contains(&(*f, *b, *v)) {
+                                                    !(*v)
+                                                } else {
+                                                    *v
+                                                },
+                                            })
+                                            .collect(),
+                                    };
+                                    // Add the enum to the tile data
+                                    let tile_data = self.base.tile_by_name(&tile).unwrap();
+                                    let tile_db =
+                                        db.tile_bitdb(&self.base.family, &tile_data.tiletype);
+                                    tile_db.add_enum_option(name, &option, b);
+                                }
                             }
                         }
                     }
