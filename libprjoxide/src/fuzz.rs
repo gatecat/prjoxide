@@ -170,17 +170,15 @@ impl Fuzzer {
                             );
                         } else {
                             for tile in changed_tiles.iter() {
-                                if !(*full_mux) && !value.contains_key(tile) {
-                                    continue;
-                                }
                                 // Get the set of bits for this config
                                 let bits: BTreeSet<ConfigBit> = if *full_mux {
                                     // In full mux mode, we add a value for all bits even if they didn't change
                                     let value_bits = value.get(tile);
                                     coverage
                                         .get(tile)
-                                        .unwrap()
                                         .iter()
+                                        .map(|&x| x)
+                                        .flatten()
                                         .map(|(f, b)| ConfigBit {
                                             frame: *f,
                                             bit: *b,
@@ -194,7 +192,7 @@ impl Fuzzer {
                                     value
                                         .get(tile)
                                         .iter()
-                                        .map(|x| *x)
+                                        .map(|&x| x)
                                         .flatten()
                                         .map(|(f, b, v)| ConfigBit {
                                             frame: *f,
@@ -292,7 +290,9 @@ impl Fuzzer {
                                         Some(td) => changed_bits
                                             .iter()
                                             .filter(|(f, b, v)| {
-                                                *include_zeros || *v || td.contains(&(*f, *b, *v))
+                                                *include_zeros
+                                                    || !(*v)
+                                                    || td.contains(&(*f, *b, *v))
                                             })
                                             .map(|(f, b, v)| ConfigBit {
                                                 frame: *f,
