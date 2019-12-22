@@ -5,10 +5,14 @@ use pyo3::wrap_pyfunction;
 use std::fs::File;
 use std::io::*;
 
+#[macro_use]
+extern crate lazy_static;
+
 mod bitstream;
 mod chip;
 pub mod database;
 pub mod fuzz;
+mod wires;
 
 #[pyclass]
 struct Database {
