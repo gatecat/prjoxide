@@ -139,7 +139,12 @@ impl Chip {
         ));
         Chip::new(&fam, &device, &data, db.device_tilegrid(&fam, &device))
     }
-
+    pub fn from_name(db: &mut Database, name: &str) -> Chip {
+        let (fam, device, data) = db
+            .device_by_name(name)
+            .expect(&format!("no device in database with name {}\n", name));
+        Chip::new(&fam, &device, &data, db.device_tilegrid(&fam, &device))
+    }
     // Copy the whole-chip CRAM to the per-tile CRAM
     pub fn cram_to_tiles(&mut self) {
         for t in self.tiles.iter_mut() {

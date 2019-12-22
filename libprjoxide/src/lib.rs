@@ -106,6 +106,27 @@ impl Fuzzer {
     }
 }
 
+#[pyclass]
+struct Chip {
+    c: chip::Chip,
+}
+
+#[pymethods]
+impl Chip {
+    #[new]
+    pub fn __new__(obj: &PyRawObject, db: &mut Database, name: &str) {
+        obj.init({
+            Chip {
+                c: chip::Chip::from_name(&mut db.db, name),
+            }
+        });
+    }
+
+    fn normalize_wire(&mut self, tile: &str, wire: &str) -> String {
+        wires::normalize_wire(&self.c, self.c.tile_by_name(tile).unwrap(), wire)
+    }
+}
+
 #[pyfunction]
 fn parse_bitstream(d: &mut Database, file: &str) -> PyResult<()> {
     let mut f = File::open(file)?;
@@ -132,5 +153,6 @@ fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
+    m.add_class::<Chip>()?;
     Ok(())
 }
