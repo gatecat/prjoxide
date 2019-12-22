@@ -61,8 +61,40 @@ impl Fuzzer {
         }
     }
 
+    #[staticmethod]
+    pub fn pip_fuzzer(
+        db: &mut Database,
+        base_bitfile: &str,
+        fuzz_tiles: &PySet,
+        to_wire: &str,
+        fixed_conn_tile: &str,
+        full_mux: bool,
+        skip_fixed: bool,
+    ) -> Fuzzer {
+        let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
+
+        Fuzzer {
+            fz: fuzz::Fuzzer::init_pip_fuzzer(
+                &base_chip,
+                &fuzz_tiles
+                    .iter()
+                    .unwrap()
+                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .collect(),
+                to_wire,
+                fixed_conn_tile,
+                full_mux,
+                skip_fixed,
+            ),
+        }
+    }
+
     fn add_word_sample(&mut self, db: &mut Database, index: usize, base_bitfile: &str) {
         self.fz.add_word_sample(&mut db.db, index, base_bitfile);
+    }
+
+    fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, base_bitfile: &str) {
+        self.fz.add_pip_sample(&mut db.db, from_wire, base_bitfile);
     }
 
     fn solve(&mut self, db: &mut Database) {
