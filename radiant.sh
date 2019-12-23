@@ -60,10 +60,10 @@ else
 
 	if [ -n "$GEN_RBF" ]; then
 	"$fpgabindir"/bitgen -b -d -w par.udb
-	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" output "par.rbt"
+	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" output "par.udb" "par.rbt"
 	else
 	"$fpgabindir"/bitgen -d -w par.udb
-	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" output "par.bit"
+	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" output "par.udb" "par.bit"
 	fi
 	export LD_LIBRARY_PATH=""
 fi

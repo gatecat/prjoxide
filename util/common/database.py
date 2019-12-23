@@ -7,7 +7,7 @@ import json
 import subprocess
 
 
-def get_trellis_root():
+def get_oxide_root():
     """Return the absolute path to the Project Oxide repo root"""
     return path.abspath(path.join(__file__, "../../../"))
 
@@ -21,7 +21,7 @@ def get_db_root():
     if "PROXIDE_DB" in os.environ and os.environ["PROXIDE_DB"] != "":
         return os.environ["PROXIDE_DB"]
     else:
-        return path.join(get_trellis_root(), "database")
+        return path.join(get_oxide_root(), "database")
 
 
 def get_db_subdir(family = None, device = None, package = None):
