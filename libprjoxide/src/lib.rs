@@ -73,6 +73,7 @@ impl Fuzzer {
         fuzz_tiles: &PySet,
         to_wire: &str,
         fixed_conn_tile: &str,
+        ignore_tiles: &PySet,
         full_mux: bool,
         skip_fixed: bool,
     ) -> Fuzzer {
@@ -88,6 +89,11 @@ impl Fuzzer {
                     .collect(),
                 to_wire,
                 fixed_conn_tile,
+                &ignore_tiles
+                    .iter()
+                    .unwrap()
+                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .collect(),
                 full_mux,
                 skip_fixed,
             ),

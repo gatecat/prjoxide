@@ -11,6 +11,7 @@ pub enum FuzzMode {
         full_mux: bool, // if true, explicit 0s instead of base will be created for unset bits for a setting
         skip_fixed: bool, // if true, skip pips that have no bits associated with them (rather than created fixed conns)
         fixed_conn_tile: String,
+        ignore_tiles: BTreeSet<String>, // changes in these tiles don't cause pips to be rejected
     },
     Word {
         name: String,
@@ -43,6 +44,7 @@ impl Fuzzer {
         fuzz_tiles: &BTreeSet<String>,
         to_wire: &str,
         fixed_conn_tile: &str,
+        ignore_tiles: &BTreeSet<String>,
         full_mux: bool,
         skip_fixed: bool,
     ) -> Fuzzer {
@@ -52,6 +54,7 @@ impl Fuzzer {
                 full_mux: full_mux,
                 skip_fixed: skip_fixed,
                 fixed_conn_tile: fixed_conn_tile.to_string(),
+                ignore_tiles: ignore_tiles.clone(),
             },
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
@@ -134,6 +137,7 @@ impl Fuzzer {
                 full_mux,
                 skip_fixed,
                 fixed_conn_tile,
+                ignore_tiles,
             } => {
                 // In full mux mode; we need the coverage sets of the changes
                 let mut coverage: BTreeMap<String, BTreeSet<(usize, usize)>> = BTreeMap::new();
@@ -153,7 +157,10 @@ impl Fuzzer {
 
                 for (key, value) in self.deltas.iter() {
                     if let FuzzKey::PipKey { from_wire } = key {
-                        if value.iter().any(|(k, _v)| !self.tiles.contains(k)) {
+                        if value
+                            .iter()
+                            .any(|(k, _v)| !self.tiles.contains(k) && !ignore_tiles.contains(k))
+                        {
                             // If this pip affects tiles outside of the fuzz region, skip it
                             continue;
                         }

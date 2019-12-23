@@ -17,7 +17,8 @@ def fuzz_interconnect(
         pip_predicate=lambda x, nets: True,
         bidir=False,
         nodename_filter_union=False,
-        full_mux_style=False
+        full_mux_style=False,
+        ignore_tiles=set()
     ):
     """
     Fuzz interconnect given a list of nodenames to analyse. Pips associated these nodenames will be found using the Tcl
@@ -68,7 +69,7 @@ def fuzz_interconnect(
         		sinks[to_wire] = []
         	sinks[to_wire].append(from_wire)
         for to_wire in sorted(sinks.keys()):
-        	fz = libprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], full_mux_style, False)
+        	fz = libprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], ignore_tiles, full_mux_style, False)
         	for from_wire in sinks[to_wire]:
         		arcs_attr = r', \dm:arcs ="{}.{}"'.format(to_wire, from_wire)
         		arc_bit = config.build_design(config.sv, {"arcs_attr": arcs_attr}, prefix)
