@@ -299,9 +299,112 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
             for bit in ttrow.iter() {
                 writeln!(html, "<td style=\"text-align: center\">{}</td>", bit).unwrap();
             }
-            writeln!(html, "</td>").unwrap();
+            writeln!(html, "</tr>").unwrap();
         }
         writeln!(html, "</table>").unwrap();
     }
+
+    // Write out words as HTML
+    for (word, data) in bitdb.words.iter() {
+        writeln!(
+            html,
+            "<h3 id='word_{w}'>Configuration word {w}</h3>",
+            w = word
+        )
+        .unwrap();
+        writeln!(html, "<table class='setword'>").unwrap();
+        for (i, bits) in data.bits.iter().enumerate() {
+            let style = match i % 2 {
+                0 => " bgcolor=\"#dddddd\"",
+                _ => "",
+            };
+            let cbits: Vec<String> = bits
+                .iter()
+                .map(|b| {
+                    format!(
+                        "{}F{}B{}",
+                        match b.invert {
+                            true => "!",
+                            false => "",
+                        },
+                        b.frame,
+                        b.bit
+                    )
+                })
+                .collect();
+            writeln!(html, "<tr {s}><td style=\"padding-left: 10px; padding-right: 10px\">{n}[{i}]</td><td style=\"padding-left: 10px; padding-right: 10px\">{b}</td></tr>"
+                , s=style, n=word, i=i, b=cbits.join(" ")).unwrap();
+        }
+        writeln!(html, "</table>").unwrap();
+    }
+
+    // Write out enums as HTML
+    for (en, data) in bitdb.enums.iter() {
+        writeln!(
+            html,
+            "<h3 id='enum_{e}'>Configuration enum {e}</h3>",
+            e = en
+        )
+        .unwrap();
+        writeln!(html, "<table class='setenum'><tr><th>Value</th>").unwrap();
+        let bitset: BTreeSet<(usize, usize)> = data
+            .options
+            .values()
+            .flat_map(|x| x.iter())
+            .map(|x| (x.frame, x.bit))
+            .collect();
+        for (frame, bit) in bitset.iter() {
+            writeln!(
+                html,
+                "<th style='padding-left: 10px; padding-right: 10px'>F{}B{}</th>",
+                frame, bit
+            )
+            .unwrap();
+        }
+        writeln!(html, "</tr>").unwrap();
+        // Determine enum option "truth table"
+        let truthtable: Vec<(String, Vec<char>)> = data
+            .options
+            .iter()
+            .map(|(opt, bits)| {
+                (
+                    opt.to_string(),
+                    bitset
+                        .iter()
+                        .map(|&(f, b)| {
+                            if bits.contains(&ConfigBit {
+                                frame: f,
+                                bit: b,
+                                invert: false,
+                            }) {
+                                '1'
+                            } else if bits.contains(&ConfigBit {
+                                frame: f,
+                                bit: b,
+                                invert: true,
+                            }) {
+                                '0'
+                            } else {
+                                '-'
+                            }
+                        })
+                        .collect(),
+                )
+            })
+            .collect();
+        for (i, (opt, ttrow)) in truthtable.iter().enumerate() {
+            let style = match i % 2 {
+                0 => " bgcolor=\"#dddddd\"",
+                _ => "",
+            };
+            writeln!(html, "<tr {s}><td>{f}</td>", s = style, f = opt).unwrap();
+            for bit in ttrow.iter() {
+                writeln!(html, "<td style=\"text-align: center\">{}</td>", bit).unwrap();
+            }
+            writeln!(html, "</tr>").unwrap();
+        }
+        writeln!(html, "</table>").unwrap();
+    }
+
     writeln!(html, "</body></html>").unwrap();
 }
