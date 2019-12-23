@@ -406,5 +406,24 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
         writeln!(html, "</table>").unwrap();
     }
 
+    let mut i = 0;
+
+    if bitdb.conns.len() > 0 {
+        writeln!(html, "<h3>Fixed Connections</h3>").unwrap();
+        writeln!(html, "<table class=\"fconn\" style=\"border-spacing:0\"><tr><th>Source</th><th></th><th>Sink</th></tr>").unwrap();
+        for (to_wire, conns) in bitdb.conns.iter() {
+            for conn in conns.iter() {
+                let style = match i % 2 {
+                    0 => " bgcolor=\"#dddddd\"",
+                    _ => "",
+                };
+                i += 1;
+                writeln!(html, "<tr {s}><td style=\"padding-left: 10px; padding-right: 10px; margin-left: 0px;\">{f}</td><td>&rarr;</td>\n\
+                <td style=\"padding-left: 10px; padding-right: 10px\">{t}</td></tr>", s=style, t=to_wire, f=conn.from_wire).unwrap();
+            }
+        }
+        writeln!(html, "</table>").unwrap();
+    }
+
     writeln!(html, "</body></html>").unwrap();
 }
