@@ -40,6 +40,6 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
     fz = libprjoxide.Fuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, set(config.tiles), name, include_zeros)
     for opt in values:
         opt_bit = i_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
-        fz.add_enum_sample(db, opt, opt_bit)
-    fz.solve(db)
+        fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
+    fz.solve(fuzzconfig.db)
 
