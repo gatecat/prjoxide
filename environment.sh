@@ -12,7 +12,7 @@ fi
 
 SCRIPT_PATH=$(readlink -f "${BASH_SOURCE:-$0}")
 SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
-PYTHONLIBS_DIR="${SCRIPT_DIR}/util:${SCRIPT_DIR}/util/common:${SCRIPT_DIR}/util/fuzz:${SCRIPT_DIR}/libprjoxide/target/release"
+PYTHONLIBS_DIR="${SCRIPT_DIR}/util:${SCRIPT_DIR}/util/common:${SCRIPT_DIR}/util/fuzz:${SCRIPT_DIR}/libprjoxide/target/${TARGET:-release}"
 export PYTHONPATH="${PYTHONLIBS_DIR}:${PYTHONPATH}"
 
 USER_ENV="${SCRIPT_DIR}/user_environment.sh"

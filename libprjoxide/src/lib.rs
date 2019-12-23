@@ -11,6 +11,7 @@ extern crate lazy_static;
 mod bitstream;
 mod chip;
 pub mod database;
+pub mod database_html;
 pub mod fuzz;
 mod wires;
 
@@ -176,9 +177,16 @@ fn parse_bitstream(d: &mut Database, file: &str) -> PyResult<()> {
     }
 }
 
+#[pyfunction]
+fn write_tilegrid_html(d: &mut Database, family: &str, device: &str, file: &str) -> PyResult<()> {
+    database_html::write_tilegrid_html(&mut d.db, family, device, file);
+    Ok(())
+}
+
 #[pymodule]
 fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
+    m.add_wrapped(wrap_pyfunction!(write_tilegrid_html))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<Chip>()?;
