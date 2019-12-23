@@ -105,7 +105,12 @@ def parse_node_report(rpt):
 def get_node_data(udb, nodes, regex=False):
     workdir = tempfile.mkdtemp()
     nodefile = path.join(workdir, "nodes.txt")
+    nodelist = ""
+    if len(nodes) == 1:
+        nodelist = nodes[0]
+    elif len(nodes) > 1:
+        nodelist = "[list {}]".format(" ".join(nodes))
     run_with_udb(udb, ['dev_report_node -file {} [get_nodes {}{}]'.
-        format(nodefile, "-re " if regex else "", " ".join(nodes))])
+        format(nodefile, "-re " if regex else "", nodelist)])
     with open(nodefile, 'r') as nf:
         return parse_node_report(nf.read())

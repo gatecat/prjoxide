@@ -189,7 +189,7 @@ impl Fuzzer {
                                         .map(|(f, b)| ConfigBit {
                                             frame: *f,
                                             bit: *b,
-                                            invert: value_bits
+                                            invert: !value_bits
                                                 .iter()
                                                 .any(|x| x.contains(&(*f, *b, true))),
                                         })
