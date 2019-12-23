@@ -183,10 +183,23 @@ fn write_tilegrid_html(d: &mut Database, family: &str, device: &str, file: &str)
     Ok(())
 }
 
+#[pyfunction]
+fn write_tilebits_html(
+    d: &mut Database,
+    family: &str,
+    device: &str,
+    tiletype: &str,
+    file: &str,
+) -> PyResult<()> {
+    database_html::write_bits_html(&mut d.db, family, device, tiletype, file);
+    Ok(())
+}
+
 #[pymodule]
 fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_wrapped(wrap_pyfunction!(write_tilegrid_html))?;
+    m.add_wrapped(wrap_pyfunction!(write_tilebits_html))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<Chip>()?;
