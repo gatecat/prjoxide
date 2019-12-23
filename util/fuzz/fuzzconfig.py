@@ -58,8 +58,8 @@ class FuzzConfig:
         Returns the path to the output bitstream
         """
         subst = dict(substitutions)
-        if "route" not in subst:
-            subst["route"] = ""
+        if "arcs_attr" not in subst:
+            subst["arcs_attr"] = ""
         if "sysconfig" not in subst:
             subst["sysconfig"] = ""
         desfile = path.join(self.workdir, prefix + "design.v")

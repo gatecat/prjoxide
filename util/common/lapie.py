@@ -58,7 +58,7 @@ class NodeInfo:
         self.downhill_pips = []
         self.pins = []
 
-node_re = re.compile(r'^\[(\d+)\] ([A-Z0-9a-z_]+)')
+node_re = re.compile(r'^\[\s*(\d+)\]\s*([A-Z0-9a-z_]+)')
 pip_re = re.compile(r'^([A-Z0-9a-z_]+) (<--|<->|-->) ([A-Z0-9a-z_]+) \(Flags: ...., (\d+)\) \(Buffer: ([A-Z0-9a-z_]+)\)')
 pin_re = re.compile(r'^Pin  : ([A-Z0-9a-z_]+)/([A-Z0-9a-z_]+) \(([A-Z0-9a-z_]+)\)')
 
@@ -97,7 +97,7 @@ def parse_node_report(rpt):
         qm = pin_re.match(sl)
         if qm:
             curr_node.pins.append(
-                PinInfo(pm.group(1), pm.group(2), curr_node.name, pm.group(3))
+                PinInfo(qm.group(1), qm.group(2), curr_node.name, qm.group(3))
             )
     return nodes
 
