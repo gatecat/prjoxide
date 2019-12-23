@@ -37,7 +37,7 @@ rm -rf "$2.tmp"
 mkdir -p "$2.tmp"
 cp "$2.v" "$2.tmp/input.v"
 
-if (LD_LIBRARY_PATH=$ld_lib_path_orig $bscache fetch $PART "$2.tmp" "$2.tmp/input.v"); then
+if ([ -z "$FORCE_REBUILD"] && (LD_LIBRARY_PATH=$ld_lib_path_orig $bscache fetch $PART "$2.tmp" "$2.tmp/input.v")); then
 	# Cache hit
 	echo "Cache hit, not running Radiant"
 else
