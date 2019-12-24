@@ -189,9 +189,23 @@ impl Fuzzer {
                                         .map(|(f, b)| ConfigBit {
                                             frame: *f,
                                             bit: *b,
-                                            invert: !value_bits
-                                                .iter()
-                                                .any(|x| x.contains(&(*f, *b, true))),
+                                            invert: value_bits.iter().any(|x| {
+                                                x.contains(&(
+                                                    *f,
+                                                    *b,
+                                                    !self
+                                                        .base
+                                                        .tile_by_name(tile)
+                                                        .unwrap()
+                                                        .cram
+                                                        .get(*f, *b),
+                                                ))
+                                            }) == self
+                                                .base
+                                                .tile_by_name(tile)
+                                                .unwrap()
+                                                .cram
+                                                .get(*f, *b),
                                         })
                                         .collect()
                                 } else {
