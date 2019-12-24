@@ -18,7 +18,8 @@ def fuzz_interconnect(
         bidir=False,
         nodename_filter_union=False,
         full_mux_style=False,
-        ignore_tiles=set()
+        ignore_tiles=set(),
+        extra_substs={}
     ):
     """
     Fuzz interconnect given a list of nodenames to analyse. Pips associated these nodenames will be found using the Tcl
@@ -36,9 +37,11 @@ def fuzz_interconnect(
     nets much pass the predicate.
     :param full_mux_style: if True, is a full mux, and all 0s is considered a valid config bit possibility
     on certain families.
+    :param ignore_tiles: don't reject pips that touch these tils
+	:param extra_substs: extra SV substitutions
     """
     nodes = lapie.get_node_data(config.udb, nodenames, regex)
-    base_bitf = config.build_design(config.sv, {"arcs_attr": ""}, "base_")
+    base_bitf = config.build_design(config.sv, extra_substs, "base_")
 
     all_wirenames = set([n.name for n in nodes])
     all_pips = set()
@@ -71,7 +74,9 @@ def fuzz_interconnect(
         fz = libprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], ignore_tiles, full_mux_style, False)
         for from_wire in sinks[to_wire]:
             arcs_attr = r', \dm:arcs ="{}.{}"'.format(to_wire, from_wire)
-            arc_bit = config.build_design(config.sv, {"arcs_attr": arcs_attr}, prefix)
+            substs = extra_substs.copy()
+            substs["arcs_attr"] = arcs_attr
+            arc_bit = config.build_design(config.sv, substs, prefix)
             fz.add_pip_sample(fuzzconfig.db, from_wire, arc_bit)
         fz.solve(fuzzconfig.db)
     fuzzloops.parallel_foreach(list(sorted(sinks.keys())), per_sink)
