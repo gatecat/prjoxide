@@ -6,7 +6,7 @@ bindir="${radiantdir}/bin/lin64"
 LSC_DIAMOND=true
 export LSC_DIAMOND
 export NEOCAD_MAXLINEWIDTH=32767
-export TCL_LIBRARY="${radiantdir}/tcltk/lib/tcl8.5"
+export TCL_LIBRARY="${radiantdir}/tcltk/linux/lib/tcl8.5"
 export fpgabindir=${FOUNDRY}/bin/lin64
 ld_lib_path_orig=$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH="${bindir}:${fpgabindir}"

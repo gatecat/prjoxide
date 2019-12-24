@@ -22,6 +22,7 @@ class FuzzConfig:
         self.job = job
         self.tiles = tiles
         self.sv = sv
+        self.struct_mode = True
         self.udb_specimen = None
 
     @property
@@ -46,7 +47,7 @@ class FuzzConfig:
         if not skip_specimen:
             self.build_design(self.sv, {})
 
-    def build_design(self, des_template, substitutions, prefix="", struct_ver=True, substitute=True):
+    def build_design(self, des_template, substitutions, prefix="", substitute=True):
         """
         Run Radiant on a given design template, applying a map of substitutions, plus some standard substitutions
         if not overriden.
@@ -73,8 +74,8 @@ class FuzzConfig:
                     ouf.write(Template(inf.read()).substitute(**subst))
                 else:
                     ouf.write(inf.read())
-        radiant.run(self.device, desfile, struct_ver=struct_ver, raw_bit=False)
-        if struct_ver and self.udb_specimen is None:
+        radiant.run(self.device, desfile, struct_ver=self.struct_mode, raw_bit=False)
+        if self.struct_mode and self.udb_specimen is None:
             self.udb_specimen = path.join(self.workdir, prefix + "design.tmp", "par.udb")
         return bitfile
 

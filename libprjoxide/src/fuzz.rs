@@ -276,6 +276,9 @@ impl Fuzzer {
                                 .difference(&unchanged_bits)
                                 .map(|&x| x)
                                 .collect();
+                            if changed_bits.len() == 0 {
+                                continue;
+                            }
                             for (key, delta) in self.deltas.iter() {
                                 if let FuzzKey::EnumKey { option } = key {
                                     let b = match delta.get(&tile) {
