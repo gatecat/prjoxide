@@ -90,7 +90,7 @@ pub struct Chip {
     // All of the tiles in the chip
     pub tiles: Vec<Tile>,
     // IP core and EBR configuration
-    pub ipconfig: BTreeMap<u32, u32>,
+    pub ipconfig: BTreeMap<u32, u8>,
     // Fast references to tiles
     tiles_by_name: HashMap<String, usize>,
     tiles_by_loc: MultiMap<(u32, u32), usize>,
@@ -218,6 +218,18 @@ impl Chip {
             0x8010..=0x801F => (15 - ((addr - 0x8010) as usize)) + 0,  // left side IO
             0x8020..=0x8037 => (23 - ((addr - 0x8020) as usize)) + 16, // TAPs (row-segment clocking)
             _ => panic!("unable to process frame address 0x{:08x}", addr),
+        }
+    }
+    // Get the frame size in bytes for bus regions
+    pub fn get_bus_frame_size(&self, addr: u32) -> usize {
+        match (addr & 0xF0000000) >> 28 {
+            0 => 1, // non-PCIe IP cores
+            2 => 5, // BRAM and LRAM
+            3 => 4, // PCIe IP
+            _ => panic!(
+                "unable to determine frame size of bus address 0x{:08x}",
+                addr
+            ),
         }
     }
 }

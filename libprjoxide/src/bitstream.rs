@@ -30,8 +30,8 @@ const LSC_PROG_INCR_RTI: u8 = 0b10000010;
 const LSC_PROG_SED_CRC: u8 = 0b10100010;
 const ISC_PROGRAM_SECURITY: u8 = 0b11001110;
 const ISC_PROGRAM_USERCODE: u8 = 0b11000010;
-const LSC_EBR_ADDRESS: u8 = 0b11110110;
-const LSC_EBR_WRITE: u8 = 0b10110010;
+const LSC_BUS_ADDRESS: u8 = 0b11110110;
+const LSC_BUS_WRITE: u8 = 0b01110010;
 const ISC_PROGRAM_DONE: u8 = 0b01011110;
 const LSC_POWER_CTRL: u8 = 0b001010110;
 const DUMMY: u8 = 0b11111111;
@@ -192,6 +192,7 @@ impl BitstreamParser {
     // Parse the bitstream itself
     fn parse_bitstream(&mut self, db: &mut Database) -> Result<Chip, &'static str> {
         let mut curr_frame = 0;
+        let mut bus_addr = 0;
         let mut curr_chip = None;
         while !self.done() {
             let cmd = self.get_opcode_byte();
@@ -284,6 +285,26 @@ impl BitstreamParser {
                     self.skip_bytes(2);
                     let usercode = self.get_u32();
                     println!("set usercode to 0x{:08X}", usercode);
+                    if cmp_crc {
+                        self.check_crc16();
+                    }
+                }
+                LSC_BUS_ADDRESS => {
+                    self.skip_bytes(3);
+                    bus_addr = self.get_u32();
+                }
+                LSC_BUS_WRITE => {
+                    let config = self.get_byte();
+                    let cmp_crc = config & 0x80 == 0x80;
+                    let frame_count = self.get_u16() as usize;
+                    let chip = curr_chip
+                        .as_mut()
+                        .expect("got bus write without chip setup");
+                    let byte_count = frame_count * chip.get_bus_frame_size(bus_addr);
+                    for _i in 0..byte_count {
+                        chip.ipconfig.insert(bus_addr, self.get_byte());
+                        bus_addr += 1;
+                    }
                     if cmp_crc {
                         self.check_crc16();
                     }

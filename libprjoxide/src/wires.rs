@@ -15,7 +15,7 @@ lazy_static! {
     // Horizontal row drivers
     static ref GLB_HROWD_RE: Regex = Regex::new(r"^([LR])HPRX(\d+)$").unwrap();
     // Central clock signals
-    static ref GLB_CMUXI_RE: Regex = Regex::new(r"^J([HV])F([NESW])(\d+)_(DCSMUX|CMUX)_CORE_(DCSMUX|CMUX)(\d)$").unwrap();
+    static ref GLB_CMUXI_RE: Regex = Regex::new(r"^J([HV])PF([NESW])(\d+)_(DCSMUX|CMUX)_CORE_(DCSMUX|CMUX)(\d)$").unwrap();
     // Perimeter clock signals
     static ref GLB_MIDMUX_RE: Regex = Regex::new(r"^(.*)(.)MID_CORE_(.)MIDMUX$").unwrap();
     // Edge clock signals
