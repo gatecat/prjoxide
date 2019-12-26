@@ -56,7 +56,7 @@ def main():
             if iov == "10":
                 return "1.0"
             return "{}.{}".format(iov[0], iov[1])
-        def get_substs(iotype="BIDIR_LVCMOS33", kv=None, vcc=None):
+        def get_substs(iotype="BIDIR_LVCMOS33", kv=None, vcc=None, tmux="T"):
             iodir, iostd = iotype.split("_", 2) if iotype != "NONE" else ("","")
             if iodir == "INPUT":
                 pintype = "input"
@@ -66,7 +66,10 @@ def main():
                 t = "0"
             else:
                 pintype = "inout"
-                t = "#SIG"
+                if tmux == "INV":
+                    t = "#INV"
+                else:
+                    t = "#SIG"
             if kv is not None:
                 extra_config = ",{}={}".format(kv[0], kv[1])
             else:
@@ -140,6 +143,10 @@ def main():
                         lambda x: get_substs(iotype="INPUT_LVCMOS15", kv=("TERMINATION", x)), False)
         nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.TERMINATION_1V2".format(pio), ["OFF", "40", "50", "60", "75"],
                         lambda x: get_substs(iotype="INPUT_LVCMOS12", kv=("TERMINATION", x)), False)
+
+        nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.TMUX".format(pio), ["T", "INV"],
+                        lambda x: get_substs(iotype="BIDIR_LVCMOS33", tmux=x), False)
+
     fuzzloops.parallel_foreach(configs, per_config)
 if __name__ == "__main__":
     main()

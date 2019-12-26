@@ -58,7 +58,7 @@ def main():
                 if t == iotype:
                     return True
             return False
-        def get_substs(iotype="BIDIR_LVCMOS18H", kv=None, vcc=None):
+        def get_substs(iotype="BIDIR_LVCMOS18H", kv=None, vcc=None, tmux="T"):
             iodir, iostd = iotype.split("_", 1) if iotype != "NONE" else ("","")
             if iodir == "INPUT":
                 pintype = "input"
@@ -68,7 +68,10 @@ def main():
                 t = "0"
             else:
                 pintype = "inout"
-                t = "#SIG"
+                if tmux == "INV":
+                    t = "#INV"
+                else:
+                    t = "#SIG"
             if kv is not None:
                 extra_config = ",{}={}".format(kv[0], kv[1])
             else:
@@ -142,6 +145,10 @@ def main():
 
         nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.SEIO18.VREF".format(pio), ["OFF", "VREF1_LOAD", "VREF2_LOAD"],
             lambda x: get_substs(iotype="INPUT_SSTL135_I", kv=("VREF", x)), False)
+
+        nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.TMUX".format(pio), ["T", "INV"],
+                    lambda x: get_substs(iotype="BIDIR_LVCMOS18H", tmux=x), False)
+
         if pio == "A":
             nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.DIFFIO18.BASE_TYPE".format(pio), all_di_types,
                             lambda x: get_substs(iotype=x), False)
