@@ -1,0 +1,1 @@
+**SEIO33_CORE** bels implement the buffer side of the wide range (3.3V capable) IOs. Note that the logical parts of these pins (registers, delay and DDR) are implemented using the **SIOLOGIC** bel. These pins can be used as single ended input/inout/output; or two outputs can be used in "pseudo differential" mode - differential input is not possible.

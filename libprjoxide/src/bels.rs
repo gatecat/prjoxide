@@ -1,21 +1,44 @@
 // A reference to a wire in a relatively located tile
-struct RelWire {
-    rel_x: i32,   // (bel.x + rel_x == tile.x)
-    rel_y: i32,   // (bel.y + rel_y == tile.y)
-    name: String, // wire name in tile
+pub struct RelWire {
+    pub rel_x: i32,   // (bel.x + rel_x == tile.x)
+    pub rel_y: i32,   // (bel.y + rel_y == tile.y)
+    pub name: String, // wire name in tile
 }
 
-enum PinDir {
+impl RelWire {
+    pub fn rel_name(&self) -> String {
+        let mut name = String::new();
+        if self.rel_y < 0 {
+            name.push_str(&format!("N{}", -self.rel_y));
+        }
+        if self.rel_y > 0 {
+            name.push_str(&format!("S{}", self.rel_y));
+        }
+        if self.rel_x < 0 {
+            name.push_str(&format!("W{}", -self.rel_x));
+        }
+        if self.rel_x > 0 {
+            name.push_str(&format!("E{}", self.rel_x));
+        }
+        if !name.is_empty() {
+            name.push(':');
+        }
+        name.push_str(&self.name);
+        name
+    }
+}
+
+pub enum PinDir {
     INPUT,
     OUTPUT,
     INOUT,
 }
 
-struct BelPin {
-    name: String,  // name of pin on bel
-    desc: String,  // description for documentation
-    dir: PinDir,   // direction
-    wire: RelWire, // reference to wire in tile
+pub struct BelPin {
+    pub name: String,  // name of pin on bel
+    pub desc: String,  // description for documentation
+    pub dir: PinDir,   // direction
+    pub wire: RelWire, // reference to wire in tile
 }
 
 impl BelPin {
@@ -61,10 +84,10 @@ impl BelPin {
     }
 }
 
-struct Bel {
-    name: String,
-    beltype: String,
-    pins: Vec<BelPin>,
+pub struct Bel {
+    pub name: String,
+    pub beltype: String,
+    pub pins: Vec<BelPin>,
 }
 
 // Macros for common cases
@@ -153,5 +176,35 @@ impl Bel {
             beltype: String::from("SLICE"),
             pins: pins,
         }
+    }
+
+    pub fn make_seio33(z: char) -> Bel {
+        let postfix = format!("SEIO33_CORE_IO{}", z);
+        Bel {
+            name: format!("IO{}", z),
+            beltype: String::from("SEIO33_CORE"),
+            pins: vec![
+                input!(&postfix, "PADDO", "output buffer input from fabric/IOLOGIC"),
+                input!(
+                    &postfix,
+                    "PADDT",
+                    "output buffer tristate (0=driven, 1=hi-z)"
+                ),
+                output!(&postfix, "PADDI", "input buffer output to fabric/IOLOGIC"),
+                input!(&postfix, "I3CRESEN", "I3C strong pullup enable"),
+                input!(&postfix, "I3CWKPU", "I3C weak pullup enable"),
+            ],
+        }
+    }
+}
+
+pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
+    match tiletype {
+        "PLC" => "ABCD".chars().map(Bel::make_slice).collect(),
+        "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
+        | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C" => {
+            "AB".chars().map(Bel::make_seio33).collect()
+        }
+        _ => vec![],
     }
 }

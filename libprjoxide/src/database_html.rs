@@ -1,3 +1,4 @@
+use crate::bels::*;
 use crate::database::*;
 use crate::docs::{md_file_to_html, md_to_html};
 use std::cmp::{max, min};
@@ -101,7 +102,7 @@ pub fn write_bits_html(
     fam: &str,
     device: &str,
     tiletype: &str,
-    filepath: &str,
+    outdir: &str,
 ) {
     let tilegrid = db.device_tilegrid(fam, device);
     let mut nframes = 0;
@@ -146,7 +147,14 @@ pub fn write_bits_html(
     }
 
     // Write out prelude HTML
-    let mut html = File::create(filepath).unwrap();
+    let mut html = File::create(
+        Path::new(outdir)
+            .join("tilehtml")
+            .join(format!("{}.html", tiletype))
+            .to_str()
+            .unwrap(),
+    )
+    .unwrap();
     write!(
         html,
         "<html> \n\
@@ -220,7 +228,40 @@ pub fn write_bits_html(
         }
     };
 
+    // Write out links to bels
+    let bels = get_tile_bels(tiletype);
+    if !bels.is_empty() {
+        writeln!(html, "<h2>Tile Bels</h2>").unwrap();
+        writeln!(
+            html,
+            "<table class=\"bpins\" style=\"border-spacing:0\"><tr><th>Name</th><th>Type</th></tr>"
+        )
+        .unwrap();
+        for (i, bel) in bels.iter().enumerate() {
+            let style = match i % 2 {
+                0 => " bgcolor=\"#dddddd\"",
+                _ => "",
+            };
+            let belhtml_path = Path::new(outdir)
+                .join("belhtml")
+                .join(format!("{}_{}.html", tiletype, bel.name));
+            write_bel_html(docs_root, tiletype, bel, belhtml_path.to_str().unwrap());
+            writeln!(
+                html,
+                "<tr {s}><td style=\"padding-left: 20px; padding-right: 20px\"><a href='../belhtml/{tt}_{bn}.html'>{bn}</a></td>\n\
+                <td style=\"padding-left: 20px; padding-right: 20px\">{bt}</td></tr>",
+                s = style,
+                bn = bel.name,
+                bt = bel.beltype,
+                tt = tiletype
+            )
+            .unwrap();
+        }
+        writeln!(html, "</table>").unwrap();
+    }
+
     // Write out the bit grid as HTML
+    writeln!(html, "<h2>Config Bitmap</h2>").unwrap();
     writeln!(
         html,
         "<table style='font-size: 8pt; border: 2px solid black; text-align: center'>"
@@ -459,5 +500,53 @@ pub fn write_bits_html(
         writeln!(html, "</table>").unwrap();
     }
 
+    writeln!(html, "</body></html>").unwrap();
+}
+
+pub fn write_bel_html(docs_root: &str, tiletype: &str, bel: &Bel, filepath: &str) {
+    // Write out prelude HTML
+    let mut html = File::create(filepath).unwrap();
+    writeln!(
+        html,
+        "<html> \n\
+            <head>\n\
+            <title>{tt}/{bn} ({bt}) Bel Documentation</title>\n\
+            </head>\n\
+            <body>\n\
+            <h1>{tt}/{bn} ({bt}) Bel Documentation</h1>\n\
+        ",
+        tt = tiletype,
+        bn = bel.name,
+        bt = bel.beltype
+    )
+    .unwrap();
+    for docname in &[
+        &bel.beltype,
+        &bel.name,
+        &format!("{}_{}", &tiletype, &bel.name),
+    ] {
+        let tiledesc_path = Path::new(docs_root)
+            .join("bels")
+            .join(format!("{}.md", docname));
+        if tiledesc_path.exists() {
+            writeln!(html, "{}", md_file_to_html(tiledesc_path.to_str().unwrap())).unwrap();
+        }
+    }
+    writeln!(html, "<h2>Bel Pins</h2>").unwrap();
+    writeln!(html, "<table class=\"bpins\" style=\"border-spacing:0\"><tr><th>Pin</th><th></th><th>Wire</th><th></th></tr>").unwrap();
+    for (i, pin) in bel.pins.iter().enumerate() {
+        let style = match i % 2 {
+            0 => " bgcolor=\"#dddddd\"",
+            _ => "",
+        };
+        let arrow = match &pin.dir {
+            PinDir::INPUT => "&larr;",
+            PinDir::OUTPUT => "&rarr;",
+            PinDir::INOUT => "&LeftRightArrow;",
+        };
+        writeln!(html, "<tr {s}><td style=\"padding-left: 20px; padding-right: 20px; margin-left: 0px;\">{p}</td><td>{a}</td>\n\
+                <td style=\"padding-left: 20px; padding-right: 20px\">{w}</td><td>{d}</tr>", s=style, p=pin.name, a=arrow, w=&pin.wire.rel_name(), d=pin.desc).unwrap();
+    }
+    writeln!(html, "</table>").unwrap();
     writeln!(html, "</body></html>").unwrap();
 }

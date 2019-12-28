@@ -47,7 +47,7 @@ def generate_device_docs(family, device, folder):
 
 
 def generate_tile_docs(family, device, tile, folder):
-    html_tilebits.main(["html_tilebits", family, device, tile, path.join(folder, "{}.html".format(tile))])
+    html_tilebits.main(["html_tilebits", family, device, tile, folder])
 
 
 def get_device_tiles(family, devices):
@@ -78,6 +78,9 @@ def main(argv):
         thdir = path.join(fdir, "tilehtml")
         if not path.exists(thdir):
             os.mkdir(thdir)
+        bhdir = path.join(fdir, "belhtml")
+        if not path.exists(bhdir):
+            os.mkdir(bhdir)
         docs_toc += "<h3>{} Family</h3>".format(fam)
         docs_toc += "<h4>Bitstream Documentation</h4>"
         docs_toc += "<ul>"
@@ -92,7 +95,7 @@ def main(argv):
                 if (fam, dev) in tiles:
                     for tile in tiles[fam, dev]:
                         print("*** Generating documentation for tile {}".format(tile))
-                        generate_tile_docs(fam, dev, tile, thdir)
+                        generate_tile_docs(fam, dev, tile, fdir)
                 docs_toc += '<li><a href="{}">{} Documentation</a></li>'.format(
                     '{}/{}/index.html'.format(fam, dev),
                     dev
