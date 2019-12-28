@@ -1,3 +1,4 @@
+use pulldown_cmark::{html, Options, Parser};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -17,4 +18,16 @@ fn preprocess(filename: &str, out: &mut String) {
             out.push('\n');
         }
     }
+}
+
+pub fn md_to_html(md: &str) -> String {
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_STRIKETHROUGH);
+    options.insert(Options::ENABLE_TABLES);
+    let parser = Parser::new_ext(md, options);
+
+    // Write to String buffer.
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, parser);
+    html_output
 }

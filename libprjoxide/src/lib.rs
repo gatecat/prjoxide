@@ -47,6 +47,7 @@ impl Fuzzer {
         base_bitfile: &str,
         fuzz_tiles: &PySet,
         name: &str,
+        desc: &str,
         width: usize,
         zero_bitfile: &str,
     ) -> Fuzzer {
@@ -62,6 +63,7 @@ impl Fuzzer {
                     .map(|x| x.unwrap().extract::<String>().unwrap())
                     .collect(),
                 name,
+                desc,
                 width,
                 zero_bitfile,
             ),
@@ -108,6 +110,7 @@ impl Fuzzer {
         base_bitfile: &str,
         fuzz_tiles: &PySet,
         name: &str,
+        desc: &str,
         include_zeros: bool,
     ) -> Fuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
@@ -121,6 +124,7 @@ impl Fuzzer {
                     .map(|x| x.unwrap().extract::<String>().unwrap())
                     .collect(),
                 name,
+                desc,
                 include_zeros,
             ),
         }

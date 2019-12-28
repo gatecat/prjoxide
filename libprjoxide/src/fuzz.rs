@@ -36,6 +36,7 @@ pub struct Fuzzer {
     tiles: BTreeSet<String>,
     base: Chip,                           // bitstream with nothing set
     deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs, words and enums
+    desc: String,                         // description of the setting being fuzzed
 }
 
 impl Fuzzer {
@@ -59,6 +60,7 @@ impl Fuzzer {
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
+            desc: "".to_string(),
         }
     }
     pub fn init_word_fuzzer(
@@ -66,6 +68,7 @@ impl Fuzzer {
         base_bit: &Chip,
         fuzz_tiles: &BTreeSet<String>,
         name: &str,
+        desc: &str,
         width: usize,
         zero_bitfile: &str,
     ) -> Fuzzer {
@@ -77,12 +80,14 @@ impl Fuzzer {
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
+            desc: desc.to_string(),
         }
     }
     pub fn init_enum_fuzzer(
         base_bit: &Chip,
         fuzz_tiles: &BTreeSet<String>,
         name: &str,
+        desc: &str,
         include_zeros: bool,
     ) -> Fuzzer {
         Fuzzer {
@@ -94,6 +99,7 @@ impl Fuzzer {
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
+            desc: desc.to_string(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
@@ -259,7 +265,7 @@ impl Fuzzer {
                     // Add the word to the tile data
                     let tile_data = self.base.tile_by_name(tile).unwrap();
                     let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                    tile_db.add_word(&name, cbits);
+                    tile_db.add_word(&name, &self.desc, cbits);
                 }
             }
             FuzzMode::Enum {
@@ -333,7 +339,7 @@ impl Fuzzer {
                                     let tile_data = self.base.tile_by_name(&tile).unwrap();
                                     let tile_db =
                                         db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                                    tile_db.add_enum_option(name, &option, b);
+                                    tile_db.add_enum_option(name, &option, &self.desc, b);
                                 }
                             }
                         }

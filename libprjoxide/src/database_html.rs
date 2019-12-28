@@ -1,4 +1,5 @@
 use crate::database::*;
+use crate::docs::md_to_html;
 use std::cmp::{max, min};
 use std::collections::BTreeSet;
 use std::fs::File;
@@ -228,6 +229,9 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
     }
     writeln!(html, "</table>").unwrap();
     // Write out muxes as html
+    if !bitdb.pips.is_empty() {
+        writeln!(html, "<h2>Routing Muxes</h2>").unwrap();
+    }
     for (sink, data) in bitdb.pips.iter() {
         writeln!(
             html,
@@ -305,6 +309,9 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
     }
 
     // Write out words as HTML
+    if !bitdb.words.is_empty() {
+        writeln!(html, "<h2>Configuration Words</h2>").unwrap();
+    }
     for (word, data) in bitdb.words.iter() {
         writeln!(
             html,
@@ -312,6 +319,10 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
             w = word
         )
         .unwrap();
+        if !data.desc.is_empty() {
+            let desc_html = md_to_html(&data.desc);
+            writeln!(html, "{}", &desc_html).unwrap();
+        }
         writeln!(html, "<table class='setword'>").unwrap();
         for (i, bits) in data.bits.iter().enumerate() {
             let style = match i % 2 {
@@ -339,6 +350,9 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
     }
 
     // Write out enums as HTML
+    if !bitdb.enums.is_empty() {
+        writeln!(html, "<h2>Configuration Enums</h2>").unwrap();
+    }
     for (en, data) in bitdb.enums.iter() {
         writeln!(
             html,
@@ -346,6 +360,10 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
             e = en
         )
         .unwrap();
+        if !data.desc.is_empty() {
+            let desc_html = md_to_html(&data.desc);
+            writeln!(html, "{}", &desc_html).unwrap();
+        }
         writeln!(html, "<table class='setenum'><tr><th>Value</th>").unwrap();
         let bitset: BTreeSet<(usize, usize)> = data
             .options

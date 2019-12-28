@@ -53,25 +53,35 @@ def main():
                     cm = "CONST:::CONST=0"
                 return get_substs(mux="LSRMUX:{}".format(cm))
             nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.REG{}.USED".format(slicen, r), ["YES", "NO"],
-                lambda x: get_used_substs(x), False)
+                lambda x: get_used_substs(x), False,
+                desc="`YES` if SLICE {} register {} (Q{}) is used".format(slicen, r, r))
             nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.REG{}.REGSET".format(slicen, r), ["RESET", "SET"],
-                lambda x: get_substs(regset=x), True)
+                lambda x: get_substs(regset=x), True,
+                desc="SLICE {} register {} set/reset and init value".format(slicen, r))
             nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.REG{}.SEL".format(slicen, r), ["DL", "DF"],
-                lambda x: get_substs(sel=x), True)
+                lambda x: get_substs(sel=x), True,
+                desc="SLICE {} register {} data selection. `DL`=LUT output, `DF`=bypass (M{})".format(slicen, r, r))
             nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.REG{}.LSRMODE".format(slicen, r), ["LSR", "PRLD"],
                 lambda x: get_substs(lsrmode=x), True)
+        h = "A/B" if slicen in ("A", "B") else "C/D"
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.GSR".format(slicen, r), ["ENABLED", "DISABLED"],
-            lambda x: get_substs(gsr=x), False)
+            lambda x: get_substs(gsr=x), False,
+            desc="if `ENABLED`, then FFs in SLICE {} are set/reset by user GSR signal".format(h))
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.SRMODE".format(slicen, r), ["ASYNC", "LSR_OVER_CE"],
-            lambda x: get_substs(srmode=x), False)
+            lambda x: get_substs(srmode=x), False,
+            desc="selects asynchronous set/reset, or sync set/reset which overrides CE for FFs in SLICE {}".format(h))
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.REGDDR".format(slicen, r), ["ENABLED", "DISABLED"],
-            lambda x: get_ddr_substs(x), False)
+            lambda x: get_ddr_substs(x), False,
+            desc="if ENABLED then FFs in SLICE {} are clocked by both edges of the clock".format(h))
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.CLKMUX".format(slicen, r), ["CLK", "INV", "OFF", "DDR"],
-            lambda x: get_clkmux_substs(x), False)
+            lambda x: get_clkmux_substs(x), False,
+            desc="selects clock polarity")
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.CEMUX".format(slicen, r), ["CE", "INV"],
-            lambda x: get_cemux_substs(x), False)
+            lambda x: get_cemux_substs(x), False,
+            desc="selects clock enable polarity")
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.LSRMUX".format(slicen, r), ["LSR", "INV", "0"],
-            lambda x: get_lsrmux_substs(x), False)
+            lambda x: get_lsrmux_substs(x), False,
+            desc="selects set/reset gating and inversion")
     fuzzloops.parallel_foreach(["A", "B", "C", "D"], per_slice)
 
 if __name__ == "__main__":

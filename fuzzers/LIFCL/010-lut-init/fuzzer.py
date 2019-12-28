@@ -32,7 +32,8 @@ def main():
         for k in range(2):
             def get_substs(bits):
                 return dict(z=slicen, k=str(k), func=get_lut_function(bits))
-            nonrouting.fuzz_word_setting(cfg, "SLICE{}.K{}.INIT".format(slicen, k), 16, get_substs)
+            nonrouting.fuzz_word_setting(cfg, "SLICE{}.K{}.INIT".format(slicen, k), 16, get_substs,
+                desc="SLICE {} LUT{} init value".format(slicen, k))
 
     fuzzloops.parallel_foreach(["A", "B", "C", "D"], per_slice)
 

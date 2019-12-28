@@ -7,7 +7,7 @@ import tiles
 import libprjoxide
 import fuzzconfig
 
-def fuzz_word_setting(config, name, length, get_sv_substs):
+def fuzz_word_setting(config, name, length, get_sv_substs, desc=""):
     """
     Fuzz a multi-bit setting, such as LUT initialisation
 
@@ -18,13 +18,13 @@ def fuzz_word_setting(config, name, length, get_sv_substs):
     """
     prefix = "thread{}_".format(threading.get_ident())
     baseline = config.build_design(config.sv, get_sv_substs([False for _ in range(length)]), prefix)
-    fz = libprjoxide.Fuzzer.word_fuzzer(fuzzconfig.db, baseline, set(config.tiles), name, length, baseline)
+    fz = libprjoxide.Fuzzer.word_fuzzer(fuzzconfig.db, baseline, set(config.tiles), name, desc, length, baseline)
     for i in range(length):
         i_bit = config.build_design(config.sv, get_sv_substs([(_ == i) for _ in range(length)]), prefix)
         fz.add_word_sample(fuzzconfig.db, i, i_bit)
     fz.solve(fuzzconfig.db)
 
-def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, include_zeros=True):
+def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, include_zeros=True, desc=""):
     """
     Fuzz a setting with multiple possible values
 
@@ -37,7 +37,7 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
     bits with routing muxes to prevent conflicts.
     """
     prefix = "thread{}_".format(threading.get_ident())
-    fz = libprjoxide.Fuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, set(config.tiles), name, include_zeros)
+    fz = libprjoxide.Fuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, set(config.tiles), name, desc, include_zeros)
     for opt in values:
         opt_bit = i_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
         fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)

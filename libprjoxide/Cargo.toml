@@ -12,6 +12,8 @@ ron = "0.5.1"
 pyo3 = { version = "0.8.4", features = ["extension-module"] }
 multimap = "0.8.0"
 lazy_static = "1.4.0"
+pulldown-cmark = "0.6.1"
+
 
 [lib]
 name = "prjoxide"

@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
+use std::ops::Not;
 use std::path::Path;
 // Deserialization of 'devices.json'
 
@@ -83,16 +84,29 @@ pub struct ConfigPipData {
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ConfigWordData {
     pub bits: Vec<BTreeSet<ConfigBit>>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub desc: String,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct ConfigEnumData {
     pub options: BTreeMap<String, BTreeSet<ConfigBit>>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub desc: String,
+}
+
+fn is_false(x: &bool) -> bool {
+    !(*x)
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct FixedConnectionData {
     pub from_wire: String,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "is_false")]
+    pub bidir: bool,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -139,15 +153,22 @@ impl TileBitsData {
             bits: bits.clone(),
         });
     }
-    pub fn add_word(&mut self, name: &str, bits: Vec<BTreeSet<ConfigBit>>) {
+    pub fn add_word(&mut self, name: &str, desc: &str, bits: Vec<BTreeSet<ConfigBit>>) {
         self.dirty = true;
-        match self.db.words.get(name) {
+        match self.db.words.get_mut(name) {
             None => {
-                self.db
-                    .words
-                    .insert(name.to_string(), ConfigWordData { bits: bits.clone() });
+                self.db.words.insert(
+                    name.to_string(),
+                    ConfigWordData {
+                        desc: desc.to_string(),
+                        bits: bits.clone(),
+                    },
+                );
             }
             Some(word) => {
+                if !desc.is_empty() && desc != &word.desc {
+                    word.desc = desc.to_string();
+                }
                 if bits.len() != word.bits.len() {
                     panic!(
                         "Width conflict {}.{} existing: {:?} new: {:?}",
@@ -168,16 +189,27 @@ impl TileBitsData {
             }
         }
     }
-    pub fn add_enum_option(&mut self, name: &str, option: &str, bits: BTreeSet<ConfigBit>) {
+    pub fn add_enum_option(
+        &mut self,
+        name: &str,
+        option: &str,
+        desc: &str,
+        bits: BTreeSet<ConfigBit>,
+    ) {
         if !self.db.enums.contains_key(name) {
             self.db.enums.insert(
                 name.to_string(),
                 ConfigEnumData {
                     options: BTreeMap::new(),
+                    desc: desc.to_string(),
                 },
             );
         }
         let ec = self.db.enums.get_mut(name).unwrap();
+        if !desc.is_empty() && desc != &ec.desc {
+            ec.desc = desc.to_string();
+            self.dirty = true;
+        }
         match ec.options.get(option) {
             Some(old_bits) => {
                 if bits != *old_bits {
@@ -204,6 +236,7 @@ impl TileBitsData {
             self.dirty = true;
             pc.push(FixedConnectionData {
                 from_wire: from.to_string(),
+                bidir: false,
             });
         }
     }
