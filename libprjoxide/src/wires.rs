@@ -45,14 +45,14 @@ fn is_full_global_wn(wire: &str) -> bool {
 }
 
 pub fn handle_edge_name(
-    max_x: u32,
-    max_y: u32,
-    tx: u32,
-    ty: u32,
-    wx: u32,
-    wy: u32,
+    max_x: i32,
+    max_y: i32,
+    tx: i32,
+    ty: i32,
+    wx: i32,
+    wy: i32,
     wn: &str,
-) -> (String, u32, u32) {
+) -> (String, i32, i32) {
     /*
     At the edges of the device, canonical wire names do not follow normal naming conventions, as they
     would mean the nominal position of the wire would be outside the bounds of the chip. Before we add routing to the
@@ -99,14 +99,14 @@ pub fn handle_edge_name(
                         "W" => {
                             return (
                                 format!("H06W{}03", &hm[3]),
-                                wx - (3 - hm[4].parse::<u32>().unwrap()),
+                                wx - (3 - hm[4].parse::<i32>().unwrap()),
                                 wy,
                             )
                         }
                         "E" => {
                             return (
                                 format!("H06E{}03", &hm[3]),
-                                wx - (hm[4].parse::<u32>().unwrap() - 3),
+                                wx - (hm[4].parse::<i32>().unwrap() - 3),
                                 wy,
                             )
                         }
@@ -117,14 +117,14 @@ pub fn handle_edge_name(
                         "W" => {
                             return (
                                 format!("H06W{}03", &hm[3]),
-                                wx + (hm[4].parse::<u32>().unwrap() - 3),
+                                wx + (hm[4].parse::<i32>().unwrap() - 3),
                                 wy,
                             )
                         }
                         "E" => {
                             return (
                                 format!("H06E{}03", &hm[3]),
-                                wx + (3 - hm[4].parse::<u32>().unwrap()),
+                                wx + (3 - hm[4].parse::<i32>().unwrap()),
                                 wy,
                             )
                         }
@@ -175,14 +175,14 @@ pub fn handle_edge_name(
                             return (
                                 format!("V06N{}03", &vm[3]),
                                 wx,
-                                wy - (3 - vm[4].parse::<u32>().unwrap()),
+                                wy - (3 - vm[4].parse::<i32>().unwrap()),
                             )
                         }
                         "S" => {
                             return (
                                 format!("V06S{}03", &vm[3]),
                                 wx,
-                                wy - (vm[4].parse::<u32>().unwrap() - 3),
+                                wy - (vm[4].parse::<i32>().unwrap() - 3),
                             )
                         }
                         _ => panic!("unknown V06 wire {}", wn),
@@ -195,14 +195,14 @@ pub fn handle_edge_name(
                             return (
                                 format!("V06N{}03", &vm[3]),
                                 wx,
-                                wy + (vm[4].parse::<u32>().unwrap() - 3),
+                                wy + (vm[4].parse::<i32>().unwrap() - 3),
                             )
                         }
                         "S" => {
                             return (
                                 format!("V06S{}03", &vm[3]),
                                 wx,
-                                wy + (3 - vm[4].parse::<u32>().unwrap()),
+                                wy + (3 - vm[4].parse::<i32>().unwrap()),
                             )
                         }
                         _ => panic!("unknown V06 wire {}", wn),
@@ -250,17 +250,19 @@ pub fn normalize_wire(chip: &Chip, tile: &Tile, wire: &str) -> String {
         .captures(wire)
         .expect(&format!("invalid wire name '{}'", wire));
     let (mut wy, mut wx, mut wn) = (
-        spw[1].parse::<u32>().unwrap(),
-        spw[2].parse::<u32>().unwrap(),
+        spw[1].parse::<i32>().unwrap(),
+        spw[2].parse::<i32>().unwrap(),
         &spw[3],
     );
     if wn.ends_with("VCCHPRX") || wn.ends_with("VCCHPBX") || wn.ends_with("VCC") {
         return "G:VCC".to_string();
     }
+    let tx = tile.x as i32;
+    let ty = tile.y as i32;
     if tile.name.contains("TAP") && wn.starts_with("H") {
-        if wx < tile.x {
+        if wx < tx {
             return format!("BRANCH_L:{}", wn);
-        } else if wx > tile.x {
+        } else if wx > tx {
             return format!("BRANCH_R:{}", wn);
         } else {
             panic!("unable to determine TAP side of {} in {}", wire, tile.name);
@@ -278,10 +280,10 @@ pub fn normalize_wire(chip: &Chip, tile: &Tile, wire: &str) -> String {
         return format!("DQSG:{:}", wn);
     }
     let en = handle_edge_name(
-        chip.data.max_col,
-        chip.data.max_row,
-        tile.x,
-        tile.y,
+        chip.data.max_col as i32,
+        chip.data.max_row as i32,
+        tx,
+        ty,
         wx,
         wy,
         wn,
@@ -289,21 +291,21 @@ pub fn normalize_wire(chip: &Chip, tile: &Tile, wire: &str) -> String {
     wn = &en.0;
     wx = en.1;
     wy = en.2;
-    if wx == tile.x && wy == tile.y {
+    if wx == tx && wy == ty {
         return wn.to_string();
     } else {
         let mut prefix = String::new();
-        if wy < tile.y {
-            prefix.push_str(&format!("N{}", tile.y - wy));
+        if wy < ty {
+            prefix.push_str(&format!("N{}", ty - wy));
         }
-        if wy > tile.y {
-            prefix.push_str(&format!("S{}", wy - tile.y));
+        if wy > ty {
+            prefix.push_str(&format!("S{}", wy - ty));
         }
-        if wx > tile.x {
-            prefix.push_str(&format!("E{}", wx - tile.x));
+        if wx > tx {
+            prefix.push_str(&format!("E{}", wx - tx));
         }
-        if wx < tile.x {
-            prefix.push_str(&format!("W{}", tile.x - wx));
+        if wx < tx {
+            prefix.push_str(&format!("W{}", tx - wx));
         }
         return format!("{}:{}", prefix, wn);
     }
