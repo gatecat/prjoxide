@@ -22,13 +22,14 @@ oxide_docs_index = """
 </head>
 <body>
 <h1>Project Oxide HTML Documentation</h1>
-<p>Project Oxide is a project to document the Lattice Nexus devices bitstream and internal architecture.</p>
+<p>Project Oxide is a project to document the Lattice Nexus (28nm) devices bitstream and internal architecture.</p>
 <p>This repository contains HTML documentation automatically generated from the
 <a href="https://github.com/daveshah1/prjoxide">Project Oxide</a> database. The equivalent
 machine-readable data is located in <a href="https://github.com/daveshah1/prjoxide-db">prjoxide-db.<a/>
-Data generated includes tilemap data and bitstream data for many tile types. Click on any tile to see its bitstream
+Data generated includes tilemap data and bitstream data for some basic tile types. Click on any tile to see its bitstream
 documentation.
 </p>
+<p>This HTML documentation was generated at ${datetime}</p>
 <hr/>
 $docs_toc
 <hr/>
