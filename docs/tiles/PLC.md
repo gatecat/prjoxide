@@ -1,0 +1,1 @@
+**PLC** tiles form the main fabric of the FPGA, containing both general interconnect and four logic slices. Interconnect connects between horizontal and vertical routing (H/V 0/1/2/6 wires); and slice inputs/outputs. Each slice contains two LUT4s, two FFs and a MUX2. All slices can also be used as carry logic (CCU2), and the bottom three slices can be combined to a 16x4 LUT RAM.

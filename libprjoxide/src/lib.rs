@@ -198,12 +198,13 @@ fn write_tilegrid_html(d: &mut Database, family: &str, device: &str, file: &str)
 #[pyfunction]
 fn write_tilebits_html(
     d: &mut Database,
+    docs_root: &str,
     family: &str,
     device: &str,
     tiletype: &str,
     file: &str,
 ) -> PyResult<()> {
-    database_html::write_bits_html(&mut d.db, family, device, tiletype, file);
+    database_html::write_bits_html(&mut d.db, docs_root, family, device, tiletype, file);
     Ok(())
 }
 

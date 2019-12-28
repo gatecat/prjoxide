@@ -31,3 +31,9 @@ pub fn md_to_html(md: &str) -> String {
     html::push_html(&mut html_output, parser);
     html_output
 }
+
+pub fn md_file_to_html(filename: &str) -> String {
+    let mut preproc = String::new();
+    preprocess(filename, &mut preproc);
+    md_to_html(&preproc)
+}

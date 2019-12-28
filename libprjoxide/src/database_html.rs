@@ -1,10 +1,11 @@
 use crate::database::*;
-use crate::docs::md_to_html;
+use crate::docs::{md_file_to_html, md_to_html};
 use std::cmp::{max, min};
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
+use std::path::Path;
 
 // Get the shade colour for a tile type
 fn get_colour(ttype: &str) -> &'static str {
@@ -94,7 +95,14 @@ fn wire_colour(c: char) -> &'static str {
     }
 }
 
-pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &str, filepath: &str) {
+pub fn write_bits_html(
+    db: &mut Database,
+    docs_root: &str,
+    fam: &str,
+    device: &str,
+    tiletype: &str,
+    filepath: &str,
+) {
     let tilegrid = db.device_tilegrid(fam, device);
     let mut nframes = 0;
     let mut nbits = 0;
@@ -179,6 +187,14 @@ pub fn write_bits_html(db: &mut Database, fam: &str, device: &str, tiletype: &st
             "
     )
     .unwrap();
+
+    writeln!(html, "<h1>{} Tile Documentation</h1>", tiletype).unwrap();
+    let tiledesc_path = Path::new(docs_root)
+        .join("tiles")
+        .join(format!("{}.md", tiletype));
+    if tiledesc_path.exists() {
+        writeln!(html, "{}", md_file_to_html(tiledesc_path.to_str().unwrap())).unwrap();
+    }
 
     // f, b -> (group, label, colour)
     let get_bit_info = |frame: usize, bit: usize| -> (String, String, &'static str) {

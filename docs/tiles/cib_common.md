@@ -1,0 +1,1 @@
+CIB tiles provide interconnect between general routing and special functions (such as IO, block RAM, DSPs etc). Outputs to the special functions are named as if they are LUT or FF inputs (`JCIBMUXOUT[ABCD][0-7]`, `J(CLK|CE|LSR)[0-1]`), inputs from special function outputs back to general routing are named as if they are LUT or FF outputs (`J[FQ][0-7]`).

@@ -6,6 +6,7 @@ import sys, re
 import argparse
 import database
 import libprjoxide
+from os import path
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('family', type=str,
@@ -20,7 +21,8 @@ parser.add_argument('outfile', type=str,
 def main(argv):
     args = parser.parse_args(argv[1:])
     db = libprjoxide.Database(database.get_db_root())
-    libprjoxide.write_tilebits_html(db, args.family, args.device, args.tiletype, args.outfile)
+    docs_root = path.join(database.get_oxide_root(), "docs")
+    libprjoxide.write_tilebits_html(db, docs_root, args.family, args.device, args.tiletype, args.outfile)
 
 if __name__ == "__main__":
     main(sys.argv)
