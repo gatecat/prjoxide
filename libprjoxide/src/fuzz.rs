@@ -21,6 +21,7 @@ pub enum FuzzMode {
         name: String,
         include_zeros: bool, // if true, explicit 0s instead of base will be created for unset bits for a setting
         disambiguate: bool,  // add explicit 0s to disambiguate settings only
+        assume_zero_base: bool,
     },
 }
 
@@ -89,12 +90,14 @@ impl Fuzzer {
         name: &str,
         desc: &str,
         include_zeros: bool,
+        assume_zero_base: bool,
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Enum {
                 name: name.to_string(),
                 include_zeros: include_zeros,
                 disambiguate: false, // fixme
+                assume_zero_base: assume_zero_base,
             },
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
@@ -272,6 +275,7 @@ impl Fuzzer {
                 name,
                 include_zeros,
                 disambiguate: _,
+                assume_zero_base,
             } => {
                 if self.deltas.len() < 2 {
                     return;
@@ -313,6 +317,16 @@ impl Fuzzer {
                                                         invert: *v,
                                                     })
                                                     .collect()
+                                            } else if *assume_zero_base {
+                                                changed_bits
+                                                    .iter()
+                                                    .filter(|(_f, _b, v)| !(*v))
+                                                    .map(|(f, b, v)| ConfigBit {
+                                                        frame: *f,
+                                                        bit: *b,
+                                                        invert: *v,
+                                                    })
+                                                    .collect()
                                             } else {
                                                 BTreeSet::new()
                                             }
@@ -323,6 +337,11 @@ impl Fuzzer {
                                                 *include_zeros
                                                     || !(*v)
                                                     || td.contains(&(*f, *b, *v))
+                                            })
+                                            .filter(|(f, b, v)| {
+                                                !(*assume_zero_base)
+                                                    || *v
+                                                    || !(*v) && !td.contains(&(*f, *b, *v))
                                             })
                                             .map(|(f, b, v)| ConfigBit {
                                                 frame: *f,

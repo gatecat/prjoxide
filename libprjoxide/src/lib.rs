@@ -112,6 +112,7 @@ impl Fuzzer {
         name: &str,
         desc: &str,
         include_zeros: bool,
+        assume_zero_base: bool,
     ) -> Fuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -126,6 +127,7 @@ impl Fuzzer {
                 name,
                 desc,
                 include_zeros,
+                assume_zero_base,
             ),
         }
     }
