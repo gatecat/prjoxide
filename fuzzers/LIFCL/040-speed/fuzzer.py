@@ -20,6 +20,7 @@ def main():
     empty = cfg.build_design(cfg.sv, {})
     cfg.sv = "speed_40.v"
     nonrouting.fuzz_enum_setting(cfg, empty, "CHIP.SPEED", ["SLOW_1V0", "FAST_1V0"],
-            lambda x: {"speed": speed_map[x]}, True)
+            lambda x: {"speed": speed_map[x]}, True,
+            desc="Adjust back bias for high speed or low power")
 if __name__ == "__main__":
     main()

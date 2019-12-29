@@ -9,10 +9,10 @@ cfg = FuzzConfig(job="EBRMODE", device="LIFCL-40", sv="../shared/empty_40.v", ti
 defaults = {
     "NONE": "",
     "DP16K_MODE": "DP16K_MODE:::DATA_WIDTH_A=X18,DATA_WIDTH_B=X18,INIT_DATA=NO_INIT,WID=0b00000000000:CLKA=0,CLKB=0",
-    "PDP16K_MODE": "PDP16K_MODE:::DATA_WIDTH_R=NONE,DATA_WIDTH_W=NONE,INIT_DATA=NO_INIT,WID=0b00000000000:CLKR=0,CLKW=0",
-    "PDPSC16K_MODE": "PDPSC16K_MODE:::DATA_WIDTH_A=NONE,DATA_WIDTH_B=NONE,INIT_DATA=NO_INIT,WID=0b00000000000:CLK=0",
+    "PDP16K_MODE": "PDP16K_MODE:::DATA_WIDTH_R=X36,DATA_WIDTH_W=X36,INIT_DATA=NO_INIT,WID=0b00000000000:CLKR=0,CLKW=0",
+    "PDPSC16K_MODE": "PDPSC16K_MODE:::DATA_WIDTH_R=X36,DATA_WIDTH_W=X36,INIT_DATA=NO_INIT,WID=0b00000000000:CLK=0",
     "SP16K_MODE": "SP16K_MODE:::DATA_WIDTH=X18,INIT_DATA=NO_INIT,WID=0b00000000000:CLK=0",
-    "FIFO16K_MODE": "FIFO16K_MODE:::FULLBITS=0b00000000000000,DATA_WIDTH_A=NONE,DATA_WIDTH_B=NONE FIFO16K_MODE::::CKA=0,CKB=0"
+    "FIFO16K_MODE": "FIFO16K_MODE:::FULLBITS=0b00000000000000,DATA_WIDTH_A=X36,DATA_WIDTH_B=X36 FIFO16K_MODE::::CKA=0,CKB=0"
 }
 
 ebr = "EBR0"
@@ -78,17 +78,14 @@ def main():
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.{}MUX".format(ebr, mode, sig), ["0", sig, "INV"],
                 lambda x: get_substs(mode=mode, kv=(sig, x), mux=True), False,
                 desc="clock inversion control for {}".format(sig))
-    for mode, cwesigs in [("DP16K_MODE", ["WEA", "WEB", "CEA", "CEB"]),
-                            ("PDP16K_MODE", ["WE", "CER", "CEW"]),
-                            ("PDPSC16K_MODE", ["WE", "CER", "CEW"]),
-                            ("SP16K_MODE", ["WE", "CE"]),
-                            ("FIFO16K_MODE", ["CEA", "CEB"])]:
+    for mode, cwesigs in [("DP16K_MODE", ["WEA", "WEB", "CEA", "CEB", "RSTA", "RSTB"]),
+                            ("PDP16K_MODE", ["WE", "CER", "CEW", "RST"]),
+                            ("PDPSC16K_MODE", ["WE", "CER", "CEW", "RST"]),
+                            ("SP16K_MODE", ["WE", "CE", "RST"]),
+                            ("FIFO16K_MODE", ["CEA", "CEB", "RSTA", "RSTB"])]:
         for sig in cwesigs:
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.{}MUX".format(ebr, mode, sig), [sig, "INV"],
                 lambda x: get_substs(mode=mode, kv=(sig, x), mux=True), False)
-
-    nonrouting.fuzz_enum_setting(cfg, empty, "{}.RSTMUX".format(ebr), ["RST", "INV"],
-        lambda x: get_substs(mode="DP16K_MODE", kv=("RST", x), mux=True), False)
 
     for mode, outregs in [("DP16K_MODE", ["OUTREG_A", "OUTREG_B"]),
                             ("PDP16K_MODE", ["OUTREG"]),
@@ -107,13 +104,16 @@ def main():
                             ("FIFO16K_MODE", ["_A", "_B"])]:
         for port in ports:
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.RESETMODE{}".format(ebr, mode, port), ["ASYNC", "SYNC"],
-                lambda x: get_substs(mode=mode, kv=("RESETMODE{}",format(port), x)), False)
+                lambda x: get_substs(mode=mode, kv=("RESETMODE{}".format(port), x)), False)
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.ASYNC_RST_RELEASE{}".format(ebr, mode, port), ["ASYNC", "SYNC"],
-                lambda x: get_substs(mode=mode, kv=("ASYNC_RST_RELEASE{}",format(port), x)), False)
+                lambda x: get_substs(mode=mode, kv=("ASYNC_RST_RELEASE{}".format(port), x)), False)
 
     nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(ebr), ["ENABLED", "DISABLED"],
         lambda x: get_substs(mode="DP16K_MODE", kv=("GSR", x)), False,
         desc="if `ENABLED`, then read ports are reset by user GSR")
+    nonrouting.fuzz_enum_setting(cfg, empty, "{}.INIT_DATA".format(ebr), ["DYNAMIC", "STATIC", "NO_INIT"],
+        lambda x: get_substs(mode="DP16K_MODE", kv=("INIT_DATA", x)), False,
+        desc="selects initialisation mode")
     nonrouting.fuzz_word_setting(cfg, "{}.WID".format(ebr), 11,
         lambda x: get_substs(mode="DP16K_MODE", kv=("WID", "0b" + "".join(reversed(["1" if b else "0" for b in x])))),
         desc="unique ID for the BRAM, used to initialise it in the bitstream")
