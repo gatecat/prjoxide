@@ -108,6 +108,15 @@ def main():
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.ASYNC_RST_RELEASE{}".format(ebr, mode, port), ["ASYNC", "SYNC"],
                 lambda x: get_substs(mode=mode, kv=("ASYNC_RST_RELEASE{}".format(port), x)), False)
 
+    for mode, csds in [("DP16K_MODE", ["CSDECODE_A", "CSDECODE_B"]),
+                            ("PDP16K_MODE", ["CSDECODE_R", "CSDECODE_W"]),
+                            ("PDPSC16K_MODE", ["CSDECODE_R", "CSDECODE_W"]),
+                            ("SP16K_MODE", ["CSDECODE"]),]:
+        for csd in csds:
+            nonrouting.fuzz_word_setting(cfg, "{}.{}.{}".format(ebr, mode, csd), 3,
+                lambda x: get_substs(mode=mode, kv=(csd, "".join(reversed(["1" if b else "0" for b in x])))),
+                desc="port is enabled when CS inputs match this value".format(csd))
+
     nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(ebr), ["ENABLED", "DISABLED"],
         lambda x: get_substs(mode="DP16K_MODE", kv=("GSR", x)), False,
         desc="if `ENABLED`, then read ports are reset by user GSR")
