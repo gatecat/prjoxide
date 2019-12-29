@@ -19,3 +19,6 @@ pulldown-cmark = "0.6.1"
 name = "prjoxide"
 crate-type = ["cdylib"]
 
+[[bin]]
+name = "oxideunpack"
+path = "src/unpack.rs"

@@ -1,6 +1,6 @@
 use crate::database::*;
 use multimap::MultiMap;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
 
 // 2D bit array
@@ -110,7 +110,7 @@ impl Chip {
             tiles: tiles
                 .tiles
                 .iter()
-                .map(|(name, data)| Tile::new(name, data))
+                .map(|(name, data)| Tile::new(name, family, data))
                 .collect(),
             ipconfig: BTreeMap::new(),
             tiles_by_name: HashMap::new(),
@@ -238,6 +238,7 @@ impl Chip {
 #[derive(Clone)]
 pub struct Tile {
     pub name: String,
+    pub family: String,
     pub tiletype: String,
     pub x: u32,
     pub y: u32,
@@ -247,9 +248,10 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn new(name: &str, data: &TileData) -> Tile {
+    pub fn new(name: &str, family: &str, data: &TileData) -> Tile {
         Tile {
             name: name.to_string(),
+            family: family.to_string(),
             tiletype: data.tiletype.to_string(),
             x: data.x,
             y: data.y,
@@ -262,6 +264,107 @@ impl Tile {
         if self.cram.any() {
             writeln!(&mut out, ".tile {}:{}", self.name, self.tiletype).unwrap();
             self.cram.print(&mut out);
+        }
+    }
+    pub fn write_fasm(&self, db: &mut Database, mut out: &mut dyn Write) {
+        let tdb = db.tile_bitdb(&self.family, &self.tiletype);
+        let fasm_name = self.name.replace(':', "_");
+        let mut known_bits = BTreeSet::<(usize, usize)>::new();
+        let mut total_matches = 0;
+        for (to_wire, pips) in tdb.db.pips.iter() {
+            let best_match = pips
+                .iter()
+                .filter(|p| {
+                    p.bits.iter().any(|cb| !cb.invert)
+                        && p.bits
+                            .iter()
+                            .all(|cb| self.cram.get(cb.frame, cb.bit) == !cb.invert)
+                })
+                .max_by_key(|p| p.bits.len());
+            if let Some(m) = best_match {
+                writeln!(
+                    &mut out,
+                    "{}.PIP.{}.{}",
+                    fasm_name,
+                    to_wire.replace(':', "__"),
+                    m.from_wire.replace(':', "__")
+                )
+                .unwrap();
+                let mut matched_bits = m.bits.iter().map(|cb| (cb.frame, cb.bit)).collect();
+                known_bits.append(&mut matched_bits);
+                total_matches += 1;
+            }
+        }
+        for (name, edata) in tdb.db.enums.iter() {
+            let best_match = edata
+                .options
+                .iter()
+                .filter(|(_k, v)| {
+                    v.iter().any(|cb| !cb.invert)
+                        && v.iter()
+                            .all(|cb| self.cram.get(cb.frame, cb.bit) == !cb.invert)
+                })
+                .max_by_key(|(_k, v)| v.len());
+            if let Some((opt, bits)) = best_match {
+                writeln!(&mut out, "{}.{}.{}", fasm_name, name, opt).unwrap();
+                let mut matched_bits = bits.iter().map(|cb| (cb.frame, cb.bit)).collect();
+                known_bits.append(&mut matched_bits);
+                total_matches += 1;
+            }
+        }
+        for (name, wdata) in tdb.db.words.iter() {
+            // Skip words with no set bits
+            if !wdata
+                .bits
+                .iter()
+                .flatten()
+                .any(|cb| self.cram.get(cb.frame, cb.bit))
+            {
+                continue;
+            }
+            let bitstr: String = wdata
+                .bits
+                .iter()
+                .rev()
+                .map(|b| {
+                    match b
+                        .iter()
+                        .all(|cb| self.cram.get(cb.frame, cb.bit) == !cb.invert)
+                    {
+                        true => '1',
+                        false => '0',
+                    }
+                })
+                .collect();
+            writeln!(
+                &mut out,
+                "{}.{}[{}:0] = {}'b{}",
+                fasm_name,
+                name,
+                wdata.bits.len() - 1,
+                wdata.bits.len(),
+                bitstr
+            )
+            .unwrap();
+            let mut matched_bits = wdata
+                .bits
+                .iter()
+                .flatten()
+                .map(|cb| (cb.frame, cb.bit))
+                .collect();
+            known_bits.append(&mut matched_bits);
+            total_matches += 1;
+        }
+        for f in 0..self.cram.frames {
+            for b in 0..self.cram.bits {
+                if self.cram.get(f, b) && !known_bits.contains(&(f, b)) {
+                    writeln!(&mut out, "{}.UNKNOWN.{}.{}", fasm_name, f, b).unwrap();
+                    total_matches += 1;
+                }
+            }
+        }
+        if total_matches > 0 {
+            writeln!(&mut out, "").unwrap();
         }
     }
 }
