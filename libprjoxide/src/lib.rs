@@ -210,11 +210,17 @@ fn write_tilebits_html(
     Ok(())
 }
 
+#[pyfunction]
+fn md_file_to_html(filename: &str) -> String {
+    docs::md_file_to_html(filename)
+}
+
 #[pymodule]
 fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_wrapped(wrap_pyfunction!(write_tilegrid_html))?;
     m.add_wrapped(wrap_pyfunction!(write_tilebits_html))?;
+    m.add_wrapped(wrap_pyfunction!(md_file_to_html))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<Chip>()?;

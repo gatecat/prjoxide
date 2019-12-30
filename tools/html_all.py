@@ -14,6 +14,8 @@ import database
 import html_tilegrid
 import html_tilebits
 import fuzzloops
+import glob
+import libprjoxide
 
 oxide_docs_index = """
 <html>
@@ -30,6 +32,11 @@ Data generated includes tilemap data and bitstream data for some basic tile type
 documentation.
 </p>
 <p>This HTML documentation was generated at ${datetime}</p>
+<hr/>
+<h3>General Documentation</h3>
+<ul>
+$gen_docs_toc
+</ul>
 <hr/>
 $docs_toc
 <hr/>
@@ -71,6 +78,20 @@ def main(argv):
         os.mkdir(args.fld)
     commit_hash = database.get_db_commit()
     build_dt = time.strftime('%Y-%m-%d %H:%M:%S')
+    gen_docs_toc = ""
+    gdir = path.join(args.fld, "general")
+    if not path.exists(gdir):
+        os.mkdir(gdir)
+    for mdfile in glob.glob(path.join(database.get_oxide_root(), "docs", "general", "*.md")):
+        with open(mdfile, "r") as f:
+            if f.read(1) != "#":
+                continue
+            title = f.readline().strip()
+        htmlfn = path.basename(mdfile).replace(".md", ".html")
+        htmlfile = path.join(gdir, htmlfn)
+        with open(htmlfile, "w") as f:
+            f.write(libprjoxide.md_file_to_html(mdfile))
+        gen_docs_toc += '<li><a href="general/{}">{}</a></li>\n'.format(htmlfn, title)
     docs_toc = ""
     for fam, fam_data in sorted(database.get_devices()["families"].items()):
         fdir = path.join(args.fld, fam)
@@ -83,7 +104,7 @@ def main(argv):
         if not path.exists(bhdir):
             os.mkdir(bhdir)
         docs_toc += "<h3>{} Family</h3>".format(fam)
-        docs_toc += "<h4>Bitstream Documentation</h4>"
+        docs_toc += "<h4>Generated Bitstream Documentation</h4>"
         docs_toc += "<ul>"
         tiles = get_device_tiles(fam, fam_data["devices"])
         for dev, devdata in sorted(fam_data["devices"].items()):
@@ -107,7 +128,8 @@ def main(argv):
     index_html = Template(oxide_docs_index).substitute(
         datetime=build_dt,
         commit=commit_hash,
-        docs_toc=docs_toc
+        docs_toc=docs_toc,
+        gen_docs_toc=gen_docs_toc,
     )
     with open(path.join(args.fld, "index.html"), 'w') as f:
         f.write(index_html)
