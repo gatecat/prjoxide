@@ -107,8 +107,22 @@ impl Fuzzer {
     }
     fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
         let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
-        let delta = parsed_bitstream.delta(&self.base);
-        self.deltas.insert(key, delta);
+        let delta: ChipDelta = parsed_bitstream.delta(&self.base);
+        if let Some(d) = self.deltas.get_mut(&key) {
+            // If key already in delta, take the intersection of the two
+            let intersect :ChipDelta = d.iter().filter_map(|(tile, td)| {
+                match delta.get(tile) {
+                    None => None,
+                    Some(d2) => {
+                        let dv :Vec<(usize, usize, bool)> = td.iter().filter(|x| d2.contains(x)).map(|&x| x).collect();
+                        Some((tile.clone(), dv))
+                    }
+                }
+            }).collect();
+            *d = intersect
+        } else {
+            self.deltas.insert(key, delta);
+        }
     }
     pub fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, bitfile: &str) {
         self.add_sample(

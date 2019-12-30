@@ -24,7 +24,7 @@ def fuzz_word_setting(config, name, length, get_sv_substs, desc=""):
         fz.add_word_sample(fuzzconfig.db, i, i_bit)
     fz.solve(fuzzconfig.db)
 
-def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, include_zeros=True, assume_zero_base=False, desc=""):
+def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, include_zeros=True, assume_zero_base=False, min_cover={}, desc=""):
     """
     Fuzz a setting with multiple possible values
 
@@ -36,11 +36,18 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
     :param include_zeros: if set, bits set to zero are not included in db. Needed for settings such as CEMUX which share
     bits with routing muxes to prevent conflicts.
     :param assume_zero_base: if set, the baseline bitstream is considered the all-zero bitstream
+    :param min_cover: for each setting in this, run with each value in the array that setting points to, to get a minimal
+    bit set
     """
     prefix = "thread{}_".format(threading.get_ident())
     fz = libprjoxide.Fuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, set(config.tiles), name, desc, include_zeros, assume_zero_base)
     for opt in values:
-        opt_bit = i_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
-        fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
+        if opt in min_cover:
+            for c in min_cover[opt]:
+                opt_bit = config.build_design(config.sv, get_sv_substs((opt, c)), prefix)
+                fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
+        else:
+            opt_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
+            fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
     fz.solve(fuzzconfig.db)
 

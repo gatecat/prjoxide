@@ -16,13 +16,23 @@ defaults = {
     "PREADD9_CORE": "PREADD9_CORE:::GSR=DISABLED,REGBYPSBL=REGISTER,REGBYPSBR0=REGISTER,REGBYPSBR1=REGISTER:RSTB=0,RSTCL=0,CLK=0,CEB=0,CECL=0",
     "MULT18_CORE": "MULT18_CORE:::MULT18X18=DISABLED,SFTEN=DISABLED,ROUNDBIT=ROUND_TO_BIT0",
     "MULT18X36_CORE": "MULT18X36_CORE:::MULT18X36=DISABLED,MULT36=DISABLED,SFTEN=DISABLED,ROUNDBIT=ROUND_TO_BIT0",
-    "REG18_CORE": "REG18_CORE:::GSR=DISABLED:RSTP=0,CLK=0,CEP=0"
+    "REG18_CORE": "REG18_CORE:::GSR=DISABLED:RSTP=0,CLK=0,CEP=0",
+    "MULT36_CORE": "MULT36_CORE:::MULT36X36=DISABLED",
+    "ACC54_CORE": "ACC54_CORE:::GSR=DISABLED,SIGN=DISABLED,STATICOPCODE_EN=DISABLED,OUTREGBYPS=REGISTER,CONSTSEL=BYPASS,\
+ACCUMODE=MODE0,ACCUBYPS=USED,CREGBYPS1=REGISTER,CREGBYPS2=REGISTER,CREGBYPS3=REGISTER,\
+CINREGBYPS1=REGISTER,CINREGBYPS2=REGISTER,CINREGBYPS3=REGISTER,LOADREGBYPS1=REGISTER,LOADREGBYPS2=REGISTER,LOADREGBYPS3=REGISTER,\
+M9ADDSUBREGBYPS1=REGISTER,M9ADDSUBREGBYPS2=REGISTER,M9ADDSUBREGBYPS3=REGISTER,ADDSUBSIGNREGBYPS1=REGISTER,ADDSUBSIGNREGBYPS2=REGISTER,ADDSUBSIGNREGBYPS3=REGISTER,\
+CASCOUTREGBYPS=REGISTER,SFTEN=DISABLED:RSTCIN=0,RSTO=0,RSTC=0,CLK=0,CECIN=0,CECTRL=0,CEO=0,CEC=0"
+
 }
 
 r = 37
 c = 63
 
 locs = [
+    ("ACC54_0", "ACC54_CORE", "ACC54_CORE_R{}C{}".format(r, c + 2)),
+    ("ACC54_1", "ACC54_CORE", "ACC54_CORE_R{}C{}".format(r, c + 6)),
+
     ("MULT18_0", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c)),
     ("MULT18_1", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 1)),
     ("MULT18_2", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 4)),
@@ -55,6 +65,11 @@ locs = [
     ("PREADD9_H2", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 4)),
     ("PREADD9_L3", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 5)),
     ("PREADD9_H3", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 5)),
+
+    ("MULT18X36_0", "MULT18X36_CORE", "MULT18X36_CORE_R{}C{}".format(r, c + 2)),
+    ("MULT18X36_1", "MULT18X36_CORE", "MULT18X36_CORE_R{}C{}".format(r, c + 6)),
+
+    ("MULT36", "MULT36_CORE", "MULT36_CORE_R{}C{}".format(r, c + 6)),
 ]
 
 ce_sigs = {
@@ -62,7 +77,9 @@ ce_sigs = {
     "PREADD9_CORE": ["CEB", "CECL"],
     "MULT18_CORE": [],
     "REG18_CORE": ["CEP"],
-    "MULT18X36_CORE": []
+    "MULT18X36_CORE": [],
+    "MULT36_CORE": [],
+    "ACC54_CORE": ["CECIN", "CECTRL", "CEO", "CEC"],
 }
 
 rst_sigs = {
@@ -70,7 +87,9 @@ rst_sigs = {
     "PREADD9_CORE": ["RSTB", "RSTCL"],
     "MULT18_CORE": [],
     "REG18_CORE": ["RSTP"],
-    "MULT18X36_CORE": []
+    "MULT18X36_CORE": [],
+    "MULT36_CORE": [],
+    "ACC54_CORE": ["RSTCIN", "RSTCTRL", "RSTO", "RSTC"]
 }
 
 regs = {
@@ -78,7 +97,9 @@ regs = {
     "PREADD9_CORE": ["BR0", "BR1", "BL"],
     "MULT18_CORE": [],
     "REG18_CORE": [""],
-    "MULT18X36_CORE": []
+    "MULT18X36_CORE": [],
+    "MULT36_CORE": [],
+    "ACC54_CORE": []
 }
 
 ed = ["ENABLED", "DISABLED"]
@@ -120,6 +141,39 @@ misc_config = {
         ("ROUNDRTZI", ["ROUND_TO_ZERO", "ROUND_TO_INFINITE"], "rounding mode"),
     ],
     "REG18_CORE": [],
+    "MULT36_CORE": [
+        ("MULT36X36", ed, "enable 36x36 multiply")
+    ],
+    "ACC54_CORE": [
+        ("SIGN", ed, "select dynamic signedness or signedness controlled by parameters"),
+        ("M9ADDSUB_CTRL", ["ADDITION", "ADDSUB", "SUBADD", "SUBTRACTION"], "select stage 1 operation in static opcode mode"),
+        ("ADDSUB_CTRL", ["ADD_ADD_CTRL_54_BIT_ADDER", "SUB_ADD_CTRL_54_BIT_ADDER", "ADD_SUB_CTRL_54_BIT_ADDER", "SUB_SUB_CTRL_54_BIT_ADDER"], "select stage 2 operation in static opcode mode"),
+        ("STATICOPCODE_EN", ed, "operation controlled by input pins or parameters"),
+        ("OUTREGBYPS", rb, "output register enable or bypass"),
+        ("CONSTSEL", ["BYPASS", "SELECT"], "if `SELECT` then use PROGCONST for `C` operand"),
+        ("DSPCASCADE", ed, "enable DSP cascading"),
+        ("ACC108CASCADE", ["BYPASSCASCADE", "CASCADE2ACCU54TOFORMACCU108"], "cascade carry of two ACC54s to create a 108-bit accumulator"),
+        ("ACCUBYPS", ub, "accumulator bypass"),
+        ("CREGBYPS1", rb, "`C` register 1 enable or bypass"),
+        ("CREGBYPS2", rb, "`C` register 2 enable or bypass"),
+        ("CREGBYPS3", rb, "`C` register 3 enable or bypass"),
+        ("CINREGBYPS1", rb, "`CIN` register 1 enable or bypass"),
+        ("CINREGBYPS2", rb, "`CIN` register 2 enable or bypass"),
+        ("CINREGBYPS3", rb, "`CIN` register 3 enable or bypass"),
+        ("LOADREGBYPS1", rb, "`LOAD` register 1 enable or bypass"),
+        ("LOADREGBYPS2", rb, "`LOAD` register 2 enable or bypass"),
+        ("LOADREGBYPS3", rb, "`LOAD` register 3 enable or bypass"),
+        ("M9ADDSUBREGBYPS1", rb, "`M9ADDSUB` register 1 enable or bypass"),
+        ("M9ADDSUBREGBYPS2", rb, "`M9ADDSUB` register 2 enable or bypass"),
+        ("M9ADDSUBREGBYPS3", rb, "`M9ADDSUB` register 3 enable or bypass"),
+        ("ADDSUBSIGNREGBYPS1", rb, "`ADDSUBSIGN` register 1 enable or bypass"),
+        ("ADDSUBSIGNREGBYPS2", rb, "`ADDSUBSIGN` register 2 enable or bypass"),
+        ("ADDSUBSIGNREGBYPS3", rb, "`ADDSUBSIGN` register 3 enable or bypass"),
+        ("ROUNDHALFUP", ed, ""),
+        ("ROUNDRTZI", ["ROUND_TO_ZERO", "ROUND_TO_INFINITE"], "rounding mode"),
+        ("CASCOUTREGBYPS", rb, "cascade output register enable or bypass"),
+        ("SFTEN", ed, "enable variable shifter controlled by `SFTCTRL`"),
+    ]
 }
 
 def main():
@@ -129,7 +183,7 @@ def main():
     for dsp, prim, site in locs:
         def get_substs(mode="NONE", default_cfg=False, kv=None, mux=False, extra_sigs=""):
             if default_cfg:
-                config = defaults[mode]
+                config = defaults[mode] + extra_sigs
             elif kv is None:
                 config = ""
             elif mux:
@@ -142,9 +196,16 @@ def main():
             else:
                 config = "{}:::{}={}".format(mode, kv[0], kv[1])
             return dict(mode=mode, cmt="//" if mode == "NONE" else "", config=config, prim=prim, site=site)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
-            lambda x: get_substs(x, default_cfg=True), False, assume_zero_base=True,
-            desc="{} primitive mode".format(dsp))
+        if prim == "ACC54_CORE":
+            # Use 'cover' to get a minimal bit set
+            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
+                    lambda x: get_substs(x[0], default_cfg=True, extra_sigs=x[1]), False, assume_zero_base=True,
+                    min_cover={"NONE": [""], "ACC54_CORE": [" ACC54_CORE::::RSTCTRL=0", " ACC54_CORE::::RSTCTRL=#SIG"]},
+                    desc="{} primitive mode".format(dsp))
+        else:
+            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
+                lambda x: get_substs(x, default_cfg=True), False, assume_zero_base=True,
+                desc="{} primitive mode".format(dsp))
         if prim not in ("MULT18_CORE", "MULT18X36_CORE", "MULT36_CORE"):
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(dsp), ["ENABLED", "DISABLED"],
                         lambda x: get_substs(mode=prim, kv=("GSR", x)), False,
