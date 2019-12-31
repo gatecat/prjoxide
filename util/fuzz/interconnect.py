@@ -19,7 +19,8 @@ def fuzz_interconnect(
         nodename_filter_union=False,
         full_mux_style=False,
         ignore_tiles=set(),
-        extra_substs={}
+        extra_substs={},
+        fc_filter=lambda x: True
     ):
     """
     Fuzz interconnect given a list of nodenames to analyse. Pips associated these nodenames will be found using the Tcl
@@ -39,6 +40,7 @@ def fuzz_interconnect(
     on certain families.
     :param ignore_tiles: don't reject pips that touch these tils
 	:param extra_substs: extra SV substitutions
+    :param fc_filter: skip fixed connections if this returns false for a sink wire name
     """
     nodes = lapie.get_node_data(config.udb, nodenames, regex)
     base_bitf = config.build_design(config.sv, extra_substs, "base_")
@@ -71,7 +73,7 @@ def fuzz_interconnect(
     def per_sink(to_wire):
         # Get a unique prefix from the thread ID
         prefix = "thread{}_".format(threading.get_ident())
-        fz = libprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], ignore_tiles, full_mux_style, False)
+        fz = libprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], ignore_tiles, full_mux_style, not (fc_filter(to_wire)))
         for from_wire in sinks[to_wire]:
             arcs_attr = r', \dm:arcs ="{}.{}"'.format(to_wire, from_wire)
             substs = extra_substs.copy()
