@@ -7,7 +7,7 @@ import subprocess
 import database
 
 
-def run(device, source, struct_ver=True, raw_bit=False):
+def run(device, source, struct_ver=True, raw_bit=False, pdcfile=None):
     """
     Run radiant.sh with a given device name and source Verilog file
     """

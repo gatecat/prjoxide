@@ -36,8 +36,10 @@ bscache=${BITSTREAM_CACHE:-$SCRIPT_DIR/tools/bitstreamcache.py}
 rm -rf "$2.tmp"
 mkdir -p "$2.tmp"
 cp "$2.v" "$2.tmp/input.v"
+MAYBE_PDC=""
+if [ -e "$2.pdc" ]; then cp "$2.pdc" "$2.tmp/input.pdc"; MAYBE_PDC="$2.tmp/input.pdc"; fi
 
-if ([ -z "$FORCE_REBUILD"] && (LD_LIBRARY_PATH=$ld_lib_path_orig $bscache fetch $PART "$2.tmp" "$2.tmp/input.v")); then
+if ([ -z "$FORCE_REBUILD"] && (LD_LIBRARY_PATH=$ld_lib_path_orig $bscache fetch $PART "$2.tmp" "$2.tmp/input.v" $MAYBE_PDC)); then
 	# Cache hit
 	echo "Cache hit, not running Radiant"
 else
@@ -53,17 +55,21 @@ else
 
 	"$fpgabindir"/postsyn -a "$LSE_ARCH" -p "$DEVICE" -t "$PACKAGE" -sp "$SPEED_GRADE" \
 				-top -w -o synth.udb synth.vm
-
-	"$fpgabindir"/map -o map.udb synth.udb
+	if [ -e input.pdc ]; then
+		MAP_PDC="input.pdc"
+	else
+		MAP_PDC=""
+	fi
+	"$fpgabindir"/map -o map.udb synth.udb $MAP_PDC
 	"$fpgabindir"/par map.udb par.udb
 	fi
 
 	if [ -n "$GEN_RBF" ]; then
 	"$fpgabindir"/bitgen -b -d -w par.udb
-	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" output "par.udb" "par.rbt"
+	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
 	else
 	"$fpgabindir"/bitgen -d -w par.udb
-	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" output "par.udb" "par.bit"
+	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.bit"
 	fi
 	export LD_LIBRARY_PATH=""
 fi

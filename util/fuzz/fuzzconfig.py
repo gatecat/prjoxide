@@ -61,10 +61,13 @@ class FuzzConfig:
         subst = dict(substitutions)
         if "arcs_attr" not in subst:
             subst["arcs_attr"] = ""
-        if "sysconfig" not in subst:
-            subst["sysconfig"] = ""
         desfile = path.join(self.workdir, prefix + "design.v")
         bitfile = path.join(self.workdir, prefix + "design.bit")
+
+        if "sysconfig" in subst:
+            pdcfile = path.join(self.workdir, prefix + "design.pdc")
+            with open(pdcfile, "w") as pdcf:
+                pdcf.write("ldc_set_sysconfig {{{}}}\n".format(subst["sysconfig"]))
 
         if path.exists(bitfile):
             os.remove(bitfile)
@@ -74,7 +77,7 @@ class FuzzConfig:
                     ouf.write(Template(inf.read()).substitute(**subst))
                 else:
                     ouf.write(inf.read())
-        radiant.run(self.device, desfile, struct_ver=self.struct_mode, raw_bit=False)
+        radiant.run(self.device, desfile, struct_ver=self.struct_mode, raw_bit=False,)
         if self.struct_mode and self.udb_specimen is None:
             self.udb_specimen = path.join(self.workdir, prefix + "design.tmp", "par.udb")
         return bitfile
