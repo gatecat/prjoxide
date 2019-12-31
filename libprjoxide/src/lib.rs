@@ -165,8 +165,18 @@ impl Chip {
         });
     }
 
+    #[staticmethod]
+    pub fn from_bitstream(db: &mut Database, filename: &str) -> Chip {
+        let chip = bitstream::BitstreamParser::parse_file(&mut db.db, filename).unwrap();
+        Chip {c: chip}
+    }
+
     fn normalize_wire(&mut self, tile: &str, wire: &str) -> String {
         wires::normalize_wire(&self.c, self.c.tile_by_name(tile).unwrap(), wire)
+    }
+
+    fn get_ip_values(&mut self) -> Vec<(u32, u8)> {
+        self.c.ipconfig.iter().map(|(a, d)| (*a, *d)).collect()
     }
 }
 
