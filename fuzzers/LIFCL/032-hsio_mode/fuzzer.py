@@ -8,6 +8,16 @@ configs = [
         FuzzConfig(job="IO5A", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C6:SYSIO_B5_0", "CIB_R56C7:SYSIO_B5_1"])),
     ("B","W1", # PB6B
         FuzzConfig(job="IO5B", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C6:SYSIO_B5_0", "CIB_R56C7:SYSIO_B5_1"])),
+    ("A","Y7", # PB30A
+        FuzzConfig(job="IO4A", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C30:SYSIO_B4_0", "CIB_R56C31:SYSIO_B4_1"])),
+    ("B","Y8", # PB30B
+        FuzzConfig(job="IO4B", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C30:SYSIO_B4_0", "CIB_R56C31:SYSIO_B4_1"])),
+    ("A","R12", # PB64A
+        FuzzConfig(job="IO3A", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C64:SYSIO_B3_0", "CIB_R56C65:SYSIO_B3_1"])),
+    ("B","P12", # PB64A
+        FuzzConfig(job="IO3B", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C64:SYSIO_B3_0", "CIB_R56C65:SYSIO_B3_1"])),
+
+
 ]
 
 seio_types = [
@@ -162,6 +172,10 @@ def main():
                             lambda x: get_substs(iotype="OUTPUT_SLVS", kv=("DIFFDRIVE", x.replace("P", "."))), False)
             nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.DIFFIO18.DIFFDRIVE_LVDS".format(pio), ["NA", "3P5"],
                             lambda x: get_substs(iotype="OUTPUT_LVDS", kv=("DIFFDRIVE", x.replace("P", "."))), False)
+            nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.DIFFIO18.DIFFRX_INV".format(pio), ["NORMAL", "INVERT"],
+                            lambda x: get_substs(iotype="INPUT_LVDS", kv=("DIFFRX_INV", x)), False)
+            nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.DIFFIO18.DIFFTX_INV".format(pio), ["NORMAL", "INVERT"],
+                            lambda x: get_substs(iotype="OUTPUT_LVDS", kv=("DIFFTX_INV", x)), False)
     fuzzloops.parallel_foreach(configs, per_config)
 if __name__ == "__main__":
     main()
