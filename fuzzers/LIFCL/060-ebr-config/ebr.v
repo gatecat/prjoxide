@@ -3,7 +3,7 @@
 module top (
     
 );
-    ${cmt} (* \dm:primitive ="EBR_CORE", \dm:programming ="MODE:${mode} ${config}", \dm:site ="EBR_CORE_R28C26" *) 
+    ${cmt} (* \dm:primitive ="EBR_CORE", \dm:programming ="MODE:${mode} ${config}", \dm:site ="${site}" *) 
     ${cmt} EBR_CORE EBR_I ( );
 
     // A primitive is needed, but VHI should be harmless
