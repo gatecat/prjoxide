@@ -22,3 +22,8 @@ crate-type = ["cdylib"]
 [[bin]]
 name = "oxideunpack"
 path = "src/unpack.rs"
+
+[[bin]]
+name = "oxide_bbaexport"
+path = "src/bbaexport.rs"
+
