@@ -3,8 +3,8 @@
 module top (
     
 );
-    ${cmt} (* \dm:primitive ="IOLOGIC_CORE", \dm:programming ="MODE:${mode} ${config}", \dm:site ="${site}" *) 
-    ${cmt} IOLOGIC_CORE EBR_I ( );
+    ${cmt} (* \dm:primitive ="${s}IOLOGIC_CORE", \dm:programming ="MODE:${mode} ${config}", \dm:site ="${site}" *) 
+    ${cmt} ${s}IOLOGIC_CORE EBR_I ( );
 
     // A primitive is needed, but VHI should be harmless
     (* \xref:LOG ="q_c@0@9" *)
