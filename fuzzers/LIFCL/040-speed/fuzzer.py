@@ -5,8 +5,8 @@ import re
 import database
 
 speed_map = {
-	"SLOW_1V0": "7_High-Performance_1.0V",
-	"FAST_1V0": "7_Low-Power_1.0V",
+	"FAST_1V0": "7_High-Performance_1.0V",
+	"SLOW_1V0": "7_Low-Power_1.0V",
 }
 
 all_tiles_40 = set(database.get_tilegrid("LIFCL", "LIFCL-40")["tiles"].keys())
