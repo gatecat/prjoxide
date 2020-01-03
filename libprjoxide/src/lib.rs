@@ -168,7 +168,7 @@ impl Chip {
     #[staticmethod]
     pub fn from_bitstream(db: &mut Database, filename: &str) -> Chip {
         let chip = bitstream::BitstreamParser::parse_file(&mut db.db, filename).unwrap();
-        Chip {c: chip}
+        Chip { c: chip }
     }
 
     fn normalize_wire(&mut self, tile: &str, wire: &str) -> String {
@@ -208,6 +208,12 @@ fn write_tilegrid_html(d: &mut Database, family: &str, device: &str, file: &str)
 }
 
 #[pyfunction]
+fn write_region_html(d: &mut Database, family: &str, device: &str, file: &str) -> PyResult<()> {
+    database_html::write_region_html(&mut d.db, family, device, file);
+    Ok(())
+}
+
+#[pyfunction]
 fn write_tilebits_html(
     d: &mut Database,
     docs_root: &str,
@@ -229,6 +235,7 @@ fn md_file_to_html(filename: &str) -> String {
 fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_wrapped(wrap_pyfunction!(write_tilegrid_html))?;
+    m.add_wrapped(wrap_pyfunction!(write_region_html))?;
     m.add_wrapped(wrap_pyfunction!(write_tilebits_html))?;
     m.add_wrapped(wrap_pyfunction!(md_file_to_html))?;
     m.add_class::<Database>()?;

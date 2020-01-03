@@ -51,8 +51,7 @@ parser.add_argument('fld', type=str,
 
 
 def generate_device_docs(family, device, folder):
-    html_tilegrid.main(["html_tilegrid", family, device, path.join(folder, "index.html")])
-
+    html_tilegrid.main(["html_tilegrid", family, device, path.join(folder, "index.html"), path.join(folder, "regions.html")])
 
 def generate_tile_docs(family, device, tile, folder):
     html_tilebits.main(["html_tilebits", family, device, tile, folder])

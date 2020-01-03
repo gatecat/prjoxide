@@ -550,3 +550,47 @@ pub fn write_bel_html(docs_root: &str, tiletype: &str, bel: &Bel, filepath: &str
     writeln!(html, "</table>").unwrap();
     writeln!(html, "</body></html>").unwrap();
 }
+
+pub fn write_region_html(db: &mut Database, fam: &str, device: &str, filepath: &str) {
+    let regions = db.device_baseaddrs(fam, device);
+    let mut html = File::create(filepath).unwrap();
+    write!(
+        html,
+        "<html>\n\
+<head><title>{d} Address Regions</title></head>\n\
+<body>\n\
+<h1>{d} Address Regions</h1>\n\
+<table style='font-size: 8pt; border: 2px solid black; text-align: center'>\n\
+",
+        d = device
+    )
+    .unwrap();
+    writeln!(html, "<table class=\"baseaddrs\" style=\"border-spacing:0\"><tr><th>Name</th><th>Start</th><th></th><th>End</th></tr>").unwrap();
+    let mut i = 0;
+
+    let style = |i| match i % 2 {
+        0 => " bgcolor=\"#dddddd\"",
+        _ => "",
+    };
+
+    for (name, region) in regions.regions.iter() {
+        writeln!(html,
+                "<tr {s}><td style=\"padding-left: 20px; padding-right: 20px; margin-left: 0px;\">{n}</td>\n\
+                <td style=\"padding-left: 20px; padding-right: 20px\">0x{sa:08X}</td><td>&mdash;</td>\n\
+                <td style=\"padding-left: 20px; padding-right: 20px\">0x{ea:08X}</td></tr>",
+                s=style(i), n=name, sa=region.addr, ea=(region.addr + (((1 << region.abits) - 1) as u32))).unwrap();
+        i += 1;
+        if name == "EBR_WID1" {
+            // Add ellpsis
+            writeln!(
+                html,
+                "<tr {s}><td style=\"padding-left: 20px; padding-right: 20px\">...</td>\n\
+                <td></td><td></td><td></td></tr>",
+                s = style(i)
+            )
+            .unwrap();
+            i += 1;
+        }
+    }
+    writeln!(html, "</body></html>").unwrap();
+}

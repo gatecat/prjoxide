@@ -55,13 +55,13 @@ pub struct TileData {
 
 #[derive(Deserialize)]
 pub struct DeviceBaseAddrs {
-    pub regions: BTreeMap<String, DeviceBaseAddrs>,
+    pub regions: BTreeMap<String, DeviceAddrRegion>,
 }
 
 #[derive(Deserialize)]
 pub struct DeviceAddrRegion {
     pub addr: u32,
-    pub abits: u32
+    pub abits: u32,
 }
 
 // Tile bit database structures
@@ -321,7 +321,7 @@ impl Database {
         if !self.baseaddrs.contains_key(&key) {
             let mut bs_json_buf = String::new();
             // read the whole file
-            File::open(format!("{}/{}/{}/baseaddrs.json", self.root, family, device))
+            File::open(format!("{}/{}/{}/baseaddr.json", self.root, family, device))
                 .unwrap()
                 .read_to_string(&mut bs_json_buf)
                 .unwrap();
