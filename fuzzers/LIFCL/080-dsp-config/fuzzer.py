@@ -3,12 +3,16 @@ import nonrouting
 import fuzzloops
 import re
 
-cfg = FuzzConfig(job="DSPMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=[
-    "CIB_R38C62:MIB_EBR", "CIB_R38C63:DSP_R_1", "CIB_R38C64:DSP_R_2",
-    "CIB_R38C65:DSP_R_3", "CIB_R38C66:DSP_R_4", "CIB_R38C67:DSP_R_5",
-    "CIB_R38C68:DSP_R_6", "CIB_R38C69:DSP_R_7", "CIB_R38C70:DSP_R_8",
-    "CIB_R38C71:DSP_R_9", "CIB_R38C72:DSP_R_10", "CIB_R38C73:DSP_R_11",
-])
+configs = [
+    ((37, 63), FuzzConfig(job="DSPMODER", device="LIFCL-40", sv="../shared/empty_40.v", tiles=[
+        "CIB_R38C62:MIB_EBR", "CIB_R38C63:DSP_R_1", "CIB_R38C64:DSP_R_2",
+        "CIB_R38C65:DSP_R_3", "CIB_R38C66:DSP_R_4", "CIB_R38C67:DSP_R_5",
+        "CIB_R38C68:DSP_R_6", "CIB_R38C69:DSP_R_7", "CIB_R38C70:DSP_R_8",
+        "CIB_R38C71:DSP_R_9", "CIB_R38C72:DSP_R_10", "CIB_R38C73:DSP_R_11"
+    ])),
+    ((37, 15), FuzzConfig(job="DSPMODER", device="LIFCL-40", sv="../shared/empty_40.v", tiles=
+        ["CIB_R38C13:MIB_EBR"] + ["CIB_R38C{}:DSP_L_{}".format(c + 14, c) for c in range(11)])),
+]
 
 defaults = {
     "NONE": "",
@@ -26,51 +30,8 @@ CASCOUTREGBYPS=REGISTER,SFTEN=DISABLED:RSTCIN=0,RSTO=0,RSTC=0,CLK=0,CECIN=0,CECT
 
 }
 
-r = 37
-c = 63
-
-locs = [
-    ("ACC54_0", "ACC54_CORE", "ACC54_CORE_R{}C{}".format(r, c + 2)),
-    ("ACC54_1", "ACC54_CORE", "ACC54_CORE_R{}C{}".format(r, c + 6)),
-
-    ("MULT18_0", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c)),
-    ("MULT18_1", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 1)),
-    ("MULT18_2", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 4)),
-    ("MULT18_3", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 5)),
-
-    ("REG18_L0_0", "REG18_CORE", "REG18_CORE_R{}C{}A".format(r, c + 2)),
-    ("REG18_L0_1", "REG18_CORE", "REG18_CORE_R{}C{}B".format(r, c + 2)),
-    ("REG18_L1_0", "REG18_CORE", "REG18_CORE_R{}C{}C".format(r, c + 2)),
-    ("REG18_L1_1", "REG18_CORE", "REG18_CORE_R{}C{}D".format(r, c + 2)),
-
-    ("REG18_H0_0", "REG18_CORE", "REG18_CORE_R{}C{}A".format(r, c + 6)),
-    ("REG18_H0_1", "REG18_CORE", "REG18_CORE_R{}C{}B".format(r, c + 6)),
-    ("REG18_H1_0", "REG18_CORE", "REG18_CORE_R{}C{}C".format(r, c + 6)),
-    ("REG18_H1_1", "REG18_CORE", "REG18_CORE_R{}C{}D".format(r, c + 6)),
-
-    ("MULT9_L0", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c)),
-    ("MULT9_H0", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c)),
-    ("MULT9_L1", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c + 1)),
-    ("MULT9_H1", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c + 1)),
-    ("MULT9_L2", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c + 4)),
-    ("MULT9_H2", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c + 4)),
-    ("MULT9_L3", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c + 5)),
-    ("MULT9_H3", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c + 5)),
-
-    ("PREADD9_L0", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c)),
-    ("PREADD9_H0", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c)),
-    ("PREADD9_L1", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 1)),
-    ("PREADD9_H1", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 1)),
-    ("PREADD9_L2", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 4)),
-    ("PREADD9_H2", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 4)),
-    ("PREADD9_L3", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 5)),
-    ("PREADD9_H3", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 5)),
-
-    ("MULT18X36_0", "MULT18X36_CORE", "MULT18X36_CORE_R{}C{}".format(r, c + 2)),
-    ("MULT18X36_1", "MULT18X36_CORE", "MULT18X36_CORE_R{}C{}".format(r, c + 6)),
-
-    ("MULT36", "MULT36_CORE", "MULT36_CORE_R{}C{}".format(r, c + 6)),
-]
+#r = 37
+#c = 63
 
 ce_sigs = {
     "MULT9_CORE": ["CEA", "CEP"],
@@ -177,63 +138,110 @@ misc_config = {
 }
 
 def main():
-    cfg.setup()
-    empty = cfg.build_design(cfg.sv, {})
-    cfg.sv = "dsp.v"
-    for dsp, prim, site in locs:
-        def get_substs(mode="NONE", default_cfg=False, kv=None, mux=False, extra_sigs=""):
-            if default_cfg:
-                config = defaults[mode] + extra_sigs
-            elif kv is None:
-                config = ""
-            elif mux:
-                val = "#SIG"
-                if kv[1] in ("0", "1"):
-                    val = kv[1]
-                if kv[1] == "INV":
-                    val = "#INV"
-                config = "{}::::{}={}{}".format(mode, kv[0], val, extra_sigs)
+    def per_config(x):
+        rc, cfg = x
+        r, c = rc
+        locs = [
+            ("ACC54_0", "ACC54_CORE", "ACC54_CORE_R{}C{}".format(r, c + 2)),
+            ("ACC54_1", "ACC54_CORE", "ACC54_CORE_R{}C{}".format(r, c + 6)),
+
+            ("MULT18_0", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c)),
+            ("MULT18_1", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 1)),
+            ("MULT18_2", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 4)),
+            ("MULT18_3", "MULT18_CORE", "MULT18_CORE_R{}C{}".format(r, c + 5)),
+
+            ("REG18_L0_0", "REG18_CORE", "REG18_CORE_R{}C{}A".format(r, c + 2)),
+            ("REG18_L0_1", "REG18_CORE", "REG18_CORE_R{}C{}B".format(r, c + 2)),
+            ("REG18_L1_0", "REG18_CORE", "REG18_CORE_R{}C{}C".format(r, c + 2)),
+            ("REG18_L1_1", "REG18_CORE", "REG18_CORE_R{}C{}D".format(r, c + 2)),
+
+            ("REG18_H0_0", "REG18_CORE", "REG18_CORE_R{}C{}A".format(r, c + 6)),
+            ("REG18_H0_1", "REG18_CORE", "REG18_CORE_R{}C{}B".format(r, c + 6)),
+            ("REG18_H1_0", "REG18_CORE", "REG18_CORE_R{}C{}C".format(r, c + 6)),
+            ("REG18_H1_1", "REG18_CORE", "REG18_CORE_R{}C{}D".format(r, c + 6)),
+
+            ("MULT9_L0", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c)),
+            ("MULT9_H0", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c)),
+            ("MULT9_L1", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c + 1)),
+            ("MULT9_H1", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c + 1)),
+            ("MULT9_L2", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c + 4)),
+            ("MULT9_H2", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c + 4)),
+            ("MULT9_L3", "MULT9_CORE", "MULT9_CORE_R{}C{}A".format(r, c + 5)),
+            ("MULT9_H3", "MULT9_CORE", "MULT9_CORE_R{}C{}B".format(r, c + 5)),
+
+            ("PREADD9_L0", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c)),
+            ("PREADD9_H0", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c)),
+            ("PREADD9_L1", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 1)),
+            ("PREADD9_H1", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 1)),
+            ("PREADD9_L2", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 4)),
+            ("PREADD9_H2", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 4)),
+            ("PREADD9_L3", "PREADD9_CORE", "PREADD9_CORE_R{}C{}A".format(r, c + 5)),
+            ("PREADD9_H3", "PREADD9_CORE", "PREADD9_CORE_R{}C{}B".format(r, c + 5)),
+
+            ("MULT18X36_0", "MULT18X36_CORE", "MULT18X36_CORE_R{}C{}".format(r, c + 2)),
+            ("MULT18X36_1", "MULT18X36_CORE", "MULT18X36_CORE_R{}C{}".format(r, c + 6)),
+
+            ("MULT36", "MULT36_CORE", "MULT36_CORE_R{}C{}".format(r, c + 6)),
+        ]
+        cfg.setup()
+        empty = cfg.build_design(cfg.sv, {})
+        cfg.sv = "dsp.v"
+        for dsp, prim, site in locs:
+            def get_substs(mode="NONE", default_cfg=False, kv=None, mux=False, extra_sigs=""):
+                if default_cfg:
+                    config = defaults[mode] + extra_sigs
+                elif kv is None:
+                    config = ""
+                elif mux:
+                    val = "#SIG"
+                    if kv[1] in ("0", "1"):
+                        val = kv[1]
+                    if kv[1] == "INV":
+                        val = "#INV"
+                    config = "{}::::{}={}{}".format(mode, kv[0], val, extra_sigs)
+                else:
+                    config = "{}:::{}={}".format(mode, kv[0], kv[1])
+                return dict(mode=mode, cmt="//" if mode == "NONE" else "", config=config, prim=prim, site=site)
+            if prim == "ACC54_CORE":
+                # Use 'cover' to get a minimal bit set
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
+                        lambda x: get_substs(x[0], default_cfg=True, extra_sigs=x[1]), False, assume_zero_base=True,
+                        min_cover={"NONE": [""], "ACC54_CORE": [" ACC54_CORE::::RSTCTRL=0", " ACC54_CORE::::RSTCTRL=#SIG"]},
+                        desc="{} primitive mode".format(dsp))
             else:
-                config = "{}:::{}={}".format(mode, kv[0], kv[1])
-            return dict(mode=mode, cmt="//" if mode == "NONE" else "", config=config, prim=prim, site=site)
-        if prim == "ACC54_CORE":
-            # Use 'cover' to get a minimal bit set
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
-                    lambda x: get_substs(x[0], default_cfg=True, extra_sigs=x[1]), False, assume_zero_base=True,
-                    min_cover={"NONE": [""], "ACC54_CORE": [" ACC54_CORE::::RSTCTRL=0", " ACC54_CORE::::RSTCTRL=#SIG"]},
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
+                    lambda x: get_substs(x, default_cfg=True), False, assume_zero_base=True,
                     desc="{} primitive mode".format(dsp))
-        else:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
-                lambda x: get_substs(x, default_cfg=True), False, assume_zero_base=True,
-                desc="{} primitive mode".format(dsp))
-        if prim not in ("MULT18_CORE", "MULT18X36_CORE", "MULT36_CORE"):
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(dsp), ["ENABLED", "DISABLED"],
-                        lambda x: get_substs(mode=prim, kv=("GSR", x)), False,
-                        desc="if `ENABLED` primitive is reset by user GSR")
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.RESET".format(dsp), ["SYNC", "ASYNC"],
-                        lambda x: get_substs(mode=prim, kv=("RESET", x)), False,
-                        desc="selects synchronous or asynchronous reset for DSP registers")
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.CLKMUX".format(dsp), ["0", "CLK", "INV"],
-                        lambda x: get_substs(mode=prim, kv=("CLK", x), mux=True),
+            if prim not in ("MULT18_CORE", "MULT18X36_CORE", "MULT36_CORE"):
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(dsp), ["ENABLED", "DISABLED"],
+                            lambda x: get_substs(mode=prim, kv=("GSR", x)), False,
+                            desc="if `ENABLED` primitive is reset by user GSR")
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.RESET".format(dsp), ["SYNC", "ASYNC"],
+                            lambda x: get_substs(mode=prim, kv=("RESET", x)), False,
+                            desc="selects synchronous or asynchronous reset for DSP registers")
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.CLKMUX".format(dsp), ["0", "CLK", "INV"],
+                            lambda x: get_substs(mode=prim, kv=("CLK", x), mux=True),
+                            False, assume_zero_base=True,
+                            desc="clock gating and inversion control")
+            for ce in ce_sigs[prim]:
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(dsp, ce), ["1", ce, "INV"],
+                        lambda x: get_substs(mode=prim, kv=(ce, x), mux=True, extra_sigs=",CLK=#SIG"),
                         False, assume_zero_base=True,
-                        desc="clock gating and inversion control")
-        for ce in ce_sigs[prim]:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(dsp, ce), ["1", ce, "INV"],
-                    lambda x: get_substs(mode=prim, kv=(ce, x), mux=True, extra_sigs=",CLK=#SIG"),
-                    False, assume_zero_base=True,
-                    desc="{} gating and inversion control".format(ce))
-        for rst in rst_sigs[prim]:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(dsp, rst), ["0", rst, "INV"],
-                    lambda x: get_substs(mode=prim, kv=(rst, x), mux=True, extra_sigs=",CLK=#SIG"),
-                    False, assume_zero_base=True,
-                    desc="{} gating and inversion control".format(rst))
-        for reg in regs[prim]:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.REGBYPS{}".format(dsp, reg), ["REGISTER", "BYPASS"],
-                        lambda x: get_substs(mode=prim, kv=("REGBYPS{}".format(reg), x)), False, assume_zero_base=True,
-                        desc="register enable or bypass{}{}".format(" for " if reg != "" else "", reg))
-        for name, opts, desc in misc_config[prim]:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}".format(dsp, name), opts,
-                        lambda x: get_substs(mode=prim, kv=(name, x)), False, assume_zero_base=True,
-                        desc=desc)            
+                        desc="{} gating and inversion control".format(ce))
+            for rst in rst_sigs[prim]:
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(dsp, rst), ["0", rst, "INV"],
+                        lambda x: get_substs(mode=prim, kv=(rst, x), mux=True, extra_sigs=",CLK=#SIG"),
+                        False, assume_zero_base=True,
+                        desc="{} gating and inversion control".format(rst))
+            for reg in regs[prim]:
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.REGBYPS{}".format(dsp, reg), ["REGISTER", "BYPASS"],
+                            lambda x: get_substs(mode=prim, kv=("REGBYPS{}".format(reg), x)), False, assume_zero_base=True,
+                            desc="register enable or bypass{}{}".format(" for " if reg != "" else "", reg))
+            for name, opts, desc in misc_config[prim]:
+                nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}".format(dsp, name), opts,
+                            lambda x: get_substs(mode=prim, kv=(name, x)), False, assume_zero_base=True,
+                            desc=desc)
+    fuzzloops.parallel_foreach(configs, per_config)
+
 if __name__ == "__main__":
     main()
