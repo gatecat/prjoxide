@@ -1,12 +1,13 @@
-mod bbaexport {
-	pub mod idstring;
-	pub mod tileloc;
-	pub mod tiletype;
-	pub mod idxset;
+mod bba {
+    pub mod idstring;
+    pub mod idxset;
+    pub mod tileloc;
+    pub mod tiletype;
 }
+mod chip;
 mod database;
-use crate::bbaexport::idstring::*;
+use crate::bba::idstring::*;
 
 fn main() {
-	let mut ids = IdStringDB::new();
+    let mut ids = IdStringDB::new();
 }
