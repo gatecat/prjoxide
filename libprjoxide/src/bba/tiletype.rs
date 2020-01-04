@@ -1,11 +1,13 @@
 use crate::database::*;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum BranchSide {
     Left,
     Right,
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Neighbour {
     RelXY { rel_x: i32, rel_y: i32 },
     Branch,
@@ -60,15 +62,21 @@ impl Neighbour {
 
 pub struct TileType<'a> {
     data: &'a TileBitsData,
-    neighbours: Option<Vec<Neighbour>>,
+    pub neighbours: BTreeSet<Neighbour>,
 }
 
 impl<'a> TileType<'a> {
     pub fn new(db: &'a mut Database, fam: &str, tt: &str) -> TileType<'a> {
-        TileType {
+        let mut tt = TileType {
             data: db.tile_bitdb(fam, tt),
-            neighbours: None,
-        }
+            neighbours: BTreeSet::new(),
+        };
+        tt.neighbours = tt
+            .get_wires()
+            .iter()
+            .filter_map(|w| Neighbour::parse(w))
+            .collect();
+        return tt;
     }
 
     pub fn has_routing(&self) -> bool {
@@ -91,16 +99,24 @@ impl<'a> TileType<'a> {
         }
         return wires;
     }
+}
 
-    pub fn find_neighbours(&mut self) -> &Vec<Neighbour> {
-        match self.neighbours.as_ref() {
-            Some(_) => {}
-            None => {
-                let wires = self.get_wires();
-                let n = wires.iter().filter_map(|w| Neighbour::parse(w)).collect();
-                self.neighbours = Some(n);
-            }
-        };
-        self.neighbours.as_ref().unwrap()
+pub struct TileTypes<'a> {
+    types: HashMap<String, TileType<'a>>,
+}
+
+impl<'a> TileTypes<'a> {
+    pub fn new(db: &'a mut Database, fam: &str, dev: &str) -> TileTypes<'a> {
+        let tg = db.device_tilegrid(fam, dev);
+        let unique_tiletypes: BTreeSet<String> =
+            tg.tiles.iter().map(|t| t.1.tiletype.to_string()).collect();
+        let mut types: HashMap<String, TileType<'a>> = HashMap::new();
+        for tt in unique_tiletypes.iter() {
+            types.insert(tt.to_string(), TileType::new(db, fam, tt));
+        }
+        TileTypes::<'a> { types }
+    }
+    pub fn get(&'a self, tt: &str) -> Option<&TileType<'a>> {
+        self.types.get(tt)
     }
 }
