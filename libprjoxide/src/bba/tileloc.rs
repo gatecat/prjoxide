@@ -200,4 +200,64 @@ impl LocationTypes {
         }
         return lt;
     }
+    pub fn import_wires(&mut self, ids: &mut IdStringDB, tts: &TileTypes) {
+        for i in 0..self.types.len() {
+            // Add wires used within this location, in a FC or pip
+            let mut wires = IndexedSet::<IdString>::new();
+            {
+                let key = self.types.key(i);
+                let data = self.types.value(i);
+                for wire in key
+                    .tiletypes
+                    .iter()
+                    .map(|tt| tts.get(tt).unwrap().get_wires())
+                    .flatten()
+                {
+                    wires.add(&ids.id(&wire));
+                }
+                // Add wires used in neighbour tile; but whose nominal location is in this tile
+                for nt in data.nhtypes.iter() {
+                    for n in nt.neighbours.iter() {
+                        let nt = self.types.key(n.loctype);
+                        // Only consider wires where the prefix means they start in this tile
+                        let mut prefix = String::new();
+                        match n.loc {
+                            Neighbour::RelXY { rel_x, rel_y } => {
+                                if rel_y > 0 {
+                                    prefix.push_str(&format!("S{}", rel_y));
+                                }
+                                if rel_y < 0 {
+                                    prefix.push_str(&format!("N{}", -rel_y));
+                                }
+                                if rel_x > 0 {
+                                    prefix.push_str(&format!("W{}", rel_x));
+                                }
+                                if rel_x < 0 {
+                                    prefix.push_str(&format!("E{}", -rel_x));
+                                }
+                                prefix.push(':');
+                            }
+                            _ => continue,
+                        }
+                        for nwire in nt
+                            .tiletypes
+                            .iter()
+                            .map(|tt| tts.get(tt).unwrap().get_wires())
+                            .flatten()
+                            .filter_map(|w| {
+                                if w.starts_with(&prefix) {
+                                    Some(w[prefix.len()..].to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                        {
+                            wires.add(&ids.id(&nwire));
+                        }
+                    }
+                }
+            }
+            self.types.value_mut(i).wires = wires;
+        }
+    }
 }

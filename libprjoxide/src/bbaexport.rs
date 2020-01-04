@@ -23,7 +23,8 @@ fn main() -> Result<()> {
     let tts = TileTypes::new(&mut db, "LIFCL", "LIFCL-40");
     let empty_chip = chip::Chip::from_name(&mut db, "LIFCL-40");
     let mut lgrid = LocationGrid::new(&empty_chip, &tts);
-    let lts = LocationTypes::from_locs(&mut lgrid);
+    let mut lts = LocationTypes::from_locs(&mut lgrid);
+    lts.import_wires(&mut ids, &tts);
     for y in 0..lgrid.height {
         for x in 0..lgrid.width {
             print!("{},", lgrid.get(x, y).unwrap().type_at_loc.unwrap());

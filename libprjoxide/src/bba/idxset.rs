@@ -84,4 +84,11 @@ impl<Key: Eq + Hash + Clone, Value> IndexedMap<Key, Value> {
     pub fn iter(&self) -> std::slice::Iter<(Key, Value)> {
         self.data.iter()
     }
+
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<(Key, Value)> {
+        self.data.iter_mut()
+    }
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
 }
