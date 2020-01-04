@@ -1,12 +1,18 @@
+use crate::bba::idstring::*;
+use crate::bba::idxset::*;
 use crate::bba::tiletype::*;
+
 use crate::chip::*;
 use crate::database::*;
+
 use itertools::Itertools;
 use std::collections::BTreeSet;
 
-struct TileLocation {
+pub struct TileLocation {
     tiletypes: Vec<String>,
     neighbours: BTreeSet<Neighbour>,
+    pub type_at_loc: Option<usize>,
+    pub neigh_type_at_loc: Option<usize>,
 }
 
 impl TileLocation {
@@ -26,13 +32,15 @@ impl TileLocation {
         TileLocation {
             tiletypes: tiletypes,
             neighbours: neighbours,
+            type_at_loc: None,
+            neigh_type_at_loc: None,
         }
     }
 }
 
-struct LocationGrid {
-    width: usize,
-    height: usize,
+pub struct LocationGrid {
+    pub width: usize,
+    pub height: usize,
     tiles: Vec<TileLocation>,
 }
 
@@ -102,4 +110,94 @@ impl LocationGrid {
     }
 }
 
-struct LocationType {}
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone)]
+struct NeighbourType {
+    loc: Neighbour,
+    loctype: usize,
+}
+
+#[derive(Hash, Eq, PartialEq, Clone)]
+pub struct NeighbourhoodType {
+    neighbours: BTreeSet<NeighbourType>,
+}
+
+#[derive(Hash, Eq, PartialEq, Clone)]
+pub struct LocTypeKey {
+    tiletypes: BTreeSet<String>,
+}
+
+pub struct LocTypeData {
+    pub wires: IndexedSet<IdString>,
+    pub nhtypes: IndexedSet<NeighbourhoodType>,
+}
+
+impl LocTypeData {
+    pub fn new() -> LocTypeData {
+        LocTypeData {
+            wires: IndexedSet::new(),
+            nhtypes: IndexedSet::new(),
+        }
+    }
+}
+
+pub struct LocationTypes {
+    pub types: IndexedMap<LocTypeKey, LocTypeData>,
+}
+
+impl LocationTypes {
+    pub fn from_locs(lg: &mut LocationGrid) -> LocationTypes {
+        let mut lt = LocationTypes {
+            types: IndexedMap::new(),
+        };
+        for y in 0..lg.height {
+            for x in 0..lg.width {
+                let mut loc = lg.get_mut(x, y).unwrap();
+
+                let loc_key = LocTypeKey {
+                    tiletypes: loc.tiletypes.iter().map(|tt| tt.to_string()).collect(),
+                };
+                let type_idx = lt.types.add(&loc_key, LocTypeData::new());
+
+                loc.type_at_loc = Some(type_idx);
+            }
+        }
+        for y in 0..lg.height {
+            for x in 0..lg.width {
+                let loc = lg.get(x, y).unwrap();
+                let neighbours_with_types = loc
+                    .neighbours
+                    .iter()
+                    .filter_map(|n| match n {
+                        Neighbour::RelXY { rel_x, rel_y } => {
+                            let nx = (x as i32) + rel_x;
+                            let ny = (y as i32) + rel_y;
+                            if nx >= 0
+                                && ny >= 0
+                                && (nx as usize) < lg.width
+                                && (ny as usize) < lg.height
+                            {
+                                Some(NeighbourType {
+                                    loc: n.clone(),
+                                    loctype: lg.get(nx as usize, ny as usize)?.type_at_loc?,
+                                })
+                            } else {
+                                None
+                            }
+                        }
+                        _ => {
+                            // FIXME: globals
+                            None
+                        }
+                    })
+                    .collect();
+                let loctype = lt.types.value_mut(loc.type_at_loc.unwrap());
+                let nt = loctype.nhtypes.add(&NeighbourhoodType {
+                    neighbours: neighbours_with_types,
+                });
+                let mut loc = lg.get_mut(x, y).unwrap();
+                loc.neigh_type_at_loc = Some(nt);
+            }
+        }
+        return lt;
+    }
+}

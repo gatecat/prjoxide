@@ -1,13 +1,13 @@
 use crate::database::*;
 use std::collections::{BTreeSet, HashMap};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum BranchSide {
     Left,
     Right,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 pub enum Neighbour {
     RelXY { rel_x: i32, rel_y: i32 },
     Branch,
@@ -15,6 +15,7 @@ pub enum Neighbour {
     Spine,
     HRow,
     Global,
+    DQSGroup,
 }
 
 impl Neighbour {
@@ -31,6 +32,8 @@ impl Neighbour {
             },
             "SPINE" => Neighbour::Spine,
             "HROW" => Neighbour::HRow,
+            "G" => Neighbour::Global,
+            "DQSG" => Neighbour::DQSGroup,
             _ => {
                 let mut rel_x = 0;
                 let mut rel_y = 0;
@@ -60,15 +63,15 @@ impl Neighbour {
     }
 }
 
-pub struct TileType<'a> {
-    data: &'a TileBitsData,
+pub struct TileType {
+    data: TileBitsDatabase,
     pub neighbours: BTreeSet<Neighbour>,
 }
 
-impl<'a> TileType<'a> {
-    pub fn new(db: &'a mut Database, fam: &str, tt: &str) -> TileType<'a> {
+impl TileType {
+    pub fn new(db: &mut Database, fam: &str, tt: &str) -> TileType {
         let mut tt = TileType {
-            data: db.tile_bitdb(fam, tt),
+            data: db.tile_bitdb(fam, tt).db.clone(),
             neighbours: BTreeSet::new(),
         };
         tt.neighbours = tt
@@ -80,18 +83,18 @@ impl<'a> TileType<'a> {
     }
 
     pub fn has_routing(&self) -> bool {
-        !self.data.db.pips.is_empty() || !self.data.db.conns.is_empty()
+        !self.data.pips.is_empty() || !self.data.conns.is_empty()
     }
 
     pub fn get_wires(&self) -> BTreeSet<String> {
         let mut wires = BTreeSet::new();
-        for (to_wire, wire_pips) in self.data.db.pips.iter() {
+        for (to_wire, wire_pips) in self.data.pips.iter() {
             wires.insert(to_wire.to_string());
             for from_wire in wire_pips.iter().map(|x| &x.from_wire) {
                 wires.insert(from_wire.to_string());
             }
         }
-        for (to_wire, wire_conns) in self.data.db.conns.iter() {
+        for (to_wire, wire_conns) in self.data.conns.iter() {
             wires.insert(to_wire.to_string());
             for from_wire in wire_conns.iter().map(|x| &x.from_wire) {
                 wires.insert(from_wire.to_string());
@@ -101,22 +104,22 @@ impl<'a> TileType<'a> {
     }
 }
 
-pub struct TileTypes<'a> {
-    types: HashMap<String, TileType<'a>>,
+pub struct TileTypes {
+    types: HashMap<String, TileType>,
 }
 
-impl<'a> TileTypes<'a> {
-    pub fn new(db: &'a mut Database, fam: &str, dev: &str) -> TileTypes<'a> {
+impl TileTypes {
+    pub fn new(db: &mut Database, fam: &str, dev: &str) -> TileTypes {
         let tg = db.device_tilegrid(fam, dev);
         let unique_tiletypes: BTreeSet<String> =
             tg.tiles.iter().map(|t| t.1.tiletype.to_string()).collect();
-        let mut types: HashMap<String, TileType<'a>> = HashMap::new();
+        let mut types: HashMap<String, TileType> = HashMap::new();
         for tt in unique_tiletypes.iter() {
             types.insert(tt.to_string(), TileType::new(db, fam, tt));
         }
-        TileTypes::<'a> { types }
+        TileTypes { types }
     }
-    pub fn get(&'a self, tt: &str) -> Option<&TileType<'a>> {
+    pub fn get(&self, tt: &str) -> Option<&TileType> {
         self.types.get(tt)
     }
 }
