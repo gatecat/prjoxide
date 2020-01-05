@@ -28,6 +28,7 @@ impl RelWire {
     }
 }
 
+#[derive(Eq, PartialEq)]
 pub enum PinDir {
     INPUT,
     OUTPUT,
