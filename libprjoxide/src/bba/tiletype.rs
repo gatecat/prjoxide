@@ -88,7 +88,7 @@ impl NeighbourWire {
 }
 
 pub struct TileType {
-    data: TileBitsDatabase,
+    pub data: TileBitsDatabase,
     pub wires: BTreeSet<String>,
     pub wire_ids: BTreeSet<IdString>,
     pub driven_wire_ids: BTreeSet<IdString>,

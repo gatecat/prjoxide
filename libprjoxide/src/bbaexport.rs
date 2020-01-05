@@ -9,12 +9,15 @@ mod bba {
 mod bels;
 mod chip;
 mod database;
+use crate::bba::bbastruct::*;
 use crate::bba::idstring::*;
 use crate::bba::tileloc::*;
 use crate::bba::tiletype::*;
 use std::iter::FromIterator;
 
 use std::io::Result;
+
+fn write_bba(out: &mut BBAStructs) {}
 
 fn main() -> Result<()> {
     let mut ids = IdStringDB::new();
@@ -29,16 +32,18 @@ fn main() -> Result<()> {
     lgrid.stamp_neighbours();
     let mut lts = LocationTypes::from_locs(&mut lgrid);
     lts.import_wires(&mut ids, &tts);
+    /*
     for y in 0..lgrid.height {
         for x in 0..lgrid.width {
             print!("{},", lgrid.get(x, y).unwrap().type_at_loc.unwrap());
         }
         println!("");
     }
+    */
     let mut stdout = std::io::stdout();
     let mut bba = bba::bbafile::BBAWriter::new(&mut stdout);
-    bba.u8_val(0x22)?;
     let mut bba_s = bba::bbastruct::BBAStructs::new(&mut bba);
+    lts.write_locs_bba(&mut bba_s, &mut ids, &tts)?;
 
     Ok(())
 }

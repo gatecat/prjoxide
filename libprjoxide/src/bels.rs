@@ -1,4 +1,5 @@
 // A reference to a wire in a relatively located tile
+#[derive(Clone)]
 pub struct RelWire {
     pub rel_x: i32,   // (bel.x + rel_x == tile.x)
     pub rel_y: i32,   // (bel.y + rel_y == tile.y)
@@ -28,13 +29,14 @@ impl RelWire {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone)]
 pub enum PinDir {
     INPUT = 0,
     OUTPUT = 1,
     INOUT = 2,
 }
 
+#[derive(Clone)]
 pub struct BelPin {
     pub name: String,  // name of pin on bel
     pub desc: String,  // description for documentation

@@ -92,4 +92,36 @@ impl<'a> BBAStructs<'a> {
         self.out.u16_val(wire_idx.try_into().unwrap())?; // index of wire in neighbour tile
         Ok(())
     }
+
+    pub fn wire_neighbours(
+        &mut self,
+        wires_uh_ref: &str,
+        wires_dh_ref: &str,
+        num_uh: usize,
+        num_dh: usize,
+    ) -> Result<()> {
+        self.out.u32_val(num_uh.try_into().unwrap())?; // number of uphill pips
+        self.out.u32_val(num_dh.try_into().unwrap())?; // number of downhill pips
+        self.out.ref_label(wires_uh_ref)?; // ref to list of uphill pips
+        self.out.ref_label(wires_dh_ref)?; // ref to list of downhill pips
+        Ok(())
+    }
+
+    pub fn list_begin(&mut self, name: &str) -> Result<()> {
+        self.out.label(name)?;
+        Ok(())
+    }
+
+    pub fn reference(&mut self, ref_label: &str) -> Result<()> {
+        self.out.ref_label(ref_label)?;
+        Ok(())
+    }
+
+    pub fn idstring_list(&mut self, label: &str, strings: &[&str]) -> Result<()> {
+        self.out.label(label)?;
+        for &id in strings {
+            self.out.str_val(id)?;
+        }
+        Ok(())
+    }
 }
