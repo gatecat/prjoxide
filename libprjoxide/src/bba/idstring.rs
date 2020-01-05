@@ -3,6 +3,12 @@ use std::collections::HashMap;
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct IdString(usize);
 
+impl IdString {
+    pub fn val(&self) -> usize {
+        return self.0;
+    }
+}
+
 pub struct IdStringDB {
     strings: Vec<String>,
     string_to_id: HashMap<String, IdString>,

@@ -1,5 +1,6 @@
 mod bba {
     pub mod bbafile;
+    pub mod bbastruct;
     pub mod idstring;
     pub mod idxset;
     pub mod tileloc;
@@ -37,5 +38,7 @@ fn main() -> Result<()> {
     let mut stdout = std::io::stdout();
     let mut bba = bba::bbafile::BBAWriter::new(&mut stdout);
     bba.u8_val(0x22)?;
+    let mut bba_s = bba::bbastruct::BBAStructs::new(&mut bba);
+
     Ok(())
 }

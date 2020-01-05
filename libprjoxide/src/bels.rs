@@ -30,9 +30,9 @@ impl RelWire {
 
 #[derive(Eq, PartialEq)]
 pub enum PinDir {
-    INPUT,
-    OUTPUT,
-    INOUT,
+    INPUT = 0,
+    OUTPUT = 1,
+    INOUT = 2,
 }
 
 pub struct BelPin {
