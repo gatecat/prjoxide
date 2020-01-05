@@ -269,7 +269,7 @@ impl LocationTypes {
             self.types.value_mut(i).wires = wires;
         }
         // Import the n-n arcs
-        let mut arcs_count = 0;
+        let mut _arcs_count = 0;
         for i in 0..self.types.len() {
             for j in 0..self.types.value(i).nhtypes.len() {
                 let mut arcs: IndexedSet<NeighbourArc> = IndexedSet::new();
@@ -306,37 +306,36 @@ impl LocationTypes {
                     for n in nt.neighbours.iter() {
                         let ntt = self.types.key(n.loctype);
                         // Only consider wires where the prefix means they start in this tile
-                        let key = match n.loc {
-                            Neighbour::RelXY { rel_x, rel_y } => Neighbour::RelXY {
+                        if let Neighbour::RelXY { rel_x, rel_y } = n.loc {
+                            let key = Neighbour::RelXY {
                                 rel_x: -rel_x,
                                 rel_y: -rel_y,
-                            },
-                            _ => continue,
-                        };
-                        for nwire in ntt
-                            .tiletypes
-                            .iter()
-                            .filter_map(|tt| {
-                                Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&key)?.iter())
-                            })
-                            .flatten()
-                        {
-                            let is_driven_by_them = ntt.tiletypes.iter().any(|tt| {
-                                tts.get(tt)
-                                    .unwrap()
-                                    .driven_wire_ids
-                                    .contains(&nwire.our_name)
-                            });
-                            arcs.add(&NeighbourArc {
-                                this_loc_wire: nwire.neigh_name,
-                                other_loc: n.loc.clone(),
-                                other_loc_wire: nwire.our_name,
-                                is_driving: !is_driven_by_them,
-                            });
+                            };
+                            for nwire in ntt
+                                .tiletypes
+                                .iter()
+                                .filter_map(|tt| {
+                                    Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&key)?.iter())
+                                })
+                                .flatten()
+                            {
+                                let is_driven_by_them = ntt.tiletypes.iter().any(|tt| {
+                                    tts.get(tt)
+                                        .unwrap()
+                                        .driven_wire_ids
+                                        .contains(&nwire.our_name)
+                                });
+                                arcs.add(&NeighbourArc {
+                                    this_loc_wire: nwire.neigh_name,
+                                    other_loc: n.loc.clone(),
+                                    other_loc_wire: nwire.our_name,
+                                    is_driving: !is_driven_by_them,
+                                });
+                            }
                         }
                     }
                 }
-                arcs_count += arcs.len();
+                _arcs_count += arcs.len();
                 self.types.value_mut(i).nhtypes.value_mut(j).neigh_arcs = arcs;
             }
         }
@@ -460,26 +459,24 @@ impl LocationTypes {
                             .flatten()
                             .filter(|a| a.is_driving == (dir == "dh"))
                         {
-                            println!(
-                                "{} {}",
-                                &ids.str(arc.this_loc_wire),
-                                &ids.str(arc.other_loc_wire)
-                            );
-                            let other_loc_idx = self
-                                .types
-                                .value(
-                                    ntype
+                            match arc.other_loc {
+                                Neighbour::RelXY { rel_x, rel_y } => {
+                                    let other_loc_type = match ntype
                                         .neighbours
                                         .iter()
                                         .find(|n| n.loc == arc.other_loc)
-                                        .unwrap()
-                                        .loctype,
-                                )
-                                .wires
-                                .get_index(&arc.other_loc_wire)
-                                .unwrap();
-                            match arc.other_loc {
-                                Neighbour::RelXY { rel_x, rel_y } => {
+                                    {
+                                        None => continue,
+                                        Some(x) => x,
+                                    }
+                                    .loctype;
+                                    let other_loc_idx = self
+                                        .types
+                                        .value(other_loc_type)
+                                        .wires
+                                        .get_index(&arc.other_loc_wire)
+                                        .unwrap();
+
                                     out.rel_wire(
                                         0,
                                         rel_x.try_into().unwrap(),
@@ -487,7 +484,7 @@ impl LocationTypes {
                                         other_loc_idx,
                                     )?;
                                 }
-                                _ => panic!("unknown n loc type"),
+                                _ => continue,
                             }
                         }
                     }

@@ -15,9 +15,7 @@ use crate::bba::tileloc::*;
 use crate::bba::tiletype::*;
 use std::iter::FromIterator;
 
-use std::io::Result;
-
-fn write_bba(out: &mut BBAStructs) {}
+use std::io::{BufWriter, Result};
 
 fn main() -> Result<()> {
     let mut ids = IdStringDB::new();
@@ -40,8 +38,8 @@ fn main() -> Result<()> {
         println!("");
     }
     */
-    let mut stdout = std::io::stdout();
-    let mut bba = bba::bbafile::BBAWriter::new(&mut stdout);
+    let mut bba_str = BufWriter::new(std::io::stdout());
+    let mut bba = bba::bbafile::BBAWriter::new(&mut bba_str);
     let mut bba_s = bba::bbastruct::BBAStructs::new(&mut bba);
     lts.write_locs_bba(&mut bba_s, &mut ids, &tts)?;
 

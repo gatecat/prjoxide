@@ -3,13 +3,13 @@ use crate::bels::*;
 use crate::database::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum BranchSide {
     Left,
     Right,
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Debug)]
 pub enum Neighbour {
     RelXY { rel_x: i32, rel_y: i32 },
     Branch,
