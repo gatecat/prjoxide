@@ -126,9 +126,19 @@ pub struct LocTypeKey {
     tiletypes: BTreeSet<String>,
 }
 
+// A connection
+#[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone)]
+pub struct NeighbourArc {
+    pub this_loc_wire: IdString,
+    pub other_loc_wire: IdString,
+    pub other_loc: Neighbour,
+    pub is_driving: bool,
+}
+
 pub struct LocTypeData {
     pub wires: IndexedSet<IdString>,
     pub nhtypes: IndexedSet<NeighbourhoodType>,
+    pub neigh_arcs: IndexedSet<NeighbourArc>,
 }
 
 impl LocTypeData {
@@ -136,6 +146,7 @@ impl LocTypeData {
         LocTypeData {
             wires: IndexedSet::new(),
             nhtypes: IndexedSet::new(),
+            neigh_arcs: IndexedSet::new(),
         }
     }
 }
@@ -201,6 +212,7 @@ impl LocationTypes {
         return lt;
     }
     pub fn import_wires(&mut self, _ids: &mut IdStringDB, tts: &TileTypes) {
+        // Import just the wires
         for i in 0..self.types.len() {
             // Add wires used within this location, in a FC or pip
             let mut wires = IndexedSet::<IdString>::new();
@@ -235,12 +247,84 @@ impl LocationTypes {
                             })
                             .flatten()
                         {
-                            wires.add(nwire);
+                            wires.add(&nwire.neigh_name);
                         }
                     }
                 }
             }
             self.types.value_mut(i).wires = wires;
         }
+        // Import the n-n arcs
+        let mut arcs_count = 0;
+        for i in 0..self.types.len() {
+            let mut arcs: IndexedSet<NeighbourArc> = IndexedSet::new();
+            {
+                let key = self.types.key(i);
+                let data = self.types.value(i);
+                let loc_driven_wires: BTreeSet<IdString> = key
+                    .tiletypes
+                    .iter()
+                    .map(|tt| tts.get(tt).unwrap().driven_wire_ids.iter())
+                    .flatten()
+                    .cloned()
+                    .collect();
+                // Arcs to where the base location of the wire is _not_ this location
+                for (neigh, nwires) in key
+                    .tiletypes
+                    .iter()
+                    .map(|tt| tts.get(tt).unwrap().neighbour_wire_ids.iter())
+                    .flatten()
+                {
+                    // FIXME: multiply driven wires?
+                    for nwire in nwires.iter() {
+                        let is_driven_by_us = loc_driven_wires.contains(&nwire.our_name);
+                        arcs.add(&NeighbourArc {
+                            this_loc_wire: nwire.our_name,
+                            other_loc: neigh.clone(),
+                            other_loc_wire: nwire.neigh_name,
+                            is_driving: is_driven_by_us,
+                        });
+                    }
+                }
+                // Arcs from neighbours where the base location of the wire _is_ this location
+                for nt in data.nhtypes.iter() {
+                    for n in nt.neighbours.iter() {
+                        let ntt = self.types.key(n.loctype);
+                        // Only consider wires where the prefix means they start in this tile
+                        let key = match n.loc {
+                            Neighbour::RelXY { rel_x, rel_y } => Neighbour::RelXY {
+                                rel_x: -rel_x,
+                                rel_y: -rel_y,
+                            },
+                            _ => continue,
+                        };
+                        for nwire in ntt
+                            .tiletypes
+                            .iter()
+                            .filter_map(|tt| {
+                                Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&key)?.iter())
+                            })
+                            .flatten()
+                        {
+                            let is_driven_by_them = ntt.tiletypes.iter().any(|tt| {
+                                tts.get(tt)
+                                    .unwrap()
+                                    .driven_wire_ids
+                                    .contains(&nwire.our_name)
+                            });
+                            arcs.add(&NeighbourArc {
+                                this_loc_wire: nwire.neigh_name,
+                                other_loc: n.loc.clone(),
+                                other_loc_wire: nwire.our_name,
+                                is_driving: !is_driven_by_them,
+                            });
+                        }
+                    }
+                }
+            }
+            arcs_count += arcs.len();
+            self.types.value_mut(i).neigh_arcs = arcs;
+        }
+        println!("Total of {} neigh arcs", arcs_count);
     }
 }

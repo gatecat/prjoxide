@@ -73,12 +73,26 @@ impl Neighbour {
     }
 }
 
+pub struct NeighbourWire {
+    pub our_name: IdString,
+    pub neigh_name: IdString,
+}
+
+impl NeighbourWire {
+    pub fn new(our_name: IdString, neigh_name: IdString) -> NeighbourWire {
+        NeighbourWire {
+            our_name,
+            neigh_name,
+        }
+    }
+}
+
 pub struct TileType {
     data: TileBitsDatabase,
     pub wires: BTreeSet<String>,
     pub wire_ids: BTreeSet<IdString>,
     pub driven_wire_ids: BTreeSet<IdString>,
-    pub neighbour_wire_ids: BTreeMap<Neighbour, Vec<IdString>>,
+    pub neighbour_wire_ids: BTreeMap<Neighbour, Vec<NeighbourWire>>,
     pub neighbours: BTreeSet<Neighbour>,
     pub bels: Vec<Bel>,
 }
@@ -135,7 +149,7 @@ impl TileType {
                 tt.neighbour_wire_ids
                     .entry(n)
                     .or_insert(Vec::new())
-                    .push(ids.id(basewire));
+                    .push(NeighbourWire::new(ids.id(wire), ids.id(basewire)));
             }
         }
         tt.neighbours = tt.neighbour_wire_ids.keys().cloned().collect();

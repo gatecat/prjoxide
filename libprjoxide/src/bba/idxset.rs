@@ -34,9 +34,11 @@ impl<T: Eq + Hash + Clone> IndexedSet<T> {
     pub fn key(&self, index: usize) -> &T {
         &self.keys[index]
     }
-
     pub fn iter(&self) -> std::slice::Iter<T> {
         self.keys.iter()
+    }
+    pub fn len(&self) -> usize {
+        self.keys.len()
     }
 }
 

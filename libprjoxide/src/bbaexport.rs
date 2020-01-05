@@ -1,4 +1,5 @@
 mod bba {
+    pub mod bbafile;
     pub mod idstring;
     pub mod idxset;
     pub mod tileloc;
@@ -24,6 +25,7 @@ fn main() -> Result<()> {
     let tts = TileTypes::new(&mut db, &mut ids, "LIFCL", "LIFCL-40");
     let empty_chip = chip::Chip::from_name(&mut db, "LIFCL-40");
     let mut lgrid = LocationGrid::new(&empty_chip, &tts);
+    lgrid.stamp_neighbours();
     let mut lts = LocationTypes::from_locs(&mut lgrid);
     lts.import_wires(&mut ids, &tts);
     for y in 0..lgrid.height {
@@ -32,5 +34,8 @@ fn main() -> Result<()> {
         }
         println!("");
     }
+    let mut stdout = std::io::stdout();
+    let mut bba = bba::bbafile::BBAWriter::new(&mut stdout);
+    bba.u8_val(0x22)?;
     Ok(())
 }
