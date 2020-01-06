@@ -355,6 +355,9 @@ impl LocationTypes {
         ids: &mut IdStringDB,
         tts: &TileTypes,
     ) -> std::io::Result<()> {
+        let mut tt_pip_count = vec![0; self.types.len()];
+        let mut tt_bel_count = vec![0; self.types.len()];
+
         for (i, (key, data)) in self.types.iter().enumerate() {
             // Wire -> bel, pin
             let mut wire_belpins = HashMap::<usize, Vec<(usize, IdString)>>::new();
@@ -369,7 +372,7 @@ impl LocationTypes {
                 .flatten()
                 .enumerate()
             {
-                out.list_begin(&format!("tt{}w{}_belpins", i, j))?;
+                out.list_begin(&format!("tt{}b{}_bw", i, j))?;
                 // Bel pins, sorted by ID for binary searchability
                 let mut ports = bel.pins.clone();
                 ports.sort_by(|p1, p2| {
@@ -404,9 +407,10 @@ impl LocationTypes {
                     ids.id(&bel.beltype),
                     0,
                     0,
-                    &format!("tt{}w{}_belpins", i, j),
+                    &format!("tt{}b{}_bw", i, j),
                     bel.pins.len(),
                 )?;
+                *tt_bel_count.get_mut(i).unwrap() += 1;
             }
             // Lists of pips
             out.list_begin(&format!("tt{}_pips", i))?;
@@ -448,6 +452,44 @@ impl LocationTypes {
                     }
                 }
             }
+            *tt_pip_count.get_mut(i).unwrap() = pip_index;
+            // Wire pip and bel lists
+            for (j, _) in data.wires.iter().enumerate() {
+                let empty_pip_vec = vec![];
+                let uphill = wire_uphill.get(&i).unwrap_or(&empty_pip_vec);
+                let downhill = wire_downhill.get(&i).unwrap_or(&empty_pip_vec);
+                let empty_pin_vec = vec![];
+                let belpins = wire_belpins.get(&i).unwrap_or(&empty_pin_vec);
+                out.pips_list(&format!("t{}_w{}_uh", i, j), &uphill)?;
+                out.pips_list(&format!("t{}_w{}_dh", i, j), &downhill)?;
+                out.list_begin(&format!("t{}_w{}_bp", i, j))?;
+                for (bel, pin) in belpins.iter() {
+                    out.bel_pin(*bel, *pin)?;
+                }
+            }
+            // Lists of wires
+            out.list_begin(&format!("tt{}_wires", i))?;
+            for (j, wirename) in data.wires.iter().enumerate() {
+                let empty_pip_vec = vec![];
+                let uphill = wire_uphill.get(&i).unwrap_or(&empty_pip_vec);
+                let downhill = wire_downhill.get(&i).unwrap_or(&empty_pip_vec);
+                let empty_pin_vec = vec![];
+                let belpins = wire_belpins.get(&i).unwrap_or(&empty_pin_vec);
+                let mut flags = 0;
+                if data.primary_wires.contains(wirename) {
+                    flags |= WIRE_PRIMARY;
+                }
+                out.tile_wire(
+                    wirename.clone(),
+                    flags,
+                    &format!("t{}_w{}_uh", i, j),
+                    &format!("t{}_w{}_dh", i, j),
+                    &format!("t{}_w{}_bp", i, j),
+                    uphill.len(),
+                    downhill.len(),
+                    belpins.len(),
+                )?;
+            }
             // Lists of neighbour wires
             for (j, (ntype, ndata)) in data.nhtypes.iter().enumerate() {
                 let mut arcs_by_wire_idx = HashMap::<usize, Vec<&NeighbourArc>>::new();
@@ -457,6 +499,7 @@ impl LocationTypes {
                         .or_insert(Vec::new())
                         .push(&arc);
                 }
+                let mut neigh_wire_count = vec![0; data.wires.len()];
                 for k in 0..data.wires.len() {
                     out.list_begin(&format!("tt{}_nh{}_w{}", i, j, k))?;
                     for arc in arcs_by_wire_idx.get(&k).iter().map(|x| x.iter()).flatten() {
@@ -493,12 +536,39 @@ impl LocationTypes {
                                     rel_y.try_into().unwrap(),
                                     other_loc_idx,
                                 )?;
+                                *neigh_wire_count.get_mut(k).unwrap() += 1;
                             }
                             _ => continue,
                         }
                     }
                 }
+                out.list_begin(&format!("tt{}_nh{}_wires", i, j))?;
+                for (k, wc) in neigh_wire_count.iter().enumerate() {
+                    out.wire_neighbours(&format!("tt{}_nh{}_w{}", i, j, k), *wc)?;
+                }
             }
+            // Neighbourhood types
+            out.list_begin(&format!("tt{}_nhs", i))?;
+            for (j, _) in data.nhtypes.iter().enumerate() {
+                out.reference(&format!("tt{}_nh{}_wires", i, j))?;
+            }
+        }
+        out.list_begin(&format!("chip_tts"))?;
+        for (i, (_, data)) in self.types.iter().enumerate() {
+            let num_bels = *tt_bel_count.get(i).unwrap();
+            let num_pips = *tt_pip_count.get(i).unwrap();
+            let num_wires = data.wires.len();
+            let num_nhtypes = data.nhtypes.len();
+            out.loc_type(
+                num_bels,
+                num_wires,
+                num_pips,
+                num_nhtypes,
+                &format!("tt{}_bels", i),
+                &format!("tt{}_wires", i),
+                &format!("tt{}_pips", i),
+                &format!("tt{}_nhs", i),
+            )?;
         }
         Ok(())
     }
