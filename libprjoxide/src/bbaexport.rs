@@ -42,6 +42,6 @@ fn main() -> Result<()> {
     let mut bba = bba::bbafile::BBAWriter::new(&mut bba_str);
     let mut bba_s = bba::bbastruct::BBAStructs::new(&mut bba);
     lts.write_locs_bba(&mut bba_s, &mut ids, &tts)?;
-
+    lgrid.write_grid_bba(&mut bba_s, 0, &mut ids, &empty_chip)?;
     Ok(())
 }

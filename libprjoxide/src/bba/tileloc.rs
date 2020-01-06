@@ -109,6 +109,45 @@ impl LocationGrid {
             }
         }
     }
+    // Write grid info to the bba
+    pub fn write_grid_bba(
+        &self,
+        out: &mut BBAStructs,
+        device_idx: u32,
+        ids: &mut IdStringDB,
+        ch: &Chip,
+    ) -> std::io::Result<()> {
+        // Lists of physical tiles at a location
+        let mut num_phys_tiles = vec![0; self.height * self.width];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let phys_tiles = ch.tiles_by_xy(x as u32, y as u32);
+                num_phys_tiles[y * self.width + x] = phys_tiles.len();
+                out.list_begin(&format!("d{}_y{}x{}_ptiles", device_idx, y, x))?;
+                for tile in phys_tiles.iter() {
+                    let colon_pos = tile.name.find(':').unwrap();
+                    let tiletype = ids.id(&tile.name[colon_pos + 1..]);
+                    let prefix_end = tile.name[0..colon_pos].rfind('_').unwrap_or(0);
+                    let prefix = ids.id(&tile.name[0..prefix_end]);
+                    out.physical_tile(prefix, tiletype)?;
+                }
+            }
+        }
+        // Actual grid data
+        out.list_begin(&format!("d{}_grid", device_idx))?;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let data = self.get(x, y).unwrap();
+                out.grid_loc(
+                    data.type_at_loc.unwrap(),
+                    data.neigh_type_at_loc.unwrap(),
+                    num_phys_tiles[y * self.width + x],
+                    &format!("d{}_y{}x{}_ptiles", device_idx, y, x),
+                )?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone)]
