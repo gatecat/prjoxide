@@ -126,10 +126,10 @@ impl<'a> BBAStructs<'a> {
         Ok(())
     }
 
-    pub fn idstring_list(&mut self, label: &str, strings: &[&str]) -> Result<()> {
+    pub fn idstring_list(&mut self, label: &str, strings: &[String]) -> Result<()> {
         self.out.label(label)?;
-        for &id in strings {
-            self.out.str_val(id)?;
+        for id in strings {
+            self.out.str_val(&id)?;
         }
         Ok(())
     }
