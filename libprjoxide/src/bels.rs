@@ -149,6 +149,11 @@ macro_rules! output_m {
         ( def_pin_mapped!(PinDir::OUTPUT, $($rest),*) );
 }
 
+macro_rules! inout_m {
+    ($($rest:expr),*) =>
+        ( def_pin_mapped!(PinDir::INOUT, $($rest),*) );
+}
+
 macro_rules! def_pin_mapped {
     ($dir: expr, $postfix: expr, $name: expr) => {
         BelPin::new_p($name, "", $dir, $physpin, $postfix, 0, 0)
@@ -162,71 +167,6 @@ macro_rules! def_pin_mapped {
 const Z_TO_CHAR: [char; 4] = ['A', 'B', 'C', 'D'];
 
 impl Bel {
-    pub fn make_slice(z: usize) -> Bel {
-        let ch = Z_TO_CHAR[z];
-        let postfix = format!("SLICE{}", ch);
-        let mut pins = vec![
-            input!(&postfix, "A0", "LUT0 A input"),
-            input!(&postfix, "A1", "LUT1 A input"),
-            input!(&postfix, "B0", "LUT0 B input"),
-            input!(&postfix, "B1", "LUT1 B input"),
-            input!(&postfix, "C0", "LUT0 C input"),
-            input!(&postfix, "C1", "LUT1 C input"),
-            input!(&postfix, "D0", "LUT0 D input"),
-            input!(&postfix, "D1", "LUT1 D input"),
-            input!(&postfix, "M0", "FF0 M (direct) input"),
-            input!(&postfix, "M1", "FF1 M (direct) input"),
-            input!(&postfix, "DI0", "FF0 DI (LUT/mux output) input"),
-            input!(&postfix, "DI1", "FF1 DI (LUT output) input"),
-            input!(&postfix, "SEL", "LUT MUX2 select input"),
-            input!(&postfix, "FCI", "fast carry input"),
-            input!(&postfix, "CLK", "FF clock"),
-            input!(&postfix, "CE", "FF clock enable"),
-            input!(&postfix, "LSR", "FF local set/reset"),
-            output!(&postfix, "F0", "LUT0 output"),
-            output!(&postfix, "F1", "LUT1 output"),
-            output!(&postfix, "Q0", "FF0 output"),
-            output!(&postfix, "Q1", "FF1 output"),
-            output!(&postfix, "OFX0", "MUX2 output"),
-            output!(&postfix, "FCO", "fast carry out"),
-        ];
-        match z {
-            0 | 1 => {
-                pins.append(&mut vec![
-                    input!(&postfix, "WAD0", "LUTRAM write address 0 (from SLICEC)"),
-                    input!(&postfix, "WAD1", "LUTRAM write address 1 (from SLICEC)"),
-                    input!(&postfix, "WAD2", "LUTRAM write address 2 (from SLICEC)"),
-                    input!(&postfix, "WAD3", "LUTRAM write address 3 (from SLICEC)"),
-                    input!(&postfix, "WCK", "LUTRAM write clock (from SLICEC)"),
-                    input!(&postfix, "WRE", "LUTRAM write enable (from SLICEC)"),
-                    input!(&postfix, "WDI0", "LUTRAM write data 0"),
-                    input!(&postfix, "WDI1", "LUTRAM write data 1"),
-                ]);
-            }
-            2 => {
-                pins.append(&mut vec![
-                    output!(&postfix, "WADO0", "LUTRAM write address 0 (to SLICEA/B)"),
-                    output!(&postfix, "WADO1", "LUTRAM write address 1 (to SLICEA/B)"),
-                    output!(&postfix, "WADO2", "LUTRAM write address 2 (to SLICEA/B)"),
-                    output!(&postfix, "WADO3", "LUTRAM write address 3 (to SLICEA/B)"),
-                    output!(&postfix, "WCKO", "LUTRAM write clock (to SLICEA/B)"),
-                    output!(&postfix, "WREO", "LUTRAM write enable (to SLICEA/B)"),
-                    output!(&postfix, "WDO0", "LUTRAM write data 0 (to SLICEA)"),
-                    output!(&postfix, "WDO1", "LUTRAM write data 1 (to SLICEA)"),
-                    output!(&postfix, "WDO2", "LUTRAM write data 2 (to SLICEB)"),
-                    output!(&postfix, "WDO3", "LUTRAM write data 3 (to SLICEB)"),
-                ]);
-            }
-            _ => {}
-        }
-        Bel {
-            name: postfix.clone(),
-            beltype: String::from("SLICE"),
-            pins: pins,
-            z: z as u32,
-        }
-    }
-
     pub fn make_oxide_ff(slice: usize, ff: usize) -> Bel {
         let ch = Z_TO_CHAR[slice];
         let postfix = format!("SLICE{}", ch);
@@ -352,15 +292,61 @@ impl Bel {
             name: format!("IO{}", ch),
             beltype: String::from("SEIO33_CORE"),
             pins: vec![
-                input!(&postfix, "PADDO", "output buffer input from fabric/IOLOGIC"),
-                input!(
+                inout_m!(&postfix, "B", "PAD", "top level pad signal"),
+                input_m!(
                     &postfix,
+                    "I",
+                    "PADDO",
+                    "output buffer input from fabric/IOLOGIC"
+                ),
+                input_m!(
+                    &postfix,
+                    "T",
                     "PADDT",
                     "output buffer tristate (0=driven, 1=hi-z)"
                 ),
-                output!(&postfix, "PADDI", "input buffer output to fabric/IOLOGIC"),
+                output_m!(
+                    &postfix,
+                    "O",
+                    "PADDI",
+                    "input buffer output to fabric/IOLOGIC"
+                ),
                 input!(&postfix, "I3CRESEN", "I3C strong pullup enable"),
                 input!(&postfix, "I3CWKPU", "I3C weak pullup enable"),
+            ],
+            z: z as u32,
+        }
+    }
+
+    pub fn make_seio18(z: usize) -> Bel {
+        let ch = Z_TO_CHAR[z];
+        let postfix = format!("SEIO18_CORE_IO{}", ch);
+        Bel {
+            name: format!("IO{}", ch),
+            beltype: String::from("SEIO18_CORE"),
+            pins: vec![
+                inout_m!(&postfix, "B", "IOPAD", "top level pad signal"),
+                input_m!(
+                    &postfix,
+                    "I",
+                    "PADDO",
+                    "output buffer input from fabric/IOLOGIC"
+                ),
+                input_m!(
+                    &postfix,
+                    "T",
+                    "PADDT",
+                    "output buffer tristate (0=driven, 1=hi-z)"
+                ),
+                output_m!(
+                    &postfix,
+                    "O",
+                    "PADDI",
+                    "input buffer output to fabric/IOLOGIC"
+                ),
+                input!(&postfix, "DOLP", "DPHY LP mode output buffer input"),
+                output!(&postfix, "INLP", "DPHY LP mode input buffer output"),
+                output!(&postfix, "INADC", "analog signal out to ADC"),
             ],
             z: z as u32,
         }
@@ -388,6 +374,7 @@ pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
         | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C" => {
             (0..2).map(Bel::make_seio33).collect()
         }
+        "SYSIO_B3_0" | "SYSIO_B4_0" | "SYSIO_B5_0" => (0..2).map(Bel::make_seio18).collect(),
         _ => vec![],
     }
 }
