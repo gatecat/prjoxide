@@ -512,10 +512,10 @@ impl LocationTypes {
             // Wire pip and bel lists
             for (j, _) in data.wires.iter().enumerate() {
                 let empty_pip_vec = vec![];
-                let uphill = wire_uphill.get(&i).unwrap_or(&empty_pip_vec);
-                let downhill = wire_downhill.get(&i).unwrap_or(&empty_pip_vec);
+                let uphill = wire_uphill.get(&j).unwrap_or(&empty_pip_vec);
+                let downhill = wire_downhill.get(&j).unwrap_or(&empty_pip_vec);
                 let empty_pin_vec = vec![];
-                let belpins = wire_belpins.get(&i).unwrap_or(&empty_pin_vec);
+                let belpins = wire_belpins.get(&j).unwrap_or(&empty_pin_vec);
                 out.pips_list(&format!("t{}_w{}_uh", i, j), &uphill)?;
                 out.pips_list(&format!("t{}_w{}_dh", i, j), &downhill)?;
                 out.list_begin(&format!("t{}_w{}_bp", i, j))?;
@@ -527,10 +527,10 @@ impl LocationTypes {
             out.list_begin(&format!("tt{}_wires", i))?;
             for (j, wirename) in data.wires.iter().enumerate() {
                 let empty_pip_vec = vec![];
-                let uphill = wire_uphill.get(&i).unwrap_or(&empty_pip_vec);
-                let downhill = wire_downhill.get(&i).unwrap_or(&empty_pip_vec);
+                let uphill = wire_uphill.get(&j).unwrap_or(&empty_pip_vec);
+                let downhill = wire_downhill.get(&j).unwrap_or(&empty_pip_vec);
                 let empty_pin_vec = vec![];
-                let belpins = wire_belpins.get(&i).unwrap_or(&empty_pin_vec);
+                let belpins = wire_belpins.get(&j).unwrap_or(&empty_pin_vec);
                 let mut flags = 0;
                 if data.primary_wires.contains(wirename) {
                     flags |= WIRE_PRIMARY;
