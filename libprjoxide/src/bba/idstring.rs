@@ -50,6 +50,7 @@ impl IdStringDB {
 
     pub fn write_bba(&self, out: &mut BBAStructs) -> std::io::Result<()> {
         out.idstring_list("bba_idstrings", &self.strings[self.const_ids_count..])?;
+        out.list_begin("id_db")?;
         out.id_string_db(
             self.const_ids_count,
             self.strings.len() - self.const_ids_count,

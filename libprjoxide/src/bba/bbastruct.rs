@@ -6,7 +6,7 @@ use std::convert::TryInto;
 use std::io::Result;
 
 pub struct BBAStructs<'a> {
-    out: &'a mut BBAWriter<'a>,
+    pub out: &'a mut BBAWriter<'a>,
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
@@ -190,6 +190,22 @@ impl<'a> BBAStructs<'a> {
         Ok(())
     }
 
+    pub fn device(
+        &mut self,
+        device_name: &str,
+        width: usize,
+        height: usize,
+        num_tiles: usize,
+        grid_ref: &str,
+    ) -> Result<()> {
+        self.out.str_val(device_name)?;
+        self.out.u16_val(width.try_into().unwrap())?;
+        self.out.u16_val(height.try_into().unwrap())?;
+        self.out.u32_val(num_tiles.try_into().unwrap())?;
+        self.out.ref_label(grid_ref)?;
+        Ok(())
+    }
+
     pub fn database(
         &mut self,
         num_chips: usize,
@@ -204,6 +220,7 @@ impl<'a> BBAStructs<'a> {
         self.out.str_val(family)?;
         self.out.ref_label(chips_ref)?;
         self.out.ref_label(loctypes_ref)?;
+        self.out.ref_label("id_db")?;
         Ok(())
     }
 }

@@ -148,6 +148,22 @@ impl LocationGrid {
         }
         Ok(())
     }
+    // Write out the bba for a chip type
+    pub fn write_chip_bba(
+        &self,
+        out: &mut BBAStructs,
+        device_idx: u32,
+        ch: &Chip,
+    ) -> std::io::Result<()> {
+        out.device(
+            &ch.device,
+            self.width,
+            self.height,
+            self.height * self.width,
+            &format!("d{}_grid", device_idx),
+        )?;
+        Ok(())
+    }
 }
 
 #[derive(Hash, Eq, PartialEq, Ord, PartialOrd, Clone)]

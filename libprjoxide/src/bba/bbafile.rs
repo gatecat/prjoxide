@@ -45,6 +45,10 @@ impl<'a> BBAWriter<'a> {
         writeln!(&mut self.out, "push {}", s)?;
         Ok(())
     }
+    pub fn pop(&mut self) -> Result<()> {
+        writeln!(&mut self.out, "pop")?;
+        Ok(())
+    }
     pub fn ref_label(&mut self, s: &str) -> Result<()> {
         writeln!(&mut self.out, "ref {}", s)?;
         Ok(())
