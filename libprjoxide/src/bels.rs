@@ -91,6 +91,7 @@ pub struct Bel {
     pub name: String,
     pub beltype: String,
     pub pins: Vec<BelPin>,
+    pub z: u32,
 }
 
 // Macros for common cases
@@ -117,9 +118,12 @@ macro_rules! def_pin {
     };
 }
 
+const Z_TO_CHAR: [char; 4] = ['A', 'B', 'C', 'D'];
+
 impl Bel {
-    pub fn make_slice(z: char) -> Bel {
-        let postfix = format!("SLICE{}", z);
+    pub fn make_slice(z: usize) -> Bel {
+        let ch = Z_TO_CHAR[z];
+        let postfix = format!("SLICE{}", ch);
         let mut pins = vec![
             input!(&postfix, "A0", "LUT0 A input"),
             input!(&postfix, "A1", "LUT1 A input"),
@@ -146,7 +150,7 @@ impl Bel {
             output!(&postfix, "FCO", "fast carry out"),
         ];
         match z {
-            'A' | 'B' => {
+            0 | 1 => {
                 pins.append(&mut vec![
                     input!(&postfix, "WAD0", "LUTRAM write address 0 (from SLICEC)"),
                     input!(&postfix, "WAD1", "LUTRAM write address 1 (from SLICEC)"),
@@ -158,7 +162,7 @@ impl Bel {
                     input!(&postfix, "WDI1", "LUTRAM write data 1"),
                 ]);
             }
-            'C' => {
+            2 => {
                 pins.append(&mut vec![
                     output!(&postfix, "WADO0", "LUTRAM write address 0 (to SLICEA/B)"),
                     output!(&postfix, "WADO1", "LUTRAM write address 1 (to SLICEA/B)"),
@@ -178,13 +182,15 @@ impl Bel {
             name: postfix.clone(),
             beltype: String::from("SLICE"),
             pins: pins,
+            z: z as u32,
         }
     }
 
-    pub fn make_seio33(z: char) -> Bel {
-        let postfix = format!("SEIO33_CORE_IO{}", z);
+    pub fn make_seio33(z: usize) -> Bel {
+        let ch = Z_TO_CHAR[z];
+        let postfix = format!("SEIO33_CORE_IO{}", ch);
         Bel {
-            name: format!("IO{}", z),
+            name: format!("IO{}", ch),
             beltype: String::from("SEIO33_CORE"),
             pins: vec![
                 input!(&postfix, "PADDO", "output buffer input from fabric/IOLOGIC"),
@@ -197,16 +203,17 @@ impl Bel {
                 input!(&postfix, "I3CRESEN", "I3C strong pullup enable"),
                 input!(&postfix, "I3CWKPU", "I3C weak pullup enable"),
             ],
+            z: z as u32,
         }
     }
 }
 
 pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
     match tiletype {
-        "PLC" => "ABCD".chars().map(Bel::make_slice).collect(),
+        "PLC" => (0..4).map(Bel::make_slice).collect(),
         "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
         | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C" => {
-            "AB".chars().map(Bel::make_seio33).collect()
+            (0..2).map(Bel::make_seio33).collect()
         }
         _ => vec![],
     }

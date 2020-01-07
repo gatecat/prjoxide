@@ -446,6 +446,7 @@ impl LocationTypes {
                     ids.id(&bel.beltype),
                     0,
                     0,
+                    bel.z,
                     &format!("tt{}b{}_bw", i, j),
                     bel.pins.len(),
                 )?;

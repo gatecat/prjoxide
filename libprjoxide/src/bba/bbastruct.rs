@@ -34,6 +34,7 @@ impl<'a> BBAStructs<'a> {
         beltype: IdString,
         rel_x: i16,
         rel_y: i16,
+        z: u32,
         ports_ref: &str,
         num_ports: usize,
     ) -> Result<()> {
@@ -41,6 +42,7 @@ impl<'a> BBAStructs<'a> {
         self.out.u32_val(beltype.val().try_into().unwrap())?; // bel type IdString
         self.out.i16_val(rel_x)?; // actual location relative X
         self.out.i16_val(rel_y)?; // actual location relative Y
+        self.out.u32_val(z)?; // bel Z-coordinate
         self.out.ref_label(ports_ref)?; // ref to list of ports
         self.out.u32_val(num_ports.try_into().unwrap())?; // number of ports
         Ok(())
