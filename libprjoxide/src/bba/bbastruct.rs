@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 2;
+pub const BBA_VERSION: u32 = 3;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -30,6 +30,8 @@ pub const LOC_SPINE: u32 = 0x002000;
 pub const LOC_TRUNK: u32 = 0x004000;
 pub const LOC_MIDMUX: u32 = 0x008000;
 pub const LOC_CMUX: u32 = 0x010000;
+// Pip flags
+pub const PIP_FIXED_CONN: u16 = 0x8000;
 
 impl<'a> BBAStructs<'a> {
     pub fn new(out: &'a mut BBAWriter<'a>) -> BBAStructs<'a> {
@@ -103,10 +105,13 @@ impl<'a> BBAStructs<'a> {
         &mut self,
         from_wire: usize,
         to_wire: usize,
+        flags: u16,
         tile_type: IdString,
     ) -> Result<()> {
         self.out.u16_val(from_wire.try_into().unwrap())?; // src wire index in tile
         self.out.u16_val(to_wire.try_into().unwrap())?; // dst wire index in tile
+        self.out.u16_val(flags)?; // pip flags
+        self.out.u16_val(0)?; // padding (reserved for timing class)
         self.out.u32_val(tile_type.val().try_into().unwrap())?; // tile type containing pip IdString
         Ok(())
     }
