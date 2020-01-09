@@ -10,11 +10,26 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 1;
+pub const BBA_VERSION: u32 = 2;
 
+// Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
+// Neighbour arc flags
 pub const LOGICAL_TO_PRIMARY: u8 = 0x80;
 pub const PHYSICAL_DOWNHILL: u8 = 0x08;
+// Tile location flags
+pub const LOC_LOGIC: u32 = 0x000001;
+pub const LOC_IO18: u32 = 0x000002;
+pub const LOC_IO33: u32 = 0x000004;
+pub const LOC_BRAM: u32 = 0x000008;
+pub const LOC_DSP: u32 = 0x000010;
+pub const LOC_IP: u32 = 0x000020;
+pub const LOC_CIB: u32 = 0x000040;
+pub const LOC_TAP: u32 = 0x001000;
+pub const LOC_SPINE: u32 = 0x002000;
+pub const LOC_TRUNK: u32 = 0x004000;
+pub const LOC_MIDMUX: u32 = 0x008000;
+pub const LOC_CMUX: u32 = 0x010000;
 
 impl<'a> BBAStructs<'a> {
     pub fn new(out: &'a mut BBAWriter<'a>) -> BBAStructs<'a> {
@@ -167,11 +182,13 @@ impl<'a> BBAStructs<'a> {
     pub fn grid_loc(
         &mut self,
         loc_type: usize,
+        loc_flags: u32,
         nh_type: usize,
         num_phys_tiles: usize,
         phys_tiles_ref: &str,
     ) -> Result<()> {
         self.out.u32_val(loc_type.try_into().unwrap())?;
+        self.out.u32_val(loc_flags)?;
         self.out.u16_val(nh_type.try_into().unwrap())?;
         self.out.u16_val(num_phys_tiles.try_into().unwrap())?;
         self.out.ref_label(phys_tiles_ref)?;

@@ -119,18 +119,49 @@ impl LocationGrid {
     ) -> std::io::Result<()> {
         // Lists of physical tiles at a location
         let mut num_phys_tiles = vec![0; self.height * self.width];
+        let mut loc_flags = vec![0; self.height * self.width];
         for y in 0..self.height {
             for x in 0..self.width {
                 let phys_tiles = ch.tiles_by_xy(x as u32, y as u32);
                 num_phys_tiles[y * self.width + x] = phys_tiles.len();
                 out.list_begin(&format!("d{}_y{}x{}_ptiles", device_idx, y, x))?;
+                let mut flags = 0;
                 for tile in phys_tiles.iter() {
                     let colon_pos = tile.name.find(':').unwrap();
-                    let tiletype = ids.id(&tile.name[colon_pos + 1..]);
+                    let tiletype_str = &tile.name[colon_pos + 1..];
+                    let tiletype = ids.id(tiletype_str);
                     let prefix_end = tile.name[0..colon_pos].rfind('_').unwrap_or(0);
                     let prefix = ids.id(&tile.name[0..prefix_end]);
+                    if tiletype_str == "PLC" {
+                        flags |= LOC_LOGIC;
+                    } else if tiletype_str.starts_with("SYSIO_B5")
+                        || tiletype_str.starts_with("SYSIO_B4")
+                        || tiletype_str.starts_with("SYSIO_B3")
+                    {
+                        flags |= LOC_IO18;
+                    } else if tiletype_str.starts_with("SYSIO_B0")
+                        || tiletype_str.starts_with("SYSIO_B1")
+                        || tiletype_str.starts_with("SYSIO_B2")
+                        || tiletype_str.starts_with("SYSIO_B6")
+                        || tiletype_str.starts_with("SYSIO_B7")
+                    {
+                        flags |= LOC_IO33;
+                    } else if tiletype_str.starts_with("EBR_") {
+                        flags |= LOC_BRAM;
+                    } else if tiletype_str.starts_with("DSP_") {
+                        flags |= LOC_DSP;
+                    } else if tiletype_str.starts_with("CIB") {
+                        flags |= LOC_CIB;
+                    } else if tiletype_str.starts_with("TAP_") {
+                        flags |= LOC_TAP;
+                    } else if tiletype_str.starts_with("SPINE_") {
+                        flags |= LOC_SPINE;
+                    } else if tiletype_str.starts_with("TRUNK") {
+                        flags |= LOC_TRUNK;
+                    }
                     out.physical_tile(prefix, tiletype)?;
                 }
+                loc_flags[y * self.width + x] = flags;
             }
         }
         // Actual grid data
@@ -140,6 +171,7 @@ impl LocationGrid {
                 let data = self.get(x, y).unwrap();
                 out.grid_loc(
                     data.type_at_loc.unwrap(),
+                    loc_flags[y * self.width + x],
                     data.neigh_type_at_loc.unwrap(),
                     num_phys_tiles[y * self.width + x],
                     &format!("d{}_y{}x{}_ptiles", device_idx, y, x),
