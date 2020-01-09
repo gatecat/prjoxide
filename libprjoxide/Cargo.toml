@@ -14,14 +14,20 @@ multimap = "0.8.0"
 lazy_static = "1.4.0"
 pulldown-cmark = "0.6.1"
 itertools = "0.8.2"
+rug = "1.6.0"
 
 [lib]
 name = "prjoxide"
 crate-type = ["cdylib"]
 
 [[bin]]
-name = "oxideunpack"
+name = "oxide_unpack"
 path = "src/unpack.rs"
+
+[[bin]]
+name = "oxide_pack"
+path = "src/pack.rs"
+
 
 [[bin]]
 name = "oxide_bbaexport"

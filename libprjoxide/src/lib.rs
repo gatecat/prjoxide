@@ -14,6 +14,7 @@ mod chip;
 pub mod database;
 pub mod database_html;
 mod docs;
+mod fasmparse;
 pub mod fuzz;
 mod wires;
 
