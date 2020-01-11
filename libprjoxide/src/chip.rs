@@ -313,13 +313,6 @@ Please make sure Oxide and nextpnr are up to date and input source code is meani
                 }
             }
         }
-        // Process unknown bits as a special case
-        for (k, v) in ft.enums.iter().filter(|(k, _)| k.starts_with("UNKNOWN.")) {
-            let sppos = k.find(".").unwrap();
-            let frame = k[sppos + 1..].parse::<usize>().unwrap();
-            let bit = v.parse::<usize>().unwrap();
-            self.cram.set(frame, bit, true);
-        }
         // Process words
         for (k, v) in ft.words.iter() {
             let w = tdb.db.words.get(k).unwrap_or_else(|| panic!("No word named {} in tile {}.\n\
@@ -366,6 +359,10 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
                     }
                 }
             }
+        }
+        // Process unknowns
+        for (f, b) in ft.unknowns.iter() {
+            self.cram.set(*f, *b, true);
         }
     }
     pub fn write_fasm(&self, db: &mut Database, mut out: &mut dyn Write) {

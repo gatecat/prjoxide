@@ -22,6 +22,7 @@ pub struct FasmTile {
     pub pips: BTreeMap<String, String>,
     pub enums: BTreeMap<String, String>,
     pub words: BTreeMap<String, Integer>,
+    pub unknowns: Vec<(usize, usize)>,
 }
 
 impl FasmTile {
@@ -30,6 +31,7 @@ impl FasmTile {
             pips: BTreeMap::new(),
             enums: BTreeMap::new(),
             words: BTreeMap::new(),
+            unknowns: Vec::new(),
         }
     }
 }
@@ -169,6 +171,11 @@ impl ParsedFasm {
                     assert_token(&mut buf, ".");
                     let from_wire = get_ident(&mut buf).replace("__", ":");
                     tile_data.pips.insert(to_wire, from_wire);
+                } else if check_token(&mut buf, "UNKNOWN.") {
+                    let frame: usize = get_integer(&mut buf).try_into().unwrap();
+                    assert_token(&mut buf, ".");
+                    let bit: usize = get_integer(&mut buf).try_into().unwrap();
+                    tile_data.unknowns.push((frame, bit));
                 } else {
                     let mut feature_split = Vec::new();
                     loop {
