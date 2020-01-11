@@ -129,8 +129,10 @@ impl BitstreamParser {
         b.write_padding(12);
         // Write usercode
         b.write_byte(ISC_PROGRAM_USERCODE);
-        b.write_zeros(3);
+        b.write_byte(0x80); // CRC check enable flag
+        b.write_zeros(2);
         b.write_u32(0x00000000);
+        b.insert_crc();
         b.write_padding(1015);
         // Program DONE
         b.write_byte(ISC_PROGRAM_DONE);
