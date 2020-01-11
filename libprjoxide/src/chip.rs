@@ -159,6 +159,12 @@ impl Chip {
                 Chip::from_name(db, name)
             }
         };
+        chip.metadata.extend(
+            fasm.attrs
+                .iter()
+                .filter_map(|(k, v)| if k == "oxide.meta" { Some(v) } else { None })
+                .cloned(),
+        );
         for (tn, ft) in fasm.tiles.iter() {
             chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
         }

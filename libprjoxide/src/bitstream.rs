@@ -1,6 +1,7 @@
 use crate::chip::*;
 use crate::database::*;
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::Read;
 
@@ -70,6 +71,74 @@ impl BitstreamParser {
         Ok(c)
     }
 
+    pub fn serialise_chip(ch: &Chip) -> Vec<u8> {
+        let mut b = BitstreamParser {
+            data: Vec::new(),
+            index: 0,
+            crc16: CRC16_INIT,
+            ecc14: ECC_INIT,
+            verbose: false,
+            metadata: Vec::new(),
+        };
+        b.write_string("LSCC"); // magic
+        b.write_bytes(&COMMENT_START); // metadata start
+        for (i, m) in ch.metadata.iter().enumerate() {
+            b.write_string(m);
+            if i < (ch.metadata.len() - 1) {
+                b.write_byte(0x00); // terminator
+            }
+        }
+        b.write_bytes(&COMMENT_END); // metadata end
+        b.write_bytes(&PREAMBLE); // actual bitstream preamble
+        b.write_padding(20);
+        // Reset CRC, twice for some reason
+        b.write_byte(LSC_RESET_CRC);
+        b.write_zeros(3);
+        b.crc16 = CRC16_INIT;
+        b.write_padding(4);
+        b.write_byte(LSC_RESET_CRC);
+        b.write_zeros(3);
+        b.crc16 = CRC16_INIT;
+        b.write_padding(4);
+        // IDCODE check
+        b.write_byte(VERIFY_ID);
+        b.write_zeros(3);
+        b.write_u32(ch.data.idcode);
+        // Set CTRL0
+        let ctrl0 = 0x00000000;
+        b.write_byte(LSC_PROG_CNTRL0);
+        b.write_zeros(3);
+        b.write_u32(ctrl0);
+        // Write "IO" frames
+        b.write_frame_addr(0x8000);
+        b.write_frames(ch, 0x8000, 32);
+        b.write_padding(17);
+        // Write main frames
+        b.write_byte(LSC_INIT_ADDRESS);
+        b.write_zeros(3);
+        b.write_frames(ch, 0x0000, ch.data.frames - 56);
+        b.write_padding(17);
+        // Write tap frames
+        b.write_frame_addr(0x8020);
+        b.write_frames(ch, 0x8020, 24);
+        b.write_padding(17);
+        // Write power control
+        b.write_byte(LSC_POWER_CTRL);
+        b.write_zeros(2);
+        b.write_byte(0x01);
+        b.write_padding(12);
+        // Write usercode
+        b.write_byte(ISC_PROGRAM_USERCODE);
+        b.write_zeros(3);
+        b.write_u32(0x00000000);
+        b.write_padding(1015);
+        // Program DONE
+        b.write_byte(ISC_PROGRAM_DONE);
+        b.write_zeros(3);
+        b.write_padding(4);
+        return b.data;
+    }
+
     // Add a single byte to the running CRC16 accumulator
     fn update_crc16(&mut self, val: u8) {
         let mut bit_flag = 0;
@@ -105,7 +174,16 @@ impl BitstreamParser {
         self.update_crc16(val);
         return val;
     }
-    // Gets an opcode byte, updating the CRC if it isn't a dummy opcode (0xFF
+    // Write a byte into the bitstream, updating the CRC
+    fn write_byte(&mut self, b: u8) {
+        self.data.push(b);
+        self.update_crc16(b);
+    }
+    // Write a byte into the bitstream, without updating the CRC
+    fn write_byte_nocrc(&mut self, b: u8) {
+        self.data.push(b);
+    }
+    // Gets an opcode byte, updating the CRC if it isn't a dummy opcode (0xFF)
     fn get_opcode_byte(&mut self) -> u8 {
         let val = self.data[self.index];
         self.index += 1;
@@ -141,6 +219,18 @@ impl BitstreamParser {
         val |= self.get_byte() as u32;
         return val;
     }
+    // Write a 16-bit big-endian word
+    fn write_u16(&mut self, h: u16) {
+        self.write_byte(((h >> 8) & 0xFF) as u8);
+        self.write_byte((h & 0xFF) as u8);
+    }
+    // Write a 32-bit big-endian word
+    fn write_u32(&mut self, w: u32) {
+        self.write_byte(((w >> 24) & 0xFF) as u8);
+        self.write_byte(((w >> 16) & 0xFF) as u8);
+        self.write_byte(((w >> 8) & 0xFF) as u8);
+        self.write_byte((w & 0xFF) as u8);
+    }
     // Copy bytes
     fn copy_bytes(&mut self, dest: &mut [u8]) {
         for i in 0..dest.len() {
@@ -149,8 +239,66 @@ impl BitstreamParser {
     }
     // Skip bytes
     fn skip_bytes(&mut self, len: usize) {
-        for i in 0..len {
+        for _ in 0..len {
             self.get_byte();
+        }
+    }
+    // Write a number of zeroes into the bitstream
+    fn write_zeros(&mut self, len: usize) {
+        for _ in 0..len {
+            self.write_byte(0x00);
+        }
+    }
+    // Write a number of padding commands into the bitstream
+    fn write_padding(&mut self, len: usize) {
+        for _ in 0..len {
+            self.write_byte_nocrc(0xFF);
+        }
+    }
+    // Add a string into the bitstream
+    fn write_string(&mut self, s: &str) {
+        self.data.extend(s.bytes());
+    }
+    // Writes a vec of bytes into the bitstream
+    fn write_bytes(&mut self, bytes: &[u8]) {
+        for b in bytes {
+            self.write_byte(*b);
+        }
+    }
+    fn write_frame_addr(&mut self, addr: u32) {
+        self.write_byte(LSC_WRITE_ADDRESS);
+        self.write_zeros(3);
+        self.write_u32(addr);
+    }
+    fn write_frames(&mut self, c: &Chip, start_addr: u32, count: usize) {
+        self.write_byte(LSC_PROG_INCR_RTI);
+        self.write_byte(0x91); // frame load settings
+        self.write_u16(count.try_into().unwrap());
+        let bits_per_frame = c.data.bits_per_frame;
+        let pad_bits = c.data.frame_ecc_bits + c.data.pad_bits_after_frame;
+        let mut frame_bytes = vec![0 as u8; (bits_per_frame + 7) / 8 + 2];
+        let total_frame_bytes = frame_bytes.len();
+        for f in 0..count {
+            let frame_addr: u32 = start_addr + (f as u32);
+            let frame_idx = c.frame_addr_to_idx(frame_addr);
+            self.ecc14 = ECC_INIT;
+            for b in frame_bytes.iter_mut() {
+                *b = 0;
+            }
+            for j in (0..bits_per_frame).rev() {
+                let ofs = (j + pad_bits) as usize;
+                let value = c.cram.get(frame_idx, j);
+                self.update_ecc(value);
+                if value {
+                    frame_bytes[(total_frame_bytes - 1) - (ofs / 8)] |= 1 << (ofs % 8);
+                }
+            }
+            let ecc = self.finalise_ecc();
+            frame_bytes[total_frame_bytes - 2] |= ((ecc >> 8) & 0x3F) as u8;
+            frame_bytes[total_frame_bytes - 1] |= (ecc & 0xFF) as u8;
+            self.write_bytes(&frame_bytes);
+            self.insert_crc();
+            self.write_byte(0xFF);
         }
     }
     // "Push out" last 16 bits to get final crc16
@@ -174,6 +322,13 @@ impl BitstreamParser {
         self.crc16 = CRC16_INIT;
     }
 
+    // Finalise and insert CRC
+    fn insert_crc(&mut self) {
+        self.finalise_crc16();
+        self.write_u16(self.crc16);
+        self.crc16 = CRC16_INIT;
+    }
+
     fn done(&self) -> bool {
         self.index >= self.data.len()
     }
@@ -193,6 +348,10 @@ impl BitstreamParser {
                 continue;
             }
             if in_metadata && self.check_preamble(&COMMENT_END) {
+                if curr_meta.len() > 0 {
+                    self.metadata.push(curr_meta.to_string());
+                    curr_meta.clear();
+                }
                 in_metadata = false;
                 continue;
             }
