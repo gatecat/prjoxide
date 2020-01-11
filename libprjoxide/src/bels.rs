@@ -289,7 +289,7 @@ impl Bel {
         let ch = Z_TO_CHAR[z];
         let postfix = format!("SEIO33_CORE_IO{}", ch);
         Bel {
-            name: format!("IO{}", ch),
+            name: format!("PIO{}", ch),
             beltype: String::from("SEIO33_CORE"),
             pins: vec![
                 inout_m!(&postfix, "B", "PAD", "top level pad signal"),
@@ -322,7 +322,7 @@ impl Bel {
         let ch = Z_TO_CHAR[z];
         let postfix = format!("SEIO18_CORE_IO{}", ch);
         Bel {
-            name: format!("IO{}", ch),
+            name: format!("PIO{}", ch),
             beltype: String::from("SEIO18_CORE"),
             pins: vec![
                 inout_m!(&postfix, "B", "IOPAD", "top level pad signal"),

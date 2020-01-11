@@ -130,7 +130,10 @@ impl LocationGrid {
                     let colon_pos = tile.name.find(':').unwrap();
                     let tiletype_str = &tile.name[colon_pos + 1..];
                     let tiletype = ids.id(tiletype_str);
-                    let prefix_end = tile.name[0..colon_pos].rfind('_').unwrap_or(0);
+                    let mut prefix_end = tile.name[0..colon_pos].rfind('_').unwrap_or(0);
+                    if prefix_end != 0 {
+                        prefix_end += 1;
+                    }
                     let prefix = ids.id(&tile.name[0..prefix_end]);
                     if tiletype_str == "PLC" {
                         flags |= LOC_LOGIC;
