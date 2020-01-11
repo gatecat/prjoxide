@@ -35,12 +35,14 @@ impl FasmTile {
 }
 
 pub struct ParsedFasm {
+    pub attrs: Vec<(String, String)>,
     pub tiles: BTreeMap<String, FasmTile>,
 }
 
 impl ParsedFasm {
     pub fn parse(filename: &str) -> Result<ParsedFasm> {
         let mut p = ParsedFasm {
+            attrs: Vec::new(),
             tiles: BTreeMap::new(),
         };
         let file = File::open(filename)?;
@@ -52,7 +54,7 @@ impl ParsedFasm {
                 continue;
             }
             let first_nonblank = first_nonblank.unwrap();
-            let comment_start = l.find(|c: char| c == '#' || c == '{').unwrap_or(l.len());
+            let comment_start = l.find(|c: char| c == '#').unwrap_or(l.len());
             if first_nonblank >= comment_start {
                 continue;
             }
@@ -61,6 +63,14 @@ impl ParsedFasm {
             let get_ident = |parsebuf: &mut &str| -> String {
                 let end_index = parsebuf
                     .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                    .unwrap_or(parsebuf.len());
+                let token = &parsebuf[0..end_index];
+                *parsebuf = &parsebuf[end_index..];
+                token.to_string()
+            };
+            let get_attr_key = |parsebuf: &mut &str| -> String {
+                let end_index = parsebuf
+                    .find(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '.')
                     .unwrap_or(parsebuf.len());
                 let token = &parsebuf[0..end_index];
                 *parsebuf = &parsebuf[end_index..];
@@ -123,59 +133,87 @@ impl ParsedFasm {
                     .unwrap(),
                 )
             };
-            let tilename = get_ident(&mut buf).replace("__", ":");
-            let tile_data = p.tiles.entry(tilename).or_insert_with(FasmTile::new);
-            assert_token(&mut buf, ".");
-            if check_token(&mut buf, "PIP.") {
-                // It's a pip
-                let to_wire = get_ident(&mut buf).replace("__", ":");
-                assert_token(&mut buf, ".");
-                let from_wire = get_ident(&mut buf).replace("__", ":");
-                tile_data.pips.insert(to_wire, from_wire);
-            } else {
-                let mut feature_split = Vec::new();
-                loop {
-                    feature_split.push(get_ident(&mut buf));
-                    if !check_token(&mut buf, ".") {
+            let get_attr_value = |parsebuf: &mut &str| -> String {
+                if check_token(parsebuf, "\"") {
+                    // String
+                    let end_index = parsebuf.find('"').unwrap();
+                    let val = &parsebuf[0..end_index];
+                    *parsebuf = &parsebuf[end_index + 1..];
+                    val.to_string()
+                } else {
+                    // Not string
+                    get_attr_key(parsebuf)
+                }
+            };
+            if check_token(&mut buf, "{") {
+                skip_whitespace(&mut buf);
+                while !check_token(&mut buf, "}") {
+                    let key = get_attr_key(&mut buf);
+                    skip_whitespace(&mut buf);
+                    assert_token(&mut buf, "=");
+                    skip_whitespace(&mut buf);
+                    p.attrs.push((key, get_attr_value(&mut buf)));
+                    skip_whitespace(&mut buf);
+                    if !check_token(&mut buf, ",") {
+                        assert_token(&mut buf, "}");
                         break;
                     }
                 }
-                skip_whitespace(&mut buf);
-                if check_token(&mut buf, "[") {
-                    skip_whitespace(&mut buf);
-                    // Word style setting
-                    let key = feature_split.join(".");
-                    let end_bit: u32 = get_integer(&mut buf).try_into().unwrap();
-                    skip_whitespace(&mut buf);
-                    let mut start_bit = end_bit;
-                    skip_whitespace(&mut buf);
-                    if check_token(&mut buf, ":") {
-                        skip_whitespace(&mut buf);
-                        start_bit = get_integer(&mut buf).try_into().unwrap();
-                        skip_whitespace(&mut buf);
-                    }
-                    assert!(end_bit >= start_bit);
-                    assert_token(&mut buf, "]");
-                    skip_whitespace(&mut buf);
-                    let value = if check_token(&mut buf, "=") {
-                        skip_whitespace(&mut buf);
-                        get_value(&mut buf)
-                    } else {
-                        Integer::from(1)
-                    };
-                    let dest = tile_data
-                        .words
-                        .entry(key)
-                        .or_insert_with(|| Integer::from(0));
-                    let count: u32 = (end_bit - start_bit) + 1;
-                    for i in 0..count {
-                        dest.set_bit(start_bit + i, value.get_bit(i));
-                    }
+            } else {
+                let tilename = get_ident(&mut buf).replace("__", ":");
+                let tile_data = p.tiles.entry(tilename).or_insert_with(FasmTile::new);
+                assert_token(&mut buf, ".");
+                if check_token(&mut buf, "PIP.") {
+                    // It's a pip
+                    let to_wire = get_ident(&mut buf).replace("__", ":");
+                    assert_token(&mut buf, ".");
+                    let from_wire = get_ident(&mut buf).replace("__", ":");
+                    tile_data.pips.insert(to_wire, from_wire);
                 } else {
-                    // Enum style setting
-                    let key = feature_split[0..feature_split.len() - 1].join(".");
-                    let value = &feature_split[feature_split.len() - 1];
-                    tile_data.enums.insert(key, value.to_string());
+                    let mut feature_split = Vec::new();
+                    loop {
+                        feature_split.push(get_ident(&mut buf));
+                        if !check_token(&mut buf, ".") {
+                            break;
+                        }
+                    }
+                    skip_whitespace(&mut buf);
+                    if check_token(&mut buf, "[") {
+                        skip_whitespace(&mut buf);
+                        // Word style setting
+                        let key = feature_split.join(".");
+                        let end_bit: u32 = get_integer(&mut buf).try_into().unwrap();
+                        skip_whitespace(&mut buf);
+                        let mut start_bit = end_bit;
+                        skip_whitespace(&mut buf);
+                        if check_token(&mut buf, ":") {
+                            skip_whitespace(&mut buf);
+                            start_bit = get_integer(&mut buf).try_into().unwrap();
+                            skip_whitespace(&mut buf);
+                        }
+                        assert!(end_bit >= start_bit);
+                        assert_token(&mut buf, "]");
+                        skip_whitespace(&mut buf);
+                        let value = if check_token(&mut buf, "=") {
+                            skip_whitespace(&mut buf);
+                            get_value(&mut buf)
+                        } else {
+                            Integer::from(1)
+                        };
+                        let dest = tile_data
+                            .words
+                            .entry(key)
+                            .or_insert_with(|| Integer::from(0));
+                        let count: u32 = (end_bit - start_bit) + 1;
+                        for i in 0..count {
+                            dest.set_bit(start_bit + i, value.get_bit(i));
+                        }
+                    } else {
+                        // Enum style setting
+                        let key = feature_split[0..feature_split.len() - 1].join(".");
+                        let value = &feature_split[feature_split.len() - 1];
+                        tile_data.enums.insert(key, value.to_string());
+                    }
                 }
             }
         }
@@ -183,6 +221,9 @@ impl ParsedFasm {
     }
 
     pub fn dump(&self, out: &mut dyn Write) -> Result<()> {
+        for (akey, aval) in self.attrs.iter() {
+            writeln!(out, "{{ {}=\"{}\" }}", akey, aval)?;
+        }
         for (tile, tdata) in self.tiles.iter() {
             for (to_wire, from_wire) in tdata.pips.iter() {
                 writeln!(out, "{}.PIP.{}.{}", tile, to_wire, from_wire)?;
