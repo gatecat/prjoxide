@@ -10,6 +10,7 @@ pub struct BitstreamParser {
     crc16: u16,
     ecc14: u16,
     verbose: bool,
+    metadata: Vec<String>,
 }
 
 // Magic sequences
@@ -53,6 +54,7 @@ impl BitstreamParser {
             crc16: CRC16_INIT,
             ecc14: ECC_INIT,
             verbose: false,
+            metadata: Vec::new(),
         }
     }
 
@@ -95,7 +97,7 @@ impl BitstreamParser {
         }
         return self.ecc14;
     }
-    
+
     // Get a single byte, updating the CRC
     fn get_byte(&mut self) -> u8 {
         let val = self.data[self.index];
@@ -200,6 +202,7 @@ impl BitstreamParser {
                     if curr_meta.len() > 0 {
                         println!("Metadata: {}", &curr_meta);
                     }
+                    self.metadata.push(curr_meta.to_string());
                     curr_meta.clear();
                 } else {
                     curr_meta.push(ch as char);
@@ -232,7 +235,9 @@ impl BitstreamParser {
                 VERIFY_ID => {
                     self.skip_bytes(3);
                     let idcode = self.get_u32();
-                    curr_chip = Some(Chip::from_idcode(db, idcode));
+                    let mut chip = Chip::from_idcode(db, idcode);
+                    chip.metadata = self.metadata.clone();
+                    curr_chip = Some(chip);
                     println!("check IDCODE is 0x{:08X}", idcode);
                 }
                 LSC_INIT_ADDRESS => {
@@ -287,12 +292,12 @@ impl BitstreamParser {
                             }
                         }
                         let parity = ((frame_bytes[frame_bytes.len() - 2] as u16) << 8
-                            | (frame_bytes[frame_bytes.len() - 1] as u16)) & 0x3FFF;
+                            | (frame_bytes[frame_bytes.len() - 1] as u16))
+                            & 0x3FFF;
                         let exp_parity = self.finalise_ecc();
                         assert_eq!(parity, exp_parity);
                         if self.verbose {
                             println!("F0x{:08x}P{:014b}E{:014b}", curr_frame, parity, exp_parity);
-
                         }
                         self.check_crc16();
                         let d = self.get_byte();

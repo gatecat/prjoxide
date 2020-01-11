@@ -3,7 +3,7 @@ mod chip;
 mod database;
 
 use std::fs::File;
-use std::io::Result;
+use std::io::*;
 use std::iter::FromIterator;
 
 fn main() -> Result<()> {
@@ -17,8 +17,22 @@ fn main() -> Result<()> {
 
     let mut outfile = File::create(&args[2])?;
 
+    writeln!(outfile, "{{ oxide.device=\"{}\" }}", chip.device)?;
+    writeln!(outfile, "")?;
+
+    for metadata in chip.metadata.iter() {
+        writeln!(outfile, "{{ oxide.meta=\"{}\" }}", metadata)?;
+    }
+    if !chip.metadata.is_empty() {
+        writeln!(outfile, "")?;
+    }
+
     for tile in chip.tiles {
         tile.write_fasm(&mut db, &mut outfile);
+    }
+
+    for (addr, val) in chip.ipconfig.iter() {
+        writeln!(outfile, "IP.0x{:08X}[7:0] = 8'h{:02X};", addr, val)?;
     }
 
     Ok(())
