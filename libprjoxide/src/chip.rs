@@ -1,4 +1,5 @@
 use crate::database::*;
+use crate::fasmparse::*;
 use multimap::MultiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
@@ -145,6 +146,25 @@ impl Chip {
             .expect(&format!("no device in database with name {}\n", name));
         Chip::new(&fam, &device, &data, db.device_tilegrid(&fam, &device))
     }
+    pub fn from_fasm(db: &mut Database, fasm: &ParsedFasm, device: Option<&str>) -> Chip {
+        let mut chip = match device {
+            Some(d) => Chip::from_name(db, d),
+            None => {
+                let name = &fasm
+                    .attrs
+                    .iter()
+                    .find(|(k, _)| k == "oxide.device")
+                    .unwrap()
+                    .1;
+                Chip::from_name(db, name)
+            }
+        };
+        for (tn, ft) in fasm.tiles.iter() {
+            chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
+        }
+        chip.tiles_to_cram();
+        return chip;
+    }
     // Copy the whole-chip CRAM to the per-tile CRAM
     pub fn cram_to_tiles(&mut self) {
         for t in self.tiles.iter_mut() {
@@ -266,9 +286,85 @@ impl Tile {
             self.cram.print(&mut out);
         }
     }
+    pub fn from_fasm(&mut self, db: &mut Database, ft: &FasmTile) {
+        let tdb = db.tile_bitdb(&self.family, &self.tiletype);
+        for i in 0..2 {
+            // Process "BASE_" enums first
+            for (k, v) in ft
+                .enums
+                .iter()
+                .filter(|(k, _)| k.starts_with("BASE_") == (i == 0) && !k.starts_with("UNKNOWN."))
+            {
+                let en = tdb.db.enums.get(k).unwrap_or_else(|| panic!("No enum named {} in tile {}.\n\
+Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, self.name));
+                let opt = en.options.get(v).unwrap_or_else(|| panic!("No option named {} for enum {} in tile {}.\n\
+Valid options are: {}\n\
+Please make sure Oxide and nextpnr are up to date and input source code is meaningful. If they are, consider reporting this as an issue.",
+                            v, k, self.name,
+                            en.options.keys().cloned().collect::<Vec<String>>().join(", ")));
+                for bit in opt.iter() {
+                    self.cram.set(bit.frame, bit.bit, !bit.invert);
+                }
+            }
+        }
+        // Process unknown bits as a special case
+        for (k, v) in ft.enums.iter().filter(|(k, _)| k.starts_with("UNKNOWN.")) {
+            let sppos = k.find(".").unwrap();
+            let frame = k[sppos + 1..].parse::<usize>().unwrap();
+            let bit = v.parse::<usize>().unwrap();
+            self.cram.set(frame, bit, true);
+        }
+        // Process words
+        for (k, v) in ft.words.iter() {
+            let w = tdb.db.words.get(k).unwrap_or_else(|| panic!("No word named {} in tile {}.\n\
+Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, self.name));
+            if (v.significant_bits() as usize) > w.bits.len() {
+                panic!(
+                    "Word {} in tile {} has value width {} exceeding database width of {}",
+                    k,
+                    self.name,
+                    v.significant_bits(),
+                    w.bits.len()
+                );
+            }
+            for (i, wb) in w.bits.iter().enumerate() {
+                let bit_val = v.get_bit(i as u32);
+                for bit in wb {
+                    self.cram.set(bit.frame, bit.bit, bit.invert != bit_val);
+                }
+            }
+        }
+        // Process pips
+        for (tw, fw) in ft.pips.iter() {
+            let found_pip = tdb
+                .db
+                .pips
+                .get(tw)
+                .map_or(None, |pips| pips.iter().find(|p| &p.from_wire == fw));
+            match found_pip {
+                Some(p) => {
+                    for bit in p.bits.iter() {
+                        self.cram.set(bit.frame, bit.bit, !bit.invert);
+                    }
+                }
+                None => {
+                    // Panic iff fixed connection doesn't exist
+                    let found_fc = tdb
+                        .db
+                        .conns
+                        .get(tw)
+                        .map_or(None, |conns| conns.iter().find(|c| &c.from_wire == fw));
+                    if found_fc.is_none() {
+                        panic!("No pip {}.{} in tile {}.\n\
+Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", fw, tw, self.name);
+                    }
+                }
+            }
+        }
+    }
     pub fn write_fasm(&self, db: &mut Database, mut out: &mut dyn Write) {
         let tdb = db.tile_bitdb(&self.family, &self.tiletype);
-        let fasm_name = self.name.replace(':', "_");
+        let fasm_name = self.name.replace(':', "__");
         let mut known_bits = BTreeSet::<(usize, usize)>::new();
         let mut total_matches = 0;
         for (to_wire, pips) in tdb.db.pips.iter() {

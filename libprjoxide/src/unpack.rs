@@ -1,6 +1,7 @@
 mod bitstream;
 mod chip;
 mod database;
+mod fasmparse;
 
 use std::fs::File;
 use std::io::*;

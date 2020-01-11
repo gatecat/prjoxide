@@ -2,6 +2,7 @@ mod chip;
 mod database;
 mod fasmparse;
 
+use crate::chip::*;
 use std::io::*;
 use std::iter::FromIterator;
 
@@ -11,10 +12,13 @@ fn main() -> Result<()> {
     let args = Vec::from_iter(std::env::args());
     let db_path = exe_path.parent().unwrap().join("../../../database");
     let db_path_str = db_path.to_str().unwrap();
-    let db = database::Database::new(db_path_str);
+    let mut db = database::Database::new(db_path_str);
     let parsed_fasm = fasmparse::ParsedFasm::parse(&args[1]).unwrap();
 
     let mut bw = BufWriter::new(std::io::stdout());
     parsed_fasm.dump(&mut bw)?;
+
+    let chip = Chip::from_fasm(&mut db, &parsed_fasm, None);
+
     Ok(())
 }

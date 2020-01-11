@@ -9,6 +9,7 @@ mod bba {
 mod bels;
 mod chip;
 mod database;
+mod fasmparse;
 use crate::bba::bbastruct::*;
 use crate::bba::idstring::*;
 use crate::bba::tileloc::*;
