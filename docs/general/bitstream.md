@@ -38,6 +38,11 @@ Config frames are written in three chunks (numbers for LIFCL):
 
 It is believed this ordering is for the "early IO release" feature.
 
+The final 14 bits of each config frame are used for an error correcting code ("parity").
+This uses the typical CRC algorithm with polynomial 0x202D.
+
+Following each frame is the standard packet CRC16, which uses the common 0x8005 polynomial.
+
 ## IP/RAM bus
 
 IP and RAM configuration and initialisation is not done using general configuration frames but using a special bus, which for IP mirrors the LMMI bus exposed to fabric.

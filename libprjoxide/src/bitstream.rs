@@ -8,6 +8,7 @@ pub struct BitstreamParser {
     data: Vec<u8>,
     index: usize,
     crc16: u16,
+    ecc14: u16,
     verbose: bool,
 }
 
@@ -40,12 +41,17 @@ const DUMMY: u8 = 0b11111111;
 const CRC16_POLY: u16 = 0x8005;
 const CRC16_INIT: u16 = 0x0000;
 
+// ECC constants
+const ECC_POLY: u16 = 0x202D;
+const ECC_INIT: u16 = 0x0000;
+
 impl BitstreamParser {
     pub fn new(bitstream: &[u8]) -> BitstreamParser {
         BitstreamParser {
             data: bitstream.to_vec(),
             index: 0,
             crc16: CRC16_INIT,
+            ecc14: ECC_INIT,
             verbose: false,
         }
     }
@@ -74,6 +80,22 @@ impl BitstreamParser {
             }
         }
     }
+    // Add a single *bit* to the frame ECC
+    fn update_ecc(&mut self, val: bool) {
+        let bit_flag = self.ecc14 >> 13;
+        self.ecc14 = ((self.ecc14 << 1) | (val as u16)) & 0x3FFF;
+        if bit_flag != 0 {
+            self.ecc14 ^= ECC_POLY;
+        }
+    }
+    // Finalise and return ECC
+    fn finalise_ecc(&mut self) -> u16 {
+        for _i in 0..14 {
+            self.update_ecc(false);
+        }
+        return self.ecc14;
+    }
+    
     // Get a single byte, updating the CRC
     fn get_byte(&mut self) -> u8 {
         let val = self.data[self.index];
@@ -244,7 +266,8 @@ impl BitstreamParser {
                     assert_eq!(cfg, 0x91);
                     for _ in 0..count {
                         self.copy_bytes(&mut frame_bytes);
-                        for j in 0..bits_per_frame {
+                        self.ecc14 = ECC_INIT;
+                        for j in (0..bits_per_frame).rev() {
                             let ofs = (j + pad_bits) as usize;
                             if ((frame_bytes[(frame_bytes.len() - 1) - (ofs / 8)] >> (ofs % 8))
                                 & 0x01)
@@ -258,16 +281,18 @@ impl BitstreamParser {
                                 if self.verbose {
                                     println!("F0x{:08x}B{:04}", curr_frame, j);
                                 }
+                                self.update_ecc(true);
+                            } else {
+                                self.update_ecc(false);
                             }
                         }
-                        let parity = (frame_bytes[frame_bytes.len() - 1] as u16) << 8
-                            | (frame_bytes[frame_bytes.len() - 2] as u16);
+                        let parity = ((frame_bytes[frame_bytes.len() - 2] as u16) << 8
+                            | (frame_bytes[frame_bytes.len() - 1] as u16)) & 0x3FFF;
+                        let exp_parity = self.finalise_ecc();
+                        assert_eq!(parity, exp_parity);
                         if self.verbose {
-                            for j in 0..14 {
-                                if (parity >> j) & 0x1 == 0x1 {
-                                    println!("F0x{:08x}P{:02}", curr_frame, j);
-                                }
-                            }
+                            println!("F0x{:08x}P{:014b}E{:014b}", curr_frame, parity, exp_parity);
+
                         }
                         self.check_crc16();
                         let d = self.get_byte();
