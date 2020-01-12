@@ -237,6 +237,40 @@ impl LocationGrid {
                 )?;
             }
         }
+        // Globals data
+        out.list_begin(&format!("d{}_branches", device_idx))?;
+        for b in self.glb.branches.iter() {
+            out.global_branch_info(
+                b.branch_col,
+                b.from_col,
+                b.tap_driver_col,
+                &b.tap_side,
+                b.to_col,
+            )?;
+        }
+        out.list_begin(&format!("d{}_spines", device_idx))?;
+        for s in self.glb.spines.iter() {
+            out.global_spine_info(s.from_row, s.to_row, s.spine_row)?;
+        }
+        for (i, hr) in self.glb.hrows.iter().enumerate() {
+            out.spine_col_list(&format!("d{}_hr{}_sc", device_idx, i), &hr.spine_cols)?;
+        }
+        for (i, hr) in self.glb.hrows.iter().enumerate() {
+            out.global_hrow_info(
+                hr.hrow_col,
+                hr.spine_cols.len(),
+                &format!("d{}_hr{}_sc", device_idx, i),
+            )?;
+        }
+        out.list_begin(&format!("d{}_globals", device_idx))?;
+        out.global_info(
+            self.glb.branches.len(),
+            self.glb.spines.len(),
+            self.glb.hrows.len(),
+            &format!("d{}_branches", device_idx),
+            &format!("d{}_spines", device_idx),
+            &format!("d{}_hrows", device_idx),
+        )?;
         Ok(())
     }
     // Write out the bba for a chip type
@@ -252,6 +286,7 @@ impl LocationGrid {
             self.height,
             self.height * self.width,
             &format!("d{}_grid", device_idx),
+            &format!("d{}_globals", device_idx),
         )?;
         Ok(())
     }

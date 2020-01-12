@@ -208,6 +208,79 @@ impl<'a> BBAStructs<'a> {
         Ok(())
     }
 
+    pub fn spine_col_list(&mut self, label: &str, spine_cols: &[usize]) -> Result<()> {
+        self.out.label(label)?;
+        for &x in spine_cols {
+            self.out.u16_val(x.try_into().unwrap())?;
+        }
+        Ok(())
+    }
+
+    pub fn global_branch_info(
+        &mut self,
+        branch_col: usize,
+        from_col: usize,
+        tap_driver_col: usize,
+        tap_side: &str,
+        to_col: usize,
+    ) -> Result<()> {
+        self.out.u16_val(branch_col.try_into().unwrap())?;
+        self.out.u16_val(from_col.try_into().unwrap())?;
+        self.out.u16_val(tap_driver_col.try_into().unwrap())?;
+        self.out.u16_val(
+            (tap_side.chars().next().unwrap() as u32)
+                .try_into()
+                .unwrap(),
+        )?;
+        self.out.u16_val(to_col.try_into().unwrap())?;
+        self.out.u16_val(0)?; // padding
+        Ok(())
+    }
+
+    pub fn global_spine_info(
+        &mut self,
+        from_row: usize,
+        to_row: usize,
+        spine_row: usize,
+    ) -> Result<()> {
+        self.out.u16_val(from_row.try_into().unwrap())?;
+        self.out.u16_val(to_row.try_into().unwrap())?;
+        self.out.u16_val(spine_row.try_into().unwrap())?;
+        self.out.u16_val(0)?; // padding
+        Ok(())
+    }
+
+    pub fn global_hrow_info(
+        &mut self,
+        hrow_col: usize,
+        num_spine_cols: usize,
+        spine_cols_ref: &str,
+    ) -> Result<()> {
+        self.out.u16_val(hrow_col.try_into().unwrap())?;
+        self.out.u16_val(0)?; // padding
+        self.out.u32_val(num_spine_cols.try_into().unwrap())?;
+        self.out.ref_label(spine_cols_ref)?;
+        Ok(())
+    }
+
+    pub fn global_info(
+        &mut self,
+        num_branches: usize,
+        num_spines: usize,
+        num_hrows: usize,
+        branches_ref: &str,
+        spines_ref: &str,
+        hrows_ref: &str,
+    ) -> Result<()> {
+        self.out.u32_val(num_branches.try_into().unwrap())?;
+        self.out.u32_val(num_spines.try_into().unwrap())?;
+        self.out.u32_val(num_hrows.try_into().unwrap())?;
+        self.out.ref_label(branches_ref)?;
+        self.out.ref_label(spines_ref)?;
+        self.out.ref_label(hrows_ref)?;
+        Ok(())
+    }
+
     pub fn id_string_db(
         &mut self,
         num_file_ids: usize,
@@ -227,12 +300,14 @@ impl<'a> BBAStructs<'a> {
         height: usize,
         num_tiles: usize,
         grid_ref: &str,
+        globals_ref: &str,
     ) -> Result<()> {
         self.out.str_val(device_name)?;
         self.out.u16_val(width.try_into().unwrap())?;
         self.out.u16_val(height.try_into().unwrap())?;
         self.out.u32_val(num_tiles.try_into().unwrap())?;
         self.out.ref_label(grid_ref)?;
+        self.out.ref_label(globals_ref)?;
         Ok(())
     }
 
