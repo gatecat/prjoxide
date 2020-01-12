@@ -4,6 +4,7 @@ use crate::bba::idxset::*;
 use crate::bba::tiletype::*;
 
 use crate::chip::*;
+use crate::database::*;
 
 use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap};
@@ -11,13 +12,20 @@ use std::convert::TryInto;
 
 pub struct TileLocation {
     tiletypes: Vec<String>,
-    neighbours: BTreeSet<Neighbour>,
+    // Neighbour; inverse neighbour for wire matching if applicable
+    neighbours: BTreeSet<(Neighbour, Option<Neighbour>)>,
     pub type_at_loc: Option<usize>,
     pub neigh_type_at_loc: Option<usize>,
 }
 
 impl TileLocation {
-    pub fn setup(ch: &Chip, x: u32, y: u32, tts: &TileTypes) -> TileLocation {
+    pub fn setup(
+        ch: &Chip,
+        x: u32,
+        y: u32,
+        glb: &DeviceGlobalsData,
+        tts: &TileTypes,
+    ) -> TileLocation {
         let tiles = ch.tiles_by_xy(x, y);
         let mut tiletypes: Vec<String> = tiles
             .iter()
@@ -29,11 +37,21 @@ impl TileLocation {
         if x == 0 && y == 0 {
             tiletypes.push("GLOBAL_ORIGIN".to_string());
         }
+        // Other special global locations
+        if let Some(side) = glb.is_branch_loc(x as usize) {
+            tiletypes.push(format!("GLOBAL_BRANCH_{}", side));
+        }
+        if glb.is_spine_loc(y as usize, x as usize) {
+            tiletypes.push("GLOBAL_SPINE_ORIGIN".to_string());
+        }
+        if glb.is_hrow_loc(y as usize, x as usize) {
+            tiletypes.push("GLOBAL_HROW_ORIGIN".to_string());
+        }
         let neighbours = tiletypes
             .iter()
             .map(|tt| tts.get(tt).unwrap().neighbours.iter())
             .flatten()
-            .map(|x| x.clone())
+            .map(|x| (x.clone(), None))
             .collect();
         TileLocation {
             tiletypes: tiletypes,
@@ -48,20 +66,23 @@ pub struct LocationGrid {
     pub width: usize,
     pub height: usize,
     tiles: Vec<TileLocation>,
+    glb: DeviceGlobalsData,
 }
 
 impl LocationGrid {
-    pub fn new(ch: &Chip, tts: &TileTypes) -> LocationGrid {
+    pub fn new(ch: &Chip, db: &mut Database, tts: &TileTypes) -> LocationGrid {
         let width = ch.data.max_col + 1;
         let height = ch.data.max_row + 1;
+        let globals = db.device_globals(&ch.family, &ch.device);
         let locs = (0..height)
             .cartesian_product(0..width)
-            .map(|(y, x)| TileLocation::setup(ch, x as u32, y as u32, tts))
+            .map(|(y, x)| TileLocation::setup(ch, x as u32, y as u32, globals, tts))
             .collect();
         LocationGrid {
             width: width as usize,
             height: height as usize,
             tiles: locs,
+            glb: globals.clone(),
         }
     }
     pub fn get(&self, x: usize, y: usize) -> Option<&TileLocation> {
@@ -78,6 +99,43 @@ impl LocationGrid {
             None
         }
     }
+    // Convert a neighbour to a coordinate
+    pub fn neighbour_tile(&self, x: usize, y: usize, n: &Neighbour) -> Option<(usize, usize)> {
+        match n {
+            Neighbour::RelXY { rel_x, rel_y } => {
+                let nx = (x as i32) + rel_x;
+                let ny = (y as i32) + rel_y;
+                if nx >= 0 && ny >= 0 && (nx as usize) < self.width && (ny as usize) < self.height {
+                    Some((nx as usize, ny as usize))
+                } else {
+                    None
+                }
+            }
+            Neighbour::Global => {
+                if x != 0 || y != 0 {
+                    Some((0, 0))
+                } else {
+                    None
+                }
+            }
+            Neighbour::Branch => {
+                let branch_col = self.glb.branch_sink_to_origin(x).unwrap();
+                Some((branch_col, y))
+            }
+            Neighbour::BranchDriver { side } => {
+                let offset: i32 = match side {
+                    BranchSide::Right => 2,
+                    BranchSide::Left => -2,
+                };
+                let branch_col = self
+                    .glb
+                    .branch_sink_to_origin((x as i32 + offset) as usize)
+                    .unwrap();
+                Some((branch_col, y))
+            }
+            _ => None,
+        }
+    }
     // Make the neighbour array symmetric
     pub fn stamp_neighbours(&mut self) {
         for y in 0..self.height {
@@ -87,37 +145,19 @@ impl LocationGrid {
                     .unwrap()
                     .neighbours
                     .iter()
-                    .map(|x| x.clone())
+                    .map(|x| x.0.clone())
                     .collect();
                 for n in neighbours {
-                    match n {
-                        Neighbour::RelXY { rel_x, rel_y } => {
-                            let nx = (x as i32) + rel_x;
-                            let ny = (y as i32) + rel_y;
-                            if nx >= 0
-                                && ny >= 0
-                                && (nx as usize) < self.width
-                                && (ny as usize) < self.height
-                            {
-                                let other = self.get_mut(nx as usize, ny as usize).unwrap();
-                                other.neighbours.insert(Neighbour::RelXY {
-                                    rel_x: -rel_x,
-                                    rel_y: -rel_y,
-                                });
-                            }
-                        },
-                        Neighbour::Global => {
-                            if x != 0 || y != 0 {
-                                let other = self.get_mut(0, 0).unwrap();
-                                other.neighbours.insert(Neighbour::RelXY {
-                                    rel_x: x as i32,
-                                    rel_y: y as i32,
-                                });
-                            }
-                        },
-                        _ => {
-                            // FIXME: globals
-                        }
+                    let nt = self.neighbour_tile(x, y, &n);
+                    if let Some((nx, ny)) = nt {
+                        let other = self.get_mut(nx as usize, ny as usize).unwrap();
+                        other.neighbours.insert((
+                            Neighbour::RelXY {
+                                rel_x: (x as i32) - (nx as i32),
+                                rel_y: (y as i32) - (ny as i32),
+                            },
+                            Some(n),
+                        ));
                     }
                 }
             }
@@ -219,6 +259,7 @@ impl LocationGrid {
 struct NeighbourType {
     loc: Neighbour,
     loctype: usize,
+    inv_wire_loc: Option<Neighbour>,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone)]
@@ -296,27 +337,13 @@ impl LocationTypes {
                 let neighbours_with_types = loc
                     .neighbours
                     .iter()
-                    .filter_map(|n| match n {
-                        Neighbour::RelXY { rel_x, rel_y } => {
-                            let nx = (x as i32) + rel_x;
-                            let ny = (y as i32) + rel_y;
-                            if nx >= 0
-                                && ny >= 0
-                                && (nx as usize) < lg.width
-                                && (ny as usize) < lg.height
-                            {
-                                Some(NeighbourType {
-                                    loc: n.clone(),
-                                    loctype: lg.get(nx as usize, ny as usize)?.type_at_loc?,
-                                })
-                            } else {
-                                None
-                            }
-                        }
-                        _ => {
-                            // FIXME: globals
-                            None
-                        }
+                    .filter_map(|(n, invn)| {
+                        let (nx, ny) = lg.neighbour_tile(x, y, n)?;
+                        Some(NeighbourType {
+                            loc: n.clone(),
+                            loctype: lg.get(nx as usize, ny as usize)?.type_at_loc?,
+                            inv_wire_loc: invn.clone(),
+                        })
                     })
                     .collect();
                 let loctype = lt.types.value_mut(loc.type_at_loc.unwrap());
@@ -332,21 +359,7 @@ impl LocationTypes {
         }
         return lt;
     }
-    pub fn get_extra_neighbours(&self, tiletypes: &BTreeSet<String>) -> Vec<Neighbour> {
-        let mut extra_neigh = Vec::<Neighbour>::new();
-        if tiletypes.contains("GLOBAL_ORIGIN") {
-            extra_neigh.push(Neighbour::Global)
-        }
-        if tiletypes.contains("GLOBAL_BRANCH_L") {
-            extra_neigh.push(Neighbour::Branch);
-            extra_neigh.push(Neighbour::BranchDriver {side: BranchSide::Left});
-        }
-        if tiletypes.contains("GLOBAL_BRANCH_R") {
-            extra_neigh.push(Neighbour::Branch);
-            extra_neigh.push(Neighbour::BranchDriver {side: BranchSide::Right});
-        }
-        return extra_neigh;
-    }
+
     pub fn import_wires(&mut self, _ids: &mut IdStringDB, tts: &TileTypes) {
         // Import just the wires
         for i in 0..self.types.len() {
@@ -363,33 +376,23 @@ impl LocationTypes {
                 {
                     wires.add(wire);
                 }
-                let extra_neigh = self.get_extra_neighbours(&key.tiletypes);
                 // Add wires used in neighbour tile; but whose nominal location is in this tile
                 for (nt, _) in data.nhtypes.iter() {
                     for n in nt.neighbours.iter() {
-                        let ntt = self.types.key(n.loctype);
-                        // Only consider wires where the prefix means they start in this tile
-                        let mut keys = match n.loc {
-                            Neighbour::RelXY { rel_x, rel_y } => vec![Neighbour::RelXY {
-                                rel_x: -rel_x,
-                                rel_y: -rel_y,
-                            }],
-                            _ => vec![],
-                        };
-                        keys.extend(extra_neigh.iter().cloned());
-                        for nkey in keys.iter() {
+                        if let Some(iwl) = &n.inv_wire_loc {
+                            let ntt = self.types.key(n.loctype);
+                            // Only consider wires where the prefix means they start in this tile
                             for nwire in ntt
-                            .tiletypes
-                            .iter()
-                            .filter_map(|tt| {
-                                Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&nkey)?.iter())
-                            })
-                            .flatten()
+                                .tiletypes
+                                .iter()
+                                .filter_map(|tt| {
+                                    Some(tts.get(tt).unwrap().neighbour_wire_ids.get(iwl)?.iter())
+                                })
+                                .flatten()
                             {
                                 wires.add(&nwire.neigh_name);
                             }
                         }
-                        
                     }
                 }
             }
@@ -412,7 +415,6 @@ impl LocationTypes {
                         .flatten()
                         .cloned()
                         .collect();
-                    let extra_neigh = self.get_extra_neighbours(&key.tiletypes);
                     // Arcs to where the base location of the wire is _not_ this location
                     for (neigh, nwires) in key
                         .tiletypes
@@ -438,18 +440,19 @@ impl LocationTypes {
                     for n in nt.neighbours.iter() {
                         let ntt = self.types.key(n.loctype);
                         // Only consider wires where the prefix means they start in this tile
-                        if let Neighbour::RelXY { rel_x, rel_y } = n.loc {
-                            let mut keys = vec![Neighbour::RelXY {
-                                rel_x: -rel_x,
-                                rel_y: -rel_y,
-                            }];
-                            keys.extend(extra_neigh.iter().cloned());
-                            for nkey in keys.iter() {
+                        if let Neighbour::RelXY { rel_x: _, rel_y: _ } = n.loc {
+                            if let Some(iwl) = &n.inv_wire_loc {
                                 for nwire in ntt
                                     .tiletypes
                                     .iter()
                                     .filter_map(|tt| {
-                                        Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&nkey)?.iter())
+                                        Some(
+                                            tts.get(tt)
+                                                .unwrap()
+                                                .neighbour_wire_ids
+                                                .get(iwl)?
+                                                .iter(),
+                                        )
                                     })
                                     .flatten()
                                 {

@@ -27,7 +27,7 @@ fn main() -> Result<()> {
     let mut db = database::Database::new(db_path_str);
     let tts = TileTypes::new(&mut db, &mut ids, "LIFCL", "LIFCL-40");
     let empty_chip = chip::Chip::from_name(&mut db, "LIFCL-40");
-    let mut lgrid = LocationGrid::new(&empty_chip, &tts);
+    let mut lgrid = LocationGrid::new(&empty_chip, &mut db, &tts);
     lgrid.stamp_neighbours();
     let mut lts = LocationTypes::from_locs(&mut lgrid);
     lts.import_wires(&mut ids, &tts);

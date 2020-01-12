@@ -95,6 +95,60 @@ pub struct DeviceGlobalsData {
     pub hrows: Vec<GlobalHrowData>,
 }
 
+impl DeviceGlobalsData {
+    pub fn is_branch_loc(&self, col: usize) -> Option<char> {
+        self.branches
+            .iter()
+            .find(|b| b.branch_col == col)
+            .map(|b| b.tap_side.chars().next().unwrap())
+    }
+    pub fn branch_sink_to_origin(&self, col: usize) -> Option<usize> {
+        self.branches
+            .iter()
+            .find(|b| col >= b.from_col && col <= b.to_col)
+            .map(|b| b.branch_col)
+    }
+    pub fn is_spine_loc(&self, row: usize, col: usize) -> bool {
+        self.hrows.iter().any(|h| h.spine_cols.contains(&col))
+            && self.spines.iter().any(|s| s.spine_row == row)
+    }
+    pub fn spine_sink_to_origin(&self, row: usize, col: usize) -> Option<(usize, usize)> {
+        match self
+            .hrows
+            .iter()
+            .map(|h| h.spine_cols.iter())
+            .flatten()
+            .find(|c| **c == col)
+        {
+            None => None,
+            Some(_) => self
+                .spines
+                .iter()
+                .find(|s| row >= s.from_row && row <= s.to_row)
+                .map(|s| (s.spine_row, col)),
+        }
+    }
+    pub fn is_hrow_loc(&self, row: usize, col: usize) -> bool {
+        self.hrows.iter().any(|h| h.hrow_col == col)
+            && self.spines.iter().any(|s| s.spine_row == row)
+    }
+    pub fn hrow_sink_to_origin(&self, row: usize, col: usize) -> Option<(usize, usize)> {
+        match self
+            .hrows
+            .iter()
+            .find(|h| h.spine_cols.contains(&col))
+            .map(|h| h.hrow_col)
+        {
+            None => None,
+            Some(hrow_col) => self
+                .spines
+                .iter()
+                .find(|s| s.spine_row == row)
+                .map(|_| (row, hrow_col)),
+        }
+    }
+}
+
 // Tile bit database structures
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]

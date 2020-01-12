@@ -44,7 +44,7 @@ impl Neighbour {
                             } else {
                                 Neighbour::Global
                             }
-                        },
+                        }
                         "DQSG" => Neighbour::DQSGroup,
                         _ => {
                             let mut rel_x = 0;
@@ -182,7 +182,26 @@ impl TileTypes {
             types.insert(tt.to_string(), TileType::new(db, ids, fam, tt));
         }
         // Special case
-        types.insert("GLOBAL_ORIGIN".to_string(), TileType::new(db, ids, fam, "GLOBAL_ORIGIN"));
+        types.insert(
+            "GLOBAL_ORIGIN".to_string(),
+            TileType::new(db, ids, fam, "GLOBAL_ORIGIN"),
+        );
+        types.insert(
+            "GLOBAL_BRANCH_L".to_string(),
+            TileType::new(db, ids, fam, "GLOBAL_BRANCH_L"),
+        );
+        types.insert(
+            "GLOBAL_BRANCH_R".to_string(),
+            TileType::new(db, ids, fam, "GLOBAL_BRANCH_R"),
+        );
+        types.insert(
+            "GLOBAL_SPINE_ORIGIN".to_string(),
+            TileType::new(db, ids, fam, "GLOBAL_SPINE_ORIGIN"),
+        );
+        types.insert(
+            "GLOBAL_HROW_ORIGIN".to_string(),
+            TileType::new(db, ids, fam, "GLOBAL_HROW_ORIGIN"),
+        );
         TileTypes { types }
     }
     pub fn get(&self, tt: &str) -> Option<&TileType> {
