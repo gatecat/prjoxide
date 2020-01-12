@@ -19,11 +19,16 @@ pub struct TileLocation {
 impl TileLocation {
     pub fn setup(ch: &Chip, x: u32, y: u32, tts: &TileTypes) -> TileLocation {
         let tiles = ch.tiles_by_xy(x, y);
-        let tiletypes: Vec<String> = tiles
+        let mut tiletypes: Vec<String> = tiles
             .iter()
             .map(|t| t.tiletype.to_string())
             .filter(|tt| tts.get(tt).unwrap().has_routing())
             .collect();
+        // (0, 0) is a special case as we keep all the global signals here,
+        // but don't want to pollute other null tiles
+        if x == 0 && y == 0 {
+            tiletypes.push("GLOBAL_ORIGIN".to_string());
+        }
         let neighbours = tiletypes
             .iter()
             .map(|tt| tts.get(tt).unwrap().neighbours.iter())
@@ -100,7 +105,16 @@ impl LocationGrid {
                                     rel_y: -rel_y,
                                 });
                             }
-                        }
+                        },
+                        Neighbour::Global => {
+                            if x != 0 || y != 0 {
+                                let other = self.get_mut(0, 0).unwrap();
+                                other.neighbours.insert(Neighbour::RelXY {
+                                    rel_x: x as i32,
+                                    rel_y: y as i32,
+                                });
+                            }
+                        },
                         _ => {
                             // FIXME: globals
                         }
@@ -318,6 +332,21 @@ impl LocationTypes {
         }
         return lt;
     }
+    pub fn get_extra_neighbours(&self, tiletypes: &BTreeSet<String>) -> Vec<Neighbour> {
+        let mut extra_neigh = Vec::<Neighbour>::new();
+        if tiletypes.contains("GLOBAL_ORIGIN") {
+            extra_neigh.push(Neighbour::Global)
+        }
+        if tiletypes.contains("GLOBAL_BRANCH_L") {
+            extra_neigh.push(Neighbour::Branch);
+            extra_neigh.push(Neighbour::BranchDriver {side: BranchSide::Left});
+        }
+        if tiletypes.contains("GLOBAL_BRANCH_R") {
+            extra_neigh.push(Neighbour::Branch);
+            extra_neigh.push(Neighbour::BranchDriver {side: BranchSide::Right});
+        }
+        return extra_neigh;
+    }
     pub fn import_wires(&mut self, _ids: &mut IdStringDB, tts: &TileTypes) {
         // Import just the wires
         for i in 0..self.types.len() {
@@ -334,28 +363,33 @@ impl LocationTypes {
                 {
                     wires.add(wire);
                 }
+                let extra_neigh = self.get_extra_neighbours(&key.tiletypes);
                 // Add wires used in neighbour tile; but whose nominal location is in this tile
                 for (nt, _) in data.nhtypes.iter() {
                     for n in nt.neighbours.iter() {
                         let ntt = self.types.key(n.loctype);
                         // Only consider wires where the prefix means they start in this tile
-                        let key = match n.loc {
-                            Neighbour::RelXY { rel_x, rel_y } => Neighbour::RelXY {
+                        let mut keys = match n.loc {
+                            Neighbour::RelXY { rel_x, rel_y } => vec![Neighbour::RelXY {
                                 rel_x: -rel_x,
                                 rel_y: -rel_y,
-                            },
-                            _ => continue,
+                            }],
+                            _ => vec![],
                         };
-                        for nwire in ntt
+                        keys.extend(extra_neigh.iter().cloned());
+                        for nkey in keys.iter() {
+                            for nwire in ntt
                             .tiletypes
                             .iter()
                             .filter_map(|tt| {
-                                Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&key)?.iter())
+                                Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&nkey)?.iter())
                             })
                             .flatten()
-                        {
-                            wires.add(&nwire.neigh_name);
+                            {
+                                wires.add(&nwire.neigh_name);
+                            }
                         }
+                        
                     }
                 }
             }
@@ -378,6 +412,7 @@ impl LocationTypes {
                         .flatten()
                         .cloned()
                         .collect();
+                    let extra_neigh = self.get_extra_neighbours(&key.tiletypes);
                     // Arcs to where the base location of the wire is _not_ this location
                     for (neigh, nwires) in key
                         .tiletypes
@@ -404,31 +439,34 @@ impl LocationTypes {
                         let ntt = self.types.key(n.loctype);
                         // Only consider wires where the prefix means they start in this tile
                         if let Neighbour::RelXY { rel_x, rel_y } = n.loc {
-                            let key = Neighbour::RelXY {
+                            let mut keys = vec![Neighbour::RelXY {
                                 rel_x: -rel_x,
                                 rel_y: -rel_y,
-                            };
-                            for nwire in ntt
-                                .tiletypes
-                                .iter()
-                                .filter_map(|tt| {
-                                    Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&key)?.iter())
-                                })
-                                .flatten()
-                            {
-                                let is_driven_by_them = ntt.tiletypes.iter().any(|tt| {
-                                    tts.get(tt)
-                                        .unwrap()
-                                        .driven_wire_ids
-                                        .contains(&nwire.our_name)
-                                });
-                                arcs.add(&NeighbourArc {
-                                    this_loc_wire: nwire.neigh_name,
-                                    other_loc: n.loc.clone(),
-                                    other_loc_wire: nwire.our_name,
-                                    is_driving: !is_driven_by_them,
-                                    to_primary: false,
-                                });
+                            }];
+                            keys.extend(extra_neigh.iter().cloned());
+                            for nkey in keys.iter() {
+                                for nwire in ntt
+                                    .tiletypes
+                                    .iter()
+                                    .filter_map(|tt| {
+                                        Some(tts.get(tt).unwrap().neighbour_wire_ids.get(&nkey)?.iter())
+                                    })
+                                    .flatten()
+                                {
+                                    let is_driven_by_them = ntt.tiletypes.iter().any(|tt| {
+                                        tts.get(tt)
+                                            .unwrap()
+                                            .driven_wire_ids
+                                            .contains(&nwire.our_name)
+                                    });
+                                    arcs.add(&NeighbourArc {
+                                        this_loc_wire: nwire.neigh_name,
+                                        other_loc: n.loc.clone(),
+                                        other_loc_wire: nwire.our_name,
+                                        is_driving: !is_driven_by_them,
+                                        to_primary: false,
+                                    });
+                                }
                             }
                         }
                     }

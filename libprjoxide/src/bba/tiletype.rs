@@ -18,6 +18,7 @@ pub enum Neighbour {
     HRow,
     Global,
     DQSGroup,
+    Vcc,
 }
 
 impl Neighbour {
@@ -37,7 +38,13 @@ impl Neighbour {
                         },
                         "SPINE" => Neighbour::Spine,
                         "HROW" => Neighbour::HRow,
-                        "G" => Neighbour::Global,
+                        "G" => {
+                            if s == "G:VCC" {
+                                Neighbour::Vcc
+                            } else {
+                                Neighbour::Global
+                            }
+                        },
                         "DQSG" => Neighbour::DQSGroup,
                         _ => {
                             let mut rel_x = 0;
@@ -174,6 +181,8 @@ impl TileTypes {
         for tt in unique_tiletypes.iter() {
             types.insert(tt.to_string(), TileType::new(db, ids, fam, tt));
         }
+        // Special case
+        types.insert("GLOBAL_ORIGIN".to_string(), TileType::new(db, ids, fam, "GLOBAL_ORIGIN"));
         TileTypes { types }
     }
     pub fn get(&self, tt: &str) -> Option<&TileType> {

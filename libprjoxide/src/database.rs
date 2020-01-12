@@ -64,6 +64,37 @@ pub struct DeviceAddrRegion {
     pub abits: u32,
 }
 
+// Global network structure data
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct GlobalBranchData {
+    pub branch_col: usize,
+    pub from_col: usize,
+    pub tap_driver_col: usize,
+    pub tap_side: String,
+    pub to_col: usize,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct GlobalSpineData {
+    pub from_row: usize,
+    pub spine_row: usize,
+    pub to_row: usize,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct GlobalHrowData {
+    pub hrow_col: usize,
+    pub spine_cols: Vec<usize>,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct DeviceGlobalsData {
+    pub branches: Vec<GlobalBranchData>,
+    pub spines: Vec<GlobalSpineData>,
+    pub hrows: Vec<GlobalHrowData>,
+}
+
 // Tile bit database structures
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -260,6 +291,7 @@ pub struct Database {
     devices: DevicesDatabase,
     tilegrids: HashMap<(String, String), DeviceTilegrid>,
     baseaddrs: HashMap<(String, String), DeviceBaseAddrs>,
+    globals: HashMap<(String, String), DeviceGlobalsData>,
     tilebits: HashMap<(String, String), TileBitsData>,
 }
 
@@ -276,6 +308,7 @@ impl Database {
             devices: serde_json::from_str(&devices_json_buf).unwrap(),
             tilegrids: HashMap::new(),
             baseaddrs: HashMap::new(),
+            globals: HashMap::new(),
             tilebits: HashMap::new(),
         }
     }
@@ -329,6 +362,21 @@ impl Database {
             self.baseaddrs.insert(key.clone(), bs);
         }
         self.baseaddrs.get(&key).unwrap()
+    }
+    // Global data for a device by family and name
+    pub fn device_globals(&mut self, family: &str, device: &str) -> &DeviceGlobalsData {
+        let key = (family.to_string(), device.to_string());
+        if !self.baseaddrs.contains_key(&key) {
+            let mut bs_json_buf = String::new();
+            // read the whole file
+            File::open(format!("{}/{}/{}/globals.json", self.root, family, device))
+                .unwrap()
+                .read_to_string(&mut bs_json_buf)
+                .unwrap();
+            let bs = serde_json::from_str(&bs_json_buf).unwrap();
+            self.globals.insert(key.clone(), bs);
+        }
+        self.globals.get(&key).unwrap()
     }
     // Bit database for a tile by family and tile type
     pub fn tile_bitdb(&mut self, family: &str, tiletype: &str) -> &mut TileBitsData {
