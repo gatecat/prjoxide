@@ -41,10 +41,10 @@ impl TileLocation {
         if let Some(side) = glb.is_branch_loc(x as usize) {
             tiletypes.push(format!("GLOBAL_BRANCH_{}", side));
         }
-        if glb.is_spine_loc(y as usize, x as usize) {
+        if glb.is_spine_loc(x as usize, y as usize) {
             tiletypes.push("GLOBAL_SPINE_ORIGIN".to_string());
         }
-        if glb.is_hrow_loc(y as usize, x as usize) {
+        if glb.is_hrow_loc(x as usize, y as usize) {
             tiletypes.push("GLOBAL_HROW_ORIGIN".to_string());
         }
         let neighbours = tiletypes
@@ -133,6 +133,8 @@ impl LocationGrid {
                     .unwrap();
                 Some((branch_col, y))
             }
+            Neighbour::Spine => return Some(self.glb.spine_sink_to_origin(x, y).unwrap()),
+            Neighbour::HRow => return Some(self.glb.hrow_sink_to_origin(x, y).unwrap()),
             _ => None,
         }
     }
@@ -635,43 +637,65 @@ impl LocationTypes {
                 for k in 0..data.wires.len() {
                     out.list_begin(&format!("tt{}_nh{}_w{}", i, j, k))?;
                     for arc in arcs_by_wire_idx.get(&k).iter().map(|x| x.iter()).flatten() {
-                        match arc.other_loc {
+                        let mut arc_rel_x = 0;
+                        let mut arc_rel_y = 0;
+                        let rel_type;
+                        let other_loc_type =
+                            match ntype.neighbours.iter().find(|n| n.loc == arc.other_loc) {
+                                None => continue,
+                                Some(x) => x,
+                            }
+                            .loctype;
+                        let other_loc_idx = self
+                            .types
+                            .value(other_loc_type)
+                            .wires
+                            .get_index(&arc.other_loc_wire)
+                            .unwrap();
+                        match &arc.other_loc {
                             Neighbour::RelXY { rel_x, rel_y } => {
-                                let other_loc_type = match ntype
-                                    .neighbours
-                                    .iter()
-                                    .find(|n| n.loc == arc.other_loc)
-                                {
-                                    None => continue,
-                                    Some(x) => x,
+                                arc_rel_x = *rel_x;
+                                arc_rel_y = *rel_y;
+                                rel_type = REL_LOC_XY;
+                            }
+                            Neighbour::Global => {
+                                rel_type = REL_LOC_GLOBAL;
+                            }
+                            Neighbour::Branch => {
+                                rel_type = REL_LOC_BRANCH;
+                            }
+                            Neighbour::BranchDriver { side } => match side {
+                                BranchSide::Left => {
+                                    rel_type = REL_LOC_BRANCH_L;
                                 }
-                                .loctype;
-                                let other_loc_idx = self
-                                    .types
-                                    .value(other_loc_type)
-                                    .wires
-                                    .get_index(&arc.other_loc_wire)
-                                    .unwrap();
-
-                                let mut arc_flags = 0;
-
-                                if arc.is_driving {
-                                    arc_flags |= PHYSICAL_DOWNHILL;
+                                BranchSide::Right => {
+                                    rel_type = REL_LOC_BRANCH_R;
                                 }
-                                if arc.to_primary {
-                                    arc_flags |= LOGICAL_TO_PRIMARY;
-                                }
-                                out.rel_wire(
-                                    0,
-                                    arc_flags,
-                                    rel_x.try_into().unwrap(),
-                                    rel_y.try_into().unwrap(),
-                                    other_loc_idx,
-                                )?;
-                                *neigh_wire_count.get_mut(k).unwrap() += 1;
+                            },
+                            Neighbour::Spine => {
+                                rel_type = REL_LOC_SPINE;
+                            }
+                            Neighbour::HRow => {
+                                rel_type = REL_LOC_HROW;
                             }
                             _ => continue,
                         }
+                        let mut arc_flags = 0;
+
+                        if arc.is_driving {
+                            arc_flags |= PHYSICAL_DOWNHILL;
+                        }
+                        if arc.to_primary {
+                            arc_flags |= LOGICAL_TO_PRIMARY;
+                        }
+                        out.rel_wire(
+                            rel_type,
+                            arc_flags,
+                            arc_rel_x.try_into().unwrap(),
+                            arc_rel_y.try_into().unwrap(),
+                            other_loc_idx,
+                        )?;
+                        *neigh_wire_count.get_mut(k).unwrap() += 1;
                     }
                 }
                 out.list_begin(&format!("tt{}_nh{}_wires", i, j))?;

@@ -10,13 +10,21 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 3;
+pub const BBA_VERSION: u32 = 4;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
 // Neighbour arc flags
 pub const LOGICAL_TO_PRIMARY: u8 = 0x80;
 pub const PHYSICAL_DOWNHILL: u8 = 0x08;
+// Neighbour location flags
+pub const REL_LOC_XY: u8 = 0;
+pub const REL_LOC_GLOBAL: u8 = 1;
+pub const REL_LOC_BRANCH: u8 = 2;
+pub const REL_LOC_BRANCH_L: u8 = 3;
+pub const REL_LOC_BRANCH_R: u8 = 4;
+pub const REL_LOC_SPINE: u8 = 5;
+pub const REL_LOC_HROW: u8 = 6;
 // Tile location flags
 pub const LOC_LOGIC: u32 = 0x000001;
 pub const LOC_IO18: u32 = 0x000002;
@@ -118,7 +126,7 @@ impl<'a> BBAStructs<'a> {
 
     pub fn rel_wire(
         &mut self,
-        loc_flags: u8,
+        loc_type: u8,
         arc_flags: u8,
         rel_x: i16,
         rel_y: i16,
@@ -127,7 +135,7 @@ impl<'a> BBAStructs<'a> {
         self.out.i16_val(rel_x)?; // neighbour loc X
         self.out.i16_val(rel_y)?; // neighbour loc Y
         self.out.u16_val(wire_idx.try_into().unwrap())?; // index of wire in neighbour tile
-        self.out.u8_val(loc_flags)?; // for special cases like globals
+        self.out.u8_val(loc_type)?; // for special cases like globals
         self.out.u8_val(arc_flags)?; // direction info
         Ok(())
     }

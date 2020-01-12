@@ -108,43 +108,46 @@ impl DeviceGlobalsData {
             .find(|b| col >= b.from_col && col <= b.to_col)
             .map(|b| b.branch_col)
     }
-    pub fn is_spine_loc(&self, row: usize, col: usize) -> bool {
-        self.hrows.iter().any(|h| h.spine_cols.contains(&col))
-            && self.spines.iter().any(|s| s.spine_row == row)
+    pub fn is_spine_loc(&self, x: usize, y: usize) -> bool {
+        self.hrows.iter().any(|h| h.spine_cols.contains(&x))
+            && self.spines.iter().any(|s| s.spine_row == y)
     }
-    pub fn spine_sink_to_origin(&self, row: usize, col: usize) -> Option<(usize, usize)> {
+    pub fn spine_sink_to_origin(&self, x: usize, y: usize) -> Option<(usize, usize)> {
         match self
             .hrows
             .iter()
             .map(|h| h.spine_cols.iter())
             .flatten()
-            .find(|c| **c == col)
+            .find(|c| ((x as i32) - (**c as i32)).abs() < 3)
         {
             None => None,
-            Some(_) => self
+            Some(spine_col) => self
                 .spines
                 .iter()
-                .find(|s| row >= s.from_row && row <= s.to_row)
-                .map(|s| (s.spine_row, col)),
+                .find(|s| y >= s.from_row && y <= s.to_row)
+                .map(|s| (*spine_col, s.spine_row)),
         }
     }
-    pub fn is_hrow_loc(&self, row: usize, col: usize) -> bool {
-        self.hrows.iter().any(|h| h.hrow_col == col)
-            && self.spines.iter().any(|s| s.spine_row == row)
+    pub fn is_hrow_loc(&self, x: usize, y: usize) -> bool {
+        self.hrows.iter().any(|h| h.hrow_col == x) && self.spines.iter().any(|s| s.spine_row == y)
     }
-    pub fn hrow_sink_to_origin(&self, row: usize, col: usize) -> Option<(usize, usize)> {
+    pub fn hrow_sink_to_origin(&self, x: usize, y: usize) -> Option<(usize, usize)> {
         match self
             .hrows
             .iter()
-            .find(|h| h.spine_cols.contains(&col))
+            .find(|h| {
+                h.spine_cols
+                    .iter()
+                    .any(|c| ((x as i32) - (*c as i32)).abs() < 3)
+            })
             .map(|h| h.hrow_col)
         {
             None => None,
             Some(hrow_col) => self
                 .spines
                 .iter()
-                .find(|s| s.spine_row == row)
-                .map(|_| (row, hrow_col)),
+                .find(|s| ((y as i32) - (s.spine_row as i32)).abs() < 3)
+                .map(|_| (hrow_col, y)),
         }
     }
 }
