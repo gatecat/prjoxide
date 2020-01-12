@@ -351,6 +351,20 @@ impl Bel {
             z: z as u32,
         }
     }
+
+    pub fn make_osc_core() -> Bel {
+        let postfix = format!("OSC_CORE");
+        Bel {
+            name: format!("OSC_CORE"),
+            beltype: String::from("OSC_CORE"),
+            pins: vec![
+                output!(&postfix, "HFCLKOUT", "HF oscillator output", 0, 1),
+                output!(&postfix, "LFCLKOUT", "LF oscillator output", 0, 1),
+                input!(&postfix, "HFOUTEN", "HF oscillator output enable", 0, 1),
+            ],
+            z: 0,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
@@ -375,6 +389,7 @@ pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
             (0..2).map(Bel::make_seio33).collect()
         }
         "SYSIO_B3_0" | "SYSIO_B4_0" | "SYSIO_B5_0" => (0..2).map(Bel::make_seio18).collect(),
+        "EFB_1_OSC" => vec![Bel::make_osc_core()],
         _ => vec![],
     }
 }
