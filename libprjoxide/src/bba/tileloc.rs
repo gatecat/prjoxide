@@ -506,12 +506,15 @@ impl LocationTypes {
                                         is_driving: !is_driven_by_them,
                                         to_primary: false,
                                     });
+                                    primary_wires.insert(nwire.neigh_name);
+                                    primary_wires.remove(&nwire.our_name);
                                 }
                             }
                         }
                     }
                 }
                 _arcs_count += arcs.len();
+                self.types.value_mut(i).primary_wires = primary_wires;
                 self.types.value_mut(i).nhtypes.value_mut(j).neigh_arcs = arcs;
             }
         }
