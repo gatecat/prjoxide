@@ -16,24 +16,44 @@ configs = [
         "rc": (56, 56),
     },
     {
-        "cfg": FuzzConfig(job="IOROUTE2", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R44C87:SYSIO_B2_0"]),
+        "cfg": FuzzConfig(job="IOROUTE2E", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R44C87:SYSIO_B2_0_EVEN"]),
         "rc": (44, 87),
     },
     {
-        "cfg": FuzzConfig(job="IOROUTE1", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R8C87:SYSIO_B1_0"]),
+        "cfg": FuzzConfig(job="IOROUTE2O", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R42C87:SYSIO_B2_0_ODD"]),
+        "rc": (42, 87),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE1O", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R8C87:SYSIO_B1_0_ODD"]),
         "rc": (8, 87),
     },
     {
-        "cfg": FuzzConfig(job="IOROUTE0", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R0C84:SYSIO_B0_0"]),
+        "cfg": FuzzConfig(job="IOROUTE1E", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R6C87:SYSIO_B1_0_EVEN"]),
+        "rc": (6, 87),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE0O", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R0C84:SYSIO_B0_0_ODD"]),
         "rc": (0, 84),
     },
     {
-        "cfg": FuzzConfig(job="IOROUTE7", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R3C0:SYSIO_B7_0"]),
+        "cfg": FuzzConfig(job="IOROUTE0E", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R0C78:SYSIO_B0_0_EVEN"]),
+        "rc": (0, 78),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE7E", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R3C0:SYSIO_B7_0_EVEN"]),
         "rc": (3, 0),
     },
     {
-        "cfg": FuzzConfig(job="IOROUTE6", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R49C0:SYSIO_B6_0"]),
+        "cfg": FuzzConfig(job="IOROUTE7O", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R4C0:SYSIO_B7_0_ODD"]),
+        "rc": (4, 0),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE6O", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R49C0:SYSIO_B6_0_ODD"]),
         "rc": (49, 0),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE6E", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R44C0:SYSIO_B6_0_EVEN"]),
+        "rc": (44, 0),
     },
 ]
 
@@ -44,14 +64,24 @@ ignore_tiles = set([
     "CIB_R55C17:CIB",
     "CIB_R55C56:CIB",
     "CIB_R55C57:CIB",
+    "CIB_R42C86:CIB_LR",
+    "CIB_R43C86:CIB_LR",
     "CIB_R44C86:CIB_LR",
     "CIB_R45C86:CIB_LR",
+    "CIB_R6C86:CIB_LR",
+    "CIB_R7C86:CIB_LR",
     "CIB_R8C86:CIB_LR",
     "CIB_R9C86:CIB_LR",
     "CIB_R1C84:CIB_T",
     "CIB_R1C85:CIB_T",
+    "CIB_R1C78:CIB_T",
+    "CIB_R1C79:CIB_T",
     "CIB_R3C1:CIB_LR",
     "CIB_R4C1:CIB_LR",
+    "CIB_R5C1:CIB_LR",
+    "CIB_R43C1:CIB_LR",
+    "CIB_R44C1:CIB_LR",
+    "CIB_R45C1:CIB_LR",
     "CIB_R49C1:CIB_LR",
     "CIB_R50C1:CIB_LR",
 ])
