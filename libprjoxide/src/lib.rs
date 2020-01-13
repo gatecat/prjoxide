@@ -16,6 +16,7 @@ pub mod database_html;
 mod docs;
 mod fasmparse;
 pub mod fuzz;
+pub mod nodecheck;
 mod wires;
 
 #[pyclass]
@@ -215,6 +216,13 @@ fn write_region_html(d: &mut Database, family: &str, device: &str, file: &str) -
 }
 
 #[pyfunction]
+fn check_nodes(d: &mut Database, device: &str, nodefile: &str) -> PyResult<()> {
+    let c = chip::Chip::from_name(&mut d.db, device);
+    nodecheck::check(&mut d.db, &c, nodefile);
+    Ok(())
+}
+
+#[pyfunction]
 fn write_tilebits_html(
     d: &mut Database,
     docs_root: &str,
@@ -239,6 +247,7 @@ fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(write_region_html))?;
     m.add_wrapped(wrap_pyfunction!(write_tilebits_html))?;
     m.add_wrapped(wrap_pyfunction!(md_file_to_html))?;
+    m.add_wrapped(wrap_pyfunction!(check_nodes))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<Chip>()?;
