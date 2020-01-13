@@ -372,7 +372,11 @@ impl Bel {
 }
 
 pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
-    match tiletype {
+    let mut stt = tiletype;
+    if tiletype.ends_with("_EVEN") || tiletype.ends_with("_ODD") {
+        stt = &tiletype[0..tiletype.rfind('_').unwrap()];
+    }
+    match stt {
         "PLC" => (0..4)
             .map(|slice| {
                 let mut bels = vec![
