@@ -320,7 +320,11 @@ impl Bel {
 
     pub fn make_seio18(z: usize) -> Bel {
         let ch = Z_TO_CHAR[z];
-        let postfix = format!("SEIO18_CORE_IO{}", ch);
+        let postfix = if z == 1 {
+            format!("SEIO18_CORE_IO{}", ch)
+        } else {
+            format!("DIFFIO18_CORE_IO{}", ch)
+        };
         Bel {
             name: format!("PIO{}", ch),
             beltype: String::from("SEIO18_CORE"),
