@@ -255,6 +255,7 @@ impl LocationGrid {
         for (i, hr) in self.glb.hrows.iter().enumerate() {
             out.spine_col_list(&format!("d{}_hr{}_sc", device_idx, i), &hr.spine_cols)?;
         }
+        out.list_begin(&format!("d{}_hrows", device_idx))?;
         for (i, hr) in self.glb.hrows.iter().enumerate() {
             out.global_hrow_info(
                 hr.hrow_col,

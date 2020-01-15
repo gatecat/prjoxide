@@ -211,7 +211,7 @@ impl<'a> BBAStructs<'a> {
     pub fn spine_col_list(&mut self, label: &str, spine_cols: &[usize]) -> Result<()> {
         self.out.label(label)?;
         for &x in spine_cols {
-            self.out.u16_val(x.try_into().unwrap())?;
+            self.out.u32_val(x.try_into().unwrap())?;
         }
         Ok(())
     }
