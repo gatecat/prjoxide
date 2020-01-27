@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3::types::PySet;
+use pyo3::types::{PyList, PySet};
 use pyo3::wrap_pyfunction;
 
 use std::fs::File;
@@ -151,6 +151,28 @@ impl Fuzzer {
     }
 }
 
+#[pyfunction]
+fn copy_db(
+    db: &mut Database,
+    fam: &str,
+    from_tt: &str,
+    to_tts: &PyList,
+    mode: &str,
+    pattern: &str,
+) {
+    fuzz::copy_db(
+        &mut db.db,
+        fam,
+        from_tt,
+        &to_tts
+            .iter()
+            .map(|x| x.extract::<String>().unwrap())
+            .collect(),
+        mode,
+        pattern,
+    );
+}
+
 #[pyclass]
 struct Chip {
     c: chip::Chip,
@@ -248,6 +270,7 @@ fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(write_tilebits_html))?;
     m.add_wrapped(wrap_pyfunction!(md_file_to_html))?;
     m.add_wrapped(wrap_pyfunction!(check_nodes))?;
+    m.add_wrapped(wrap_pyfunction!(copy_db))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<Chip>()?;

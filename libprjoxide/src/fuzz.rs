@@ -385,3 +385,56 @@ impl Fuzzer {
         db.flush();
     }
 }
+
+pub fn copy_db(
+    db: &mut Database,
+    fam: &str,
+    from_tt: &str,
+    to_tts: &Vec<String>,
+    mode: &str,
+    pattern: &str,
+) {
+    let origin_data = db.tile_bitdb(fam, from_tt).db.clone();
+    for dest in to_tts {
+        let dest_data = db.tile_bitdb(fam, dest);
+        if mode.contains('P') {
+            // Copy pips
+            for (to_wire, pips) in origin_data.pips.iter() {
+                for p in pips.iter() {
+                    if pattern == "" || to_wire.contains(pattern) || p.from_wire.contains(pattern) {
+                        dest_data.add_pip(&p.from_wire, to_wire, p.bits.clone());
+                    }
+                }
+            }
+        }
+        if mode.contains('E') {
+            for (name, opts) in origin_data.enums.iter() {
+                if pattern == "" || name.contains(pattern) {
+                    for (opt, bits) in opts.options.iter() {
+                        dest_data.add_enum_option(name, opt, &opts.desc, bits.clone());
+                    }
+                }
+            }
+        }
+        if mode.contains('W') {
+            for (name, data) in origin_data.words.iter() {
+                if pattern == "" || name.contains(pattern) {
+                    dest_data.add_word(name, &data.desc, data.bits.clone());
+                }
+            }
+        }
+        if mode.contains('C') {
+            for (to_wire, conns) in origin_data.conns.iter() {
+                for conn in conns.iter() {
+                    if pattern == ""
+                        || to_wire.contains(pattern)
+                        || conn.from_wire.contains(pattern)
+                    {
+                        dest_data.add_conn(&conn.from_wire, to_wire);
+                    }
+                }
+            }
+        }
+    }
+    db.flush();
+}

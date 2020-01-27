@@ -139,7 +139,7 @@ impl DeviceGlobalsData {
                 h.spine_cols
                     .iter()
                     .any(|c| ((x as i32) - (*c as i32)).abs() < 3)
-                || (((x as i32) - (h.hrow_col as i32)).abs() < 3)
+                    || (((x as i32) - (h.hrow_col as i32)).abs() < 3)
             })
             .map(|h| h.hrow_col)
         {
