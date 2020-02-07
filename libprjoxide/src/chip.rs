@@ -76,6 +76,15 @@ impl BitMatrix {
     pub fn any(&self) -> bool {
         return self.data.iter().any(|x| *x);
     }
+    // Get all set bits
+    pub fn set_bits(&self) -> BTreeSet<(usize, usize)> {
+        self.data
+            .iter()
+            .enumerate()
+            .filter(|(_i, x)| **x)
+            .map(|(i, _x)| (i / self.bits, i % self.bits))
+            .collect()
+    }
 }
 
 #[derive(Clone)]

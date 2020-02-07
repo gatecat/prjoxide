@@ -173,6 +173,13 @@ fn copy_db(
     );
 }
 
+#[pyfunction]
+fn add_always_on_bits(db: &mut Database, empty_bitfile: &str) {
+    let mut empty_chip = bitstream::BitstreamParser::parse_file(&mut db.db, empty_bitfile).unwrap();
+    empty_chip.cram_to_tiles();
+    fuzz::add_always_on_bits(&mut db.db, &empty_chip);
+}
+
 #[pyclass]
 struct Chip {
     c: chip::Chip,
@@ -271,6 +278,7 @@ fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(md_file_to_html))?;
     m.add_wrapped(wrap_pyfunction!(check_nodes))?;
     m.add_wrapped(wrap_pyfunction!(copy_db))?;
+    m.add_wrapped(wrap_pyfunction!(add_always_on_bits))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<Chip>()?;

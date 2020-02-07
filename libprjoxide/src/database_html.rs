@@ -146,6 +146,13 @@ pub fn write_bits_html(
         }
     }
 
+    for bit in bitdb.always_on.iter() {
+        bitgrid[bit.frame][bit.bit]
+            .0
+            .insert("Always On".to_string());
+        bitgrid[bit.frame][bit.bit].1 = Some("always_on".to_string());
+    }
+
     // Write out prelude HTML
     let mut html = File::create(
         Path::new(outdir)
@@ -210,7 +217,10 @@ pub fn write_bits_html(
             Some(group) => {
                 let mut label = '?';
                 let mut colour = "#FFFFFF";
-                if group.starts_with("mux") {
+                if group == "always_on" {
+                    colour = "#888888";
+                    label = '1';
+                } else if group.starts_with("mux") {
                     let us_pos = group.rfind('_').unwrap();
                     label = group.chars().nth(us_pos + 1).unwrap();
                     if label == 'J' {

@@ -438,3 +438,75 @@ pub fn copy_db(
     }
     db.flush();
 }
+
+pub fn add_always_on_bits(
+    db: &mut Database,
+    ch: &Chip, // chip from 'empty' bitstream
+) {
+    let all_tiletypes: BTreeSet<String> = ch.tiles.iter().map(|x| x.tiletype.clone()).collect();
+    let mut processed_tiletypes: BTreeSet<String> = BTreeSet::new();
+    // Start by clearing always_on
+    for tt in all_tiletypes.iter() {
+        let tdb = db.tile_bitdb(&ch.family, tt);
+        tdb.set_always_on(&BTreeSet::new());
+    }
+    for tile in ch.tiles.iter() {
+        let tdb = db.tile_bitdb(&ch.family, &tile.tiletype);
+        let mut set_bits = tile.cram.set_bits();
+        for pip_bit in tdb
+            .db
+            .pips
+            .values()
+            .map(|x| x.iter())
+            .flatten()
+            .map(|x| x.bits.iter())
+            .flatten()
+        {
+            set_bits.remove(&(pip_bit.frame, pip_bit.bit));
+        }
+        for word_bit in tdb
+            .db
+            .words
+            .values()
+            .map(|x| x.bits.iter())
+            .flatten()
+            .map(|x| x.iter())
+            .flatten()
+        {
+            set_bits.remove(&(word_bit.frame, word_bit.bit));
+        }
+        for enum_bit in tdb
+            .db
+            .enums
+            .values()
+            .map(|x| x.options.values())
+            .flatten()
+            .map(|x| x.iter())
+            .flatten()
+        {
+            set_bits.remove(&(enum_bit.frame, enum_bit.bit));
+        }
+        let always_on: BTreeSet<ConfigBit> = set_bits
+            .iter()
+            .map(|(f, b)| ConfigBit {
+                frame: *f,
+                bit: *b,
+                invert: false,
+            })
+            .collect();
+        if processed_tiletypes.contains(&tile.tiletype) {
+            if always_on != tdb.db.always_on {
+                panic!(
+                    "mismatched always_on for tile {} of type {} ({:?} vs {:?})",
+                    &tile.name, tile.tiletype, &always_on, &tdb.db.always_on
+                );
+            }
+        } else {
+            assert!(tdb.db.always_on.is_empty());
+            tdb.set_always_on(&always_on);
+        }
+
+        processed_tiletypes.insert(tile.tiletype.clone());
+    }
+    db.flush();
+}

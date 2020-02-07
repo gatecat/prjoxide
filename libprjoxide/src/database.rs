@@ -217,6 +217,9 @@ pub struct TileBitsDatabase {
     pub words: BTreeMap<String, ConfigWordData>,
     pub enums: BTreeMap<String, ConfigEnumData>,
     pub conns: BTreeMap<String, Vec<FixedConnectionData>>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub always_on: BTreeSet<ConfigBit>,
 }
 
 pub struct TileBitsData {
@@ -342,6 +345,12 @@ impl TileBitsData {
             });
         }
     }
+    pub fn set_always_on(&mut self, aon: &BTreeSet<ConfigBit>) {
+        if aon != &self.db.always_on {
+            self.db.always_on = aon.clone();
+            self.dirty = true;
+        }
+    }
 }
 
 pub struct Database {
@@ -455,6 +464,7 @@ impl Database {
                     words: BTreeMap::new(),
                     enums: BTreeMap::new(),
                     conns: BTreeMap::new(),
+                    always_on: BTreeSet::new(),
                 }
             };
             self.tilebits
