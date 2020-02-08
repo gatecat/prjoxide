@@ -109,6 +109,8 @@ pub struct Chip {
 }
 
 pub type ChipDelta = BTreeMap<String, Vec<(usize, usize, bool)>>;
+// address, bit, new value
+pub type IPDelta = Vec<(u32, u8, bool)>;
 
 impl Chip {
     pub fn new(family: &str, device: &str, data: &DeviceData, tiles: &DeviceTilegrid) -> Chip {
@@ -231,6 +233,20 @@ impl Chip {
             })
             .filter(|(_k, v)| v.len() > 0)
             .collect()
+    }
+    // Compare the IP config of two chips
+    pub fn ip_delta(&self, base: &Self, start_addr: u32, end_addr: u32) -> IPDelta {
+        let mut delta = IPDelta::new();
+        for a in start_addr..end_addr {
+            let d1 = self.ipconfig.get(&a).unwrap_or(&0x00);
+            let d0 = base.ipconfig.get(&a).unwrap_or(&0x00);
+            for b in 0..8 {
+                if (d1 >> b) & (0x1 as u8) != (d0 >> b) & (0x1 as u8) {
+                    delta.push((a - start_addr, b, ((d1 >> b) & (0x1 as u8)) != 0));
+                }
+            }
+        }
+        return delta;
     }
     // Dump chip to a simple text format for debugging
     pub fn print(&self, mut out: &mut dyn Write) {

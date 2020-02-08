@@ -16,6 +16,7 @@ pub mod database_html;
 mod docs;
 mod fasmparse;
 pub mod fuzz;
+pub mod ipfuzz;
 pub mod nodecheck;
 mod wires;
 
@@ -140,6 +141,77 @@ impl Fuzzer {
 
     fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, base_bitfile: &str) {
         self.fz.add_pip_sample(&mut db.db, from_wire, base_bitfile);
+    }
+
+    fn add_enum_sample(&mut self, db: &mut Database, option: &str, base_bitfile: &str) {
+        self.fz.add_enum_sample(&mut db.db, option, base_bitfile);
+    }
+
+    fn solve(&mut self, db: &mut Database) {
+        self.fz.solve(&mut db.db);
+    }
+}
+
+#[pyclass]
+struct IPFuzzer {
+    fz: ipfuzz::IPFuzzer,
+}
+
+#[pymethods]
+impl IPFuzzer {
+    #[staticmethod]
+    pub fn word_fuzzer(
+        db: &mut Database,
+        base_bitfile: &str,
+        fuzz_ipcore: &str,
+        fuzz_iptype: &str,
+        name: &str,
+        desc: &str,
+        width: usize,
+    ) -> IPFuzzer {
+        let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
+
+        IPFuzzer {
+            fz: ipfuzz::IPFuzzer::init_word_fuzzer(
+                &mut db.db,
+                &base_chip,
+                fuzz_ipcore,
+                fuzz_iptype,
+                name,
+                desc,
+                width,
+            ),
+        }
+    }
+
+    #[staticmethod]
+    pub fn enum_fuzzer(
+        db: &mut Database,
+        base_bitfile: &str,
+        fuzz_ipcore: &str,
+        fuzz_iptype: &str,
+        name: &str,
+        desc: &str,
+    ) -> IPFuzzer {
+        let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
+
+        IPFuzzer {
+            fz: ipfuzz::IPFuzzer::init_enum_fuzzer(
+                &base_chip,
+                fuzz_ipcore,
+                fuzz_iptype,
+                name,
+                desc,
+            ),
+        }
+    }
+
+    fn add_word_sample(&mut self, db: &mut Database, bits: &PyList, base_bitfile: &str) {
+        self.fz.add_word_sample(
+            &mut db.db,
+            bits.iter().map(|x| x.extract::<bool>().unwrap()).collect(),
+            base_bitfile,
+        );
     }
 
     fn add_enum_sample(&mut self, db: &mut Database, option: &str, base_bitfile: &str) {
@@ -281,6 +353,7 @@ fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(add_always_on_bits))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
+    m.add_class::<IPFuzzer>()?;
     m.add_class::<Chip>()?;
     Ok(())
 }

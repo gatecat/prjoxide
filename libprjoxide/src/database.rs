@@ -360,6 +360,7 @@ pub struct Database {
     baseaddrs: HashMap<(String, String), DeviceBaseAddrs>,
     globals: HashMap<(String, String), DeviceGlobalsData>,
     tilebits: HashMap<(String, String), TileBitsData>,
+    ipbits: HashMap<(String, String), TileBitsData>,
 }
 
 impl Database {
@@ -377,6 +378,7 @@ impl Database {
             baseaddrs: HashMap::new(),
             globals: HashMap::new(),
             tilebits: HashMap::new(),
+            ipbits: HashMap::new(),
         }
     }
     // Both functions return a (family, name, data) 3-tuple
@@ -472,6 +474,33 @@ impl Database {
         }
         self.tilebits.get_mut(&key).unwrap()
     }
+    // Bit database for a tile by family and tile type
+    pub fn ip_bitdb(&mut self, family: &str, iptype: &str) -> &mut TileBitsData {
+        let key = (family.to_string(), iptype.to_string());
+        if !self.ipbits.contains_key(&key) {
+            // read the whole file
+            let filename = format!("{}/{}/iptypes/{}.ron", self.root, family, iptype);
+            let tb = if Path::new(&filename).exists() {
+                let mut tt_ron_buf = String::new();
+                File::open(filename)
+                    .unwrap()
+                    .read_to_string(&mut tt_ron_buf)
+                    .unwrap();
+                ron::de::from_str(&tt_ron_buf).unwrap()
+            } else {
+                TileBitsDatabase {
+                    pips: BTreeMap::new(),
+                    words: BTreeMap::new(),
+                    enums: BTreeMap::new(),
+                    conns: BTreeMap::new(),
+                    always_on: BTreeSet::new(),
+                }
+            };
+            self.ipbits
+                .insert(key.clone(), TileBitsData::new(iptype.clone(), tb));
+        }
+        self.ipbits.get_mut(&key).unwrap()
+    }
     // Flush tile bit database changes to disk
     pub fn flush(&mut self) {
         for kv in self.tilebits.iter_mut() {
@@ -496,6 +525,30 @@ impl Database {
             .write_all(tt_ron_buf.as_bytes())
             .unwrap();
             tilebits.dirty = false;
+        }
+        for kv in self.ipbits.iter_mut() {
+            let (family, iptype) = kv.0;
+            let ipbits = kv.1;
+            if !ipbits.dirty {
+                continue;
+            }
+            // Check invariants for IP type configs
+            assert!(ipbits.db.pips.is_empty());
+            assert!(ipbits.db.conns.is_empty());
+
+            let pretty = PrettyConfig {
+                depth_limit: 5,
+                new_line: "\n".to_string(),
+                indentor: "  ".to_string(),
+                enumerate_arrays: false,
+                separate_tuple_members: false,
+            };
+            let tt_ron_buf = ron::ser::to_string_pretty(&ipbits.db, pretty).unwrap();
+            File::create(format!("{}/{}/ipbits/{}.ron", self.root, family, iptype))
+                .unwrap()
+                .write_all(tt_ron_buf.as_bytes())
+                .unwrap();
+            ipbits.dirty = false;
         }
     }
 }
