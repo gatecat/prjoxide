@@ -69,3 +69,22 @@ def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc=""):
         i_bit = config.build_design(config.sv, get_sv_substs(bits), prefix)
         fz.add_word_sample(fuzzconfig.db, bits, i_bit)
     fz.solve(fuzzconfig.db)
+
+
+def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, desc=""):
+    """
+    Fuzz a multi-bit IP enum with an optimum number of bitstreams
+
+    :param config: FuzzConfig instance containing target device and tile of interest
+    :param empty_bitfile: a baseline empty bitstream to diff against
+    :param name: name of the setting to store in the database
+    :param values: list of values taken by the enum
+    :param get_sv_substs: a callback function, 
+    """
+    prefix = "thread{}_".format(threading.get_ident())
+    ipcore, iptype = config.tiles[0].split(":")
+    fz = libprjoxide.IPFuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, ipcore, iptype, name, desc)
+    for opt in values:
+        opt_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
+        fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
+    fz.solve(fuzzconfig.db)

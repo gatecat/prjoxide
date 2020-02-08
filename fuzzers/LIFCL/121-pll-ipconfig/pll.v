@@ -3,7 +3,7 @@
 module top (
     
 );
-    (* \dm:primitive ="PLL_CORE", \dm:programming ="MODE:PLL_CORE PLL_CORE:::DIVA=${diva}", \dm:site ="PLL_LLC" *) 
+    (* \dm:primitive ="PLL_CORE", \dm:programming ="MODE:PLL_CORE PLL_CORE:::${k}=${v}", \dm:site ="PLL_LLC" *) 
     PLL_CORE IP_I ( );
 
     // A primitive is needed, but VHI should be harmless
