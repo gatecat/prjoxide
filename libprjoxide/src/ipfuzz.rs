@@ -68,7 +68,7 @@ impl IPFuzzer {
     fn add_sample(&mut self, db: &mut Database, key: IPFuzzKey, bitfile: &str) {
         let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
         let addr = db
-            .device_baseaddrs(&parsed_bitstream.device, &parsed_bitstream.device)
+            .device_baseaddrs(&parsed_bitstream.family, &parsed_bitstream.device)
             .regions
             .get(&self.ipcore)
             .unwrap();
@@ -140,6 +140,7 @@ impl IPFuzzer {
             }
             IPFuzzMode::Word { name, width } => {
                 let mut cbits = Vec::new();
+                let mut used_bits = BTreeSet::new();
                 for i in 0..*width {
                     let mut deltas = self
                         .deltas
@@ -153,7 +154,11 @@ impl IPFuzzer {
                         })
                         .map(|(_k, v)| BTreeSet::from_iter(v.iter().map(|(a, b, v)| (*a, *b, *v))));
                     let set0 = deltas.next().unwrap();
-                    let is = deltas.fold(set0, |set1, set2| &set1 & &set2);
+                    let is: BTreeSet<(u32, u8, bool)> = deltas
+                        .fold(set0, |set1, set2| &set1 & &set2)
+                        .difference(&used_bits)
+                        .cloned()
+                        .collect();
                     cbits.push(
                         is.iter()
                             .map(|(a, b, v)| ConfigBit {
@@ -163,10 +168,12 @@ impl IPFuzzer {
                             })
                             .collect(),
                     );
+                    used_bits.append(&mut is.clone());
                 }
                 let iptype_db = db.ip_bitdb(&self.base.family, &self.iptype);
                 iptype_db.add_word(&name, &self.desc, cbits);
             }
         }
+        db.flush();
     }
 }

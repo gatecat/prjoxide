@@ -544,7 +544,7 @@ impl Database {
                 separate_tuple_members: false,
             };
             let tt_ron_buf = ron::ser::to_string_pretty(&ipbits.db, pretty).unwrap();
-            File::create(format!("{}/{}/ipbits/{}.ron", self.root, family, iptype))
+            File::create(format!("{}/{}/iptypes/{}.ron", self.root, family, iptype))
                 .unwrap()
                 .write_all(tt_ron_buf.as_bytes())
                 .unwrap();
