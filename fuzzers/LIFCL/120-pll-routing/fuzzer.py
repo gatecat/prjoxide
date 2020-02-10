@@ -42,7 +42,7 @@ def main():
         r, c = config["rc"]
         nodes = ["R{}C{}_*".format(r, c)]
         def nodename_filter(x, nodes):
-            return ("R{}C{}_".format(r, c) in x) and ("PLL_CORE" in x or "REFMUX_CORE" in x)
+            return ("R{}C{}_".format(r, c) in x) and ("PLL_CORE" in x or "REFMUX_CORE" in x or "FBMUX_CORE" in x)
         fuzz_interconnect(config=cfg, nodenames=nodes, nodename_predicate=nodename_filter, regex=True, bidir=True, ignore_tiles=ignore_tiles)
 
 if __name__ == "__main__":
