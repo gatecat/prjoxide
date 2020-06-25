@@ -2,7 +2,7 @@ use crate::bels::*;
 use crate::database::*;
 use crate::docs::{md_file_to_html, md_to_html};
 use std::cmp::{max, min};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, BTreeMap};
 use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
@@ -510,6 +510,36 @@ pub fn write_bits_html(
         writeln!(html, "</table>").unwrap();
     }
 
+    writeln!(html, "</body></html>").unwrap();
+}
+
+pub fn write_ip_html(db: &mut Database,
+    fam: &str,
+    iptype: &str,
+    filepath: &str) {
+    let mut html = File::create(filepath).unwrap();
+    let bitdb = &db.ip_bitdb(fam, iptype).db;
+    writeln!(
+        html,
+        "<html> \n\
+            <head>\n\
+            <title>{it} IP Register Map</title>\n\
+            </head>\n\
+            <body>\n\
+            <h1>{it} IP Register Map</h1>\n\
+        ",
+        it = iptype
+    )
+    .unwrap();
+    writeln!(html, "<table>").unwrap();
+    writeln!(html, "<tr><th>Address</th>").unwrap();
+    for i in 0..8 {
+        writeln!(html, "<th>{}</th>", i).unwrap();
+    }
+    writeln!(html, "</tr>").unwrap();
+    let mut bit2func = BTreeMap::<(u32, u8), (&str, usize, &str)>::new();
+
+    writeln!(html, "</table>").unwrap();
     writeln!(html, "</body></html>").unwrap();
 }
 

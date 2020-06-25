@@ -1,6 +1,6 @@
 #!/bin/bash
 
-radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.0}"
+radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.1}"
 export FOUNDRY="${radiantdir}/ispfpga"
 bindir="${radiantdir}/bin/lin64"
 LSC_DIAMOND=true
@@ -23,6 +23,12 @@ case "${PART}" in
 		PACKAGE="${DEV_PACKAGE:-CABGA400}"
 		DEVICE="LIFCL-40"
 		LSE_ARCH="lifcl"
+		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
+		;;
+	LFD2NX-40)
+		PACKAGE="${DEV_PACKAGE:-CABGA256}"
+		DEVICE="LFD2NX-40"
+		LSE_ARCH="lfd2nx"
 		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
 		;;
 esac

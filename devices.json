@@ -14,6 +14,19 @@
                     "max_col" : 87,
                     "col_bias" : 0,
                     "fuzz": true
+                },
+		"LFD2NX-40": {
+                    "packages": ["caBGA256"],
+                    "idcode": 823070787,
+                    "frames": 9172,
+                    "bits_per_frame": 662,
+                    "pad_bits_after_frame": 0,
+                    "pad_bits_before_frame": 4,
+                    "frame_ecc_bits": 14,
+                    "max_row" : 56,
+                    "max_col" : 87,
+                    "col_bias" : 0,
+                    "fuzz": true
                 }
             }
         }
