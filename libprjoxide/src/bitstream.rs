@@ -441,7 +441,6 @@ impl BitstreamParser {
                             {
                                 let decoded_frame = chip.frame_addr_to_idx(curr_frame);
                                 if decoded_frame < chip.cram.frames {
-                                    // FIXME: frame addressing
                                     chip.cram.set(decoded_frame, j, true);
                                 }
                                 if self.verbose {
@@ -456,7 +455,11 @@ impl BitstreamParser {
                             | (frame_bytes[frame_bytes.len() - 1] as u16))
                             & 0x3FFF;
                         let exp_parity = self.finalise_ecc();
-                        assert_eq!(parity, exp_parity);
+
+                        // ECC calculation here is actually occasionally unsound,
+                        // as LUT RAM initialisation is masked from ECC calculation
+                        // as it changes at runtime. But it is too early to check this here.
+
                         if self.verbose {
                             println!("F0x{:08x}P{:014b}E{:014b}", curr_frame, parity, exp_parity);
                         }
