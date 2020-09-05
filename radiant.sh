@@ -1,6 +1,6 @@
 #!/bin/bash
 
-radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.1}"
+radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.0}"
 export FOUNDRY="${radiantdir}/ispfpga"
 bindir="${radiantdir}/bin/lin64"
 LSC_DIAMOND=true
