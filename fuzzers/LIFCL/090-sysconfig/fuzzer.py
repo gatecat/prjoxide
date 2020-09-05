@@ -22,10 +22,14 @@ def main():
                             lambda x: get_substs("SLAVE_SPI_PORT", x), False,
                             assume_zero_base=True,
                             desc="status of slave SPI port after configuration")
-    nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.SLAVE_I2CI3C_PORT", ["DISABLE", "ENABLE"],
-                            lambda x: get_substs("SLAVE_I2CI3C_PORT", x), False,
+    nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.SLAVE_I2C_PORT", ["DISABLE", "ENABLE"],
+                            lambda x: get_substs("SLAVE_I2C_PORT", x), False,
                             assume_zero_base=True,
-                            desc="status of slave I2C/I3C port after configuration")
+                            desc="status of slave I2C port after configuration")
+    nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.SLAVE_I3C_PORT", ["DISABLE", "ENABLE"],
+                            lambda x: get_substs("SLAVE_I3C_PORT", x), False,
+                            assume_zero_base=True,
+                            desc="status of slave I3C port after configuration")
     nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.JTAG_PORT", ["DISABLE", "ENABLE"],
                             lambda x: get_substs("JTAG_PORT", x), False,
                             assume_zero_base=True,
