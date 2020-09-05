@@ -5,7 +5,8 @@ import re
 configs = [
     ((1, 18), FuzzConfig(job="CIBTROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R1C18:CIB_T"]), set(["TAP_CIBT_R1C14:TAP_CIBT"])),
     ((18, 1), FuzzConfig(job="CIBLRROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R18C1:CIB_LR"]), set(["TAP_PLC_R18C14:TAP_PLC"])),
-    ((28, 17), FuzzConfig(job="CIBROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R28C17:CIB"]), set(["TAP_PLC_R28C14:TAP_PLC"]))
+    ((28, 17), FuzzConfig(job="CIBROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R28C17:CIB"]), set(["TAP_CIB_R28C14:TAP_CIB"])),
+    ((28, 1), FuzzConfig(job="CIBLRAROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R28C1:CIB_LR_A"]), set(["TAP_CIB_R28C14:TAP_CIB"])),
 ]
 
 def main():
