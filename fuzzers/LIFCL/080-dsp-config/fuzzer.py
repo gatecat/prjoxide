@@ -10,7 +10,7 @@ configs = [
         "CIB_R38C68:DSP_R_6", "CIB_R38C69:DSP_R_7", "CIB_R38C70:DSP_R_8",
         "CIB_R38C71:DSP_R_9", "CIB_R38C72:DSP_R_10", "CIB_R38C73:DSP_R_11"
     ])),
-    ((37, 15), FuzzConfig(job="DSPMODER", device="LIFCL-40", sv="../shared/empty_40.v", tiles=
+    ((37, 15), FuzzConfig(job="DSPMODEL", device="LIFCL-40", sv="../shared/empty_40.v", tiles=
         ["CIB_R38C13:MIB_EBR"] + ["CIB_R38C{}:DSP_L_{}".format(c + 14, c) for c in range(11)])),
 ]
 
@@ -186,7 +186,8 @@ def main():
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
         cfg.sv = "dsp.v"
-        for dsp, prim, site in locs:
+        def per_loc(l):
+            dsp, prim, site = l
             def get_substs(mode="NONE", default_cfg=False, kv=None, mux=False, extra_sigs=""):
                 if default_cfg:
                     config = defaults[mode] + extra_sigs
@@ -241,6 +242,7 @@ def main():
                 nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}".format(dsp, name), opts,
                             lambda x: get_substs(mode=prim, kv=(name, x)), False, assume_zero_base=True,
                             desc=desc)
+        fuzzloops.parallel_foreach(locs, per_loc)
     fuzzloops.parallel_foreach(configs, per_config)
 
 if __name__ == "__main__":
