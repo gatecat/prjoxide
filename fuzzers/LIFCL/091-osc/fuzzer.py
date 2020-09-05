@@ -60,7 +60,9 @@ def main():
     nonrouting.fuzz_enum_setting(cfg, empty, "OSC_CORE.LF_OUTPUT_EN", ["ENABLED", "DISABLED"],
         lambda x: get_substs(mode="OSC_CORE", kv=("LF_OUTPUT_EN", x)), False,
         desc="enable LF oscillator output")
-
+    nonrouting.fuzz_enum_setting(cfg, empty, "OSC_CORE.DEBUG_N", ["ENABLED", "DISABLED"],
+        lambda x: get_substs(mode="OSC_CORE", kv=("DEBUG_N", x)), False,
+        desc="enable debug mode")
     # Fuzz oscillator routing
     cfg.sv = "../shared/route_40.v"
     nodes = ["R1C77_JLFCLKOUT_OSC_CORE", "R1C77_JHFCLKOUT_OSC_CORE",
