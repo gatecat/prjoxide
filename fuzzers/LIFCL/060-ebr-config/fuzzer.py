@@ -83,10 +83,10 @@ def main():
                 nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.{}MUX".format(ebr, mode, sig), ["0", sig, "INV"],
                     lambda x: get_substs(mode=mode, kv=(sig, x), mux=True), False,
                     desc="clock inversion control for {}".format(sig))
-        for mode, cwesigs in [("DP16K_MODE", ["WEA", "WEB", "CEA", "CEB", "RSTA", "RSTB"]),
-                                ("PDP16K_MODE", ["WE", "CER", "CEW", "RST"]),
-                                ("PDPSC16K_MODE", ["WE", "CER", "CEW", "RST"]),
-                                ("SP16K_MODE", ["WE", "CE", "RST"]),
+        for mode, cwesigs in [("DP16K_MODE", ["WEA", "WEB", "CEA", "CEB", "RSTA", "RSTB", "ADA0", "ADA1", "ADA2", "ADA3", "ADB0", "ADB1"]),
+                                ("PDP16K_MODE", ["WE", "CER", "CEW", "RST", "ADW0", "ADW1", "ADW2", "ADW3", "ADR0", "ADR1"]),
+                                ("PDPSC16K_MODE", ["WE", "CER", "CEW", "RST", "ADW0", "ADW1", "ADW2", "ADW3", "ADR0", "ADR1"]),
+                                ("SP16K_MODE", ["WE", "CE", "RST", "AD0", "AD1", "AD2", "AD3"]),
                                 ("FIFO16K_MODE", ["CEA", "CEB", "RSTA", "RSTB"])]:
             for sig in cwesigs:
                 nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}.{}MUX".format(ebr, mode, sig), [sig, "INV"],
