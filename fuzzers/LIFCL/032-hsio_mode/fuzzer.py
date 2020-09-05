@@ -108,7 +108,7 @@ def main():
                 all_di_types += ["{}_{}".format(di, t) for di in d]
 
         nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.SEIO18.BASE_TYPE".format(pio), all_se_types,
-                lambda x: get_substs(iotype=x), False)
+                lambda x: get_substs(iotype=x), False, assume_zero_base=True)
 
         nonrouting.fuzz_enum_setting(cfg, empty, "PIO{}.SEIO18.DRIVE_1V8".format(pio), ["2", "4", "8", "12", "50RS"],
                 lambda x: get_substs(iotype="OUTPUT_LVCMOS18H", kv=("DRIVE", x)), True)

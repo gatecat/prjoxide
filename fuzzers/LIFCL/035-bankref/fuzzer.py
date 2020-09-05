@@ -63,6 +63,7 @@ def main():
         if bank in (3, 4, 5):
             nonrouting.fuzz_enum_setting(cfg, empty, "BANK{}.VCC".format(bank), ["NONE", "1V0", "1V2", "1V5", "1V8"],
                         lambda x: get_substs(iotype=vcc_to_io_18[x], vcc=x.replace("V", ".")), False,
+                        assume_zero_base=True,
                         desc="VccIO of bank {}".format(bank))
             nonrouting.fuzz_enum_setting(cfg, empty, "BANK{}.DIFF_IO".format(bank), ["OFF", "ON"],
                         lambda x: get_substs(iotype=("SSTL15D_I" if x == "ON" else "SSTL15_I"), diff=(x == "ON"), vcc="1.5"), False,
@@ -88,6 +89,7 @@ def main():
         else:  
             nonrouting.fuzz_enum_setting(cfg, empty, "BANK{}.VCC".format(bank), ["NONE", "1V2", "1V5", "1V8", "2V5", "3V3"],
                         lambda x: get_substs(iotype=vcc_to_io_33[x], vcc=x.replace("V", ".")), False,
+                        assume_zero_base=True,
                         desc="VccIO of bank {}".format(bank))
     fuzzloops.parallel_foreach(configs, per_config)
 if __name__ == "__main__":
