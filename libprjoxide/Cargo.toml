@@ -15,6 +15,7 @@ lazy_static = "1.4.0"
 pulldown-cmark = "0.6.1"
 itertools = "0.8.2"
 rug = "1.6.0"
+log = "0.4.11"
 
 [lib]
 name = "prjoxide"

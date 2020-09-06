@@ -4,6 +4,8 @@ use multimap::MultiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
 
+use log::*;
+
 // 2D bit array
 #[derive(Clone)]
 pub struct BitMatrix {
@@ -478,6 +480,13 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
                 .collect();
             known_bits.append(&mut matched_bits);
             total_matches += 1;
+        }
+        for aon in tdb.db.always_on.iter() {
+            if self.cram.get(aon.frame, aon.bit) {
+                known_bits.insert((aon.frame, aon.bit));
+            } else {
+                warn!("Supposedly always on bit F{}B{} in {} found to be cleared!\n", aon.frame, aon.bit, fasm_name);
+            }
         }
         for f in 0..self.cram.frames {
             for b in 0..self.cram.bits {
