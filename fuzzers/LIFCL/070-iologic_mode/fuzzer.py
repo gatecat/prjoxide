@@ -43,6 +43,9 @@ configs = [
     ("IOL_R10B", "SIOLOGICB", FuzzConfig(job="IOL1DMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R10C87:SYSIO_B1_0_C", "CIB_R11C87:SYSIO_B1_0_REM"])),
     ("IOL_L10A", "SIOLOGICA", FuzzConfig(job="IOL7CMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R10C0:SYSIO_B7_0_C", "CIB_R11C0:SYSIO_B7_0_REM"])),
     ("IOL_L10B", "SIOLOGICB", FuzzConfig(job="IOL7DMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R10C0:SYSIO_B7_0_C", "CIB_R11C0:SYSIO_B7_0_REM"])),
+
+    ("IOL_R3B", "SIOLOGICB", FuzzConfig(job="IOL3DEMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R3C87:SYSIO_B1_DED"])),
+
 ]
 
 def main():

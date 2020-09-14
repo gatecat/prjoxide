@@ -60,6 +60,8 @@ configs = [
         FuzzConfig(job="IO0AE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R0C78:SYSIO_B0_0_EVEN"])),
     ("B","D13", # PT78B
         FuzzConfig(job="IO0BE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R0C78:SYSIO_B0_0_EVEN"])),
+    ("B","E17", # PR3A
+        FuzzConfig(job="IO1D", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R3C87:SYSIO_B1_DED"])),
 ]
 
 def main():

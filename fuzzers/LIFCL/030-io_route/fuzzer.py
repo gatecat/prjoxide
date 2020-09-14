@@ -55,6 +55,10 @@ configs = [
         "cfg": FuzzConfig(job="IOROUTE6E", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R44C0:SYSIO_B6_0_EVEN"]),
         "rc": (44, 0),
     },
+    {
+        "cfg": FuzzConfig(job="IOROUTE1D", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R3C87:SYSIO_B1_DED"]),
+        "rc": (3, 87),
+    },
 ]
 
 ignore_tiles = set([
@@ -68,6 +72,7 @@ ignore_tiles = set([
     "CIB_R43C86:CIB_LR",
     "CIB_R44C86:CIB_LR",
     "CIB_R45C86:CIB_LR",
+    "CIB_R3C86:CIB_LR",
     "CIB_R6C86:CIB_LR",
     "CIB_R7C86:CIB_LR",
     "CIB_R8C86:CIB_LR",
