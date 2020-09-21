@@ -224,6 +224,18 @@ impl Chip {
             Some(v) => v.iter().map(|i| &self.tiles[*i]).collect(),
         }
     }
+    // Get tile by location and type
+    pub fn tile_by_xy_type(&self, x: u32, y: u32, ttype: &str) -> Result<&Tile, &'static str> {
+        match self.tiles_by_loc.get_vec(&(x, y)) {
+            None =>  Err("unknown tile location"),
+            Some(v) => {
+                match v.iter().find(|&&t| self.tiles[t].tiletype == ttype) {
+                    None => Err("unknown tile type"),
+                    Some(x) => Ok(&self.tiles[*x])
+                }
+            }
+        }
+    }
     // Compare two chips
     pub fn delta(&self, base: &Self) -> ChipDelta {
         base.tiles

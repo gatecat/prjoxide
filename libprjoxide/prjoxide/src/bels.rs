@@ -1,3 +1,5 @@
+use crate::chip::*;
+
 // A reference to a wire in a relatively located tile
 #[derive(Clone)]
 pub struct RelWire {
@@ -399,5 +401,42 @@ pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
         "SYSIO_B3_0" | "SYSIO_B4_0" | "SYSIO_B5_0" => (0..2).map(Bel::make_seio18).collect(),
         "EFB_1_OSC" => vec![Bel::make_osc_core()],
         _ => vec![],
+    }
+}
+
+// Get the tiles that a bel's configuration might be split across
+pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
+    let tn = tile.name.to_string();
+    let rel_tile = |dx, dy, tt| {
+        chip.tile_by_xy_type(tile.x + dx, tile.y + dy, tt).unwrap().tiletype.to_string()
+    };
+
+    let rel_tile_prefix = |dx, dy, tt_prefix| {
+        for tile in chip.tiles_by_xy(tile.x + dx, tile.y + dy).iter() {
+            if tile.name.starts_with(tt_prefix) {
+                return tile.tiletype.to_string();
+            }
+        }
+        panic!("no tile matched prefix");
+    };
+
+    let tt = &tile.tiletype[..];
+    match &bel.beltype[..] {
+        "SEIO33_CORE" => match tt {
+            "SYSIO_B1_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B1_0_REM")],
+            "SYSIO_B2_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B2_0_REM")],
+            "SYSIO_B6_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B6_0_REM")],
+            "SYSIO_B7_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B7_0_REM")],
+            _ => vec![tn]
+        }
+        "SEIO18_CORE" | "DIFF18_CORE" => vec![tn, rel_tile_prefix(1, 0, "SYSIO")],
+        "OXIDE_EBR" => match bel.z {
+            0 => vec![rel_tile(1, 0, "EBR_1"), rel_tile(2, 0, "EBR_2")],
+            1 => vec![rel_tile(1, 0, "EBR_4"), rel_tile(2, 0, "EBR_5")],
+            2 => vec![rel_tile(1, 0, "EBR_7"), rel_tile(2, 0, "EBR_8")],
+            3 => vec![rel_tile(1, 0, "EBR_8"), rel_tile(2, 0, "EBR_9")],
+            _ => panic!("unknown EBR z-index")
+        }
+        _ => vec![tn]
     }
 }
