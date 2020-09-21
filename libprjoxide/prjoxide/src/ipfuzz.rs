@@ -1,7 +1,6 @@
 use crate::bitstream::*;
 use crate::chip::*;
 use crate::database::*;
-use crate::wires;
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::FromIterator;
 
@@ -27,7 +26,7 @@ pub struct IPFuzzer {
 
 impl IPFuzzer {
     pub fn init_word_fuzzer(
-        db: &mut Database,
+        _db: &mut Database,
         base_bit: &Chip,
         fuzz_ipcore: &str,
         fuzz_iptype: &str,

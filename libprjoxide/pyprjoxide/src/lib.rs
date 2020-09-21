@@ -5,13 +5,11 @@ use pyo3::wrap_pyfunction;
 use std::fs::File;
 use std::io::*;
 
-use prjoxide::bels;
 use prjoxide::bitstream;
 use prjoxide::chip;
 use prjoxide::database;
 use prjoxide::database_html;
 use prjoxide::docs;
-use prjoxide::fasmparse;
 use prjoxide::fuzz;
 use prjoxide::ipfuzz;
 use prjoxide::nodecheck;
@@ -339,7 +337,7 @@ fn md_file_to_html(filename: &str) -> String {
 }
 
 #[pymodule]
-fn libpyprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
+fn libpyprjoxide(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_wrapped(wrap_pyfunction!(write_tilegrid_html))?;
     m.add_wrapped(wrap_pyfunction!(write_region_html))?;

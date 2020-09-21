@@ -20,17 +20,30 @@ const COMMENT_END: [u8; 2] = [0x00, 0xFF];
 const PREAMBLE: [u8; 4] = [0xFF, 0xFF, 0xBD, 0xB3];
 
 // Commands
+
+#[allow(dead_code)]
 const SPI_MODE: u8 = 0b01111001;
+
+#[allow(dead_code)]
 const JUMP: u8 = 0b01111110;
+
 const LSC_RESET_CRC: u8 = 0b00111011;
 const VERIFY_ID: u8 = 0b11100010;
+
+#[allow(dead_code)]
 const LSC_WRITE_COMP_DIC: u8 = 0b00000010;
 const LSC_PROG_CNTRL0: u8 = 0b00100010;
 const LSC_INIT_ADDRESS: u8 = 0b01000110;
 const LSC_WRITE_ADDRESS: u8 = 0b10110100;
+
+#[allow(dead_code)]
 const LSC_PROG_INCR_CMP: u8 = 0b10111000;
 const LSC_PROG_INCR_RTI: u8 = 0b10000010;
+
+#[allow(dead_code)]
 const LSC_PROG_SED_CRC: u8 = 0b10100010;
+
+#[allow(dead_code)]
 const ISC_PROGRAM_SECURITY: u8 = 0b11001110;
 const ISC_PROGRAM_USERCODE: u8 = 0b11000010;
 const LSC_BUS_ADDRESS: u8 = 0b11110110;
@@ -143,7 +156,7 @@ impl BitstreamParser {
 
     // Add a single byte to the running CRC16 accumulator
     fn update_crc16(&mut self, val: u8) {
-        let mut bit_flag = 0;
+        let mut bit_flag;
         for i in (0..8).rev() {
             bit_flag = self.crc16 >> 15;
             self.crc16 <<= 1;
@@ -305,8 +318,8 @@ impl BitstreamParser {
     }
     // "Push out" last 16 bits to get final crc16
     fn finalise_crc16(&mut self) {
-        let mut bit_flag = 0;
-        for i in 0..16 {
+        let mut bit_flag;
+        for _i in 0..16 {
             bit_flag = (self.crc16 >> 15) & 0x1;
             self.crc16 <<= 1;
             if bit_flag == 0x1 {

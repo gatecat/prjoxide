@@ -1,7 +1,7 @@
 use crate::bels::*;
 use crate::database::*;
 use crate::docs::{md_file_to_html, md_to_html};
-use std::cmp::{max, min};
+use std::cmp::max;
 use std::collections::{BTreeSet, BTreeMap};
 use std::fs::File;
 use std::io::Write;
@@ -518,7 +518,7 @@ pub fn write_ip_html(db: &mut Database,
     iptype: &str,
     filepath: &str) {
     let mut html = File::create(filepath).unwrap();
-    let bitdb = &db.ip_bitdb(fam, iptype).db;
+    let _bitdb = &db.ip_bitdb(fam, iptype).db;
     writeln!(
         html,
         "<html> \n\
@@ -537,7 +537,7 @@ pub fn write_ip_html(db: &mut Database,
         writeln!(html, "<th>{}</th>", i).unwrap();
     }
     writeln!(html, "</tr>").unwrap();
-    let mut bit2func = BTreeMap::<(u32, u8), (&str, usize, &str)>::new();
+    let mut _bit2func = BTreeMap::<(u32, u8), (&str, usize, &str)>::new();
 
     writeln!(html, "</table>").unwrap();
     writeln!(html, "</body></html>").unwrap();

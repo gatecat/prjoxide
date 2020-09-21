@@ -4,7 +4,6 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
-use std::ops::Not;
 use std::path::Path;
 // Deserialization of 'devices.json'
 

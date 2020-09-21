@@ -65,13 +65,13 @@ impl Fuzzer {
         }
     }
     pub fn init_word_fuzzer(
-        db: &mut Database,
+        _db: &mut Database,
         base_bit: &Chip,
         fuzz_tiles: &BTreeSet<String>,
         name: &str,
         desc: &str,
         width: usize,
-        zero_bitfile: &str,
+        _zero_bitfile: &str,
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Word {
