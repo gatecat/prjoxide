@@ -22,14 +22,14 @@ crate-type = ["rlib"]
 
 [[bin]]
 name = "oxide_unpack"
-path = "src/unpack.rs"
+path = "src/bin/oxide_unpack.rs"
 
 [[bin]]
 name = "oxide_pack"
-path = "src/pack.rs"
+path = "src/bin/oxide_pack.rs"
 
 
 [[bin]]
 name = "oxide_bbaexport"
-path = "src/bbaexport.rs"
+path = "src/bin/oxide_bbaexport.rs"
 

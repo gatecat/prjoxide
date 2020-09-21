@@ -1,7 +1,5 @@
-mod bitstream;
-mod chip;
-mod database;
-mod fasmparse;
+use prjoxide::bitstream::*;
+use prjoxide::database::*;
 
 use std::fs::File;
 use std::io::*;
@@ -13,8 +11,8 @@ fn main() -> Result<()> {
     let args = Vec::from_iter(std::env::args());
     let db_path = exe_path.parent().unwrap().join("../../../database");
     let db_path_str = db_path.to_str().unwrap();
-    let mut db = database::Database::new(db_path_str);
-    let chip = bitstream::BitstreamParser::parse_file(&mut db, &args[1]).unwrap();
+    let mut db = Database::new(db_path_str);
+    let chip = BitstreamParser::parse_file(&mut db, &args[1]).unwrap();
 
     let mut outfile = File::create(&args[2])?;
 
