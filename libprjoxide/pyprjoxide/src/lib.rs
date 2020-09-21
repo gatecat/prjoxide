@@ -5,23 +5,17 @@ use pyo3::wrap_pyfunction;
 use std::fs::File;
 use std::io::*;
 
-#[macro_use]
-extern crate lazy_static;
-
-#[macro_use]
-extern crate log;
-
-mod bels;
-mod bitstream;
-mod chip;
-pub mod database;
-pub mod database_html;
-mod docs;
-mod fasmparse;
-pub mod fuzz;
-pub mod ipfuzz;
-pub mod nodecheck;
-mod wires;
+use prjoxide::bels;
+use prjoxide::bitstream;
+use prjoxide::chip;
+use prjoxide::database;
+use prjoxide::database_html;
+use prjoxide::docs;
+use prjoxide::fasmparse;
+use prjoxide::fuzz;
+use prjoxide::ipfuzz;
+use prjoxide::nodecheck;
+use prjoxide::wires;
 
 #[pyclass]
 struct Database {
@@ -345,7 +339,7 @@ fn md_file_to_html(filename: &str) -> String {
 }
 
 #[pymodule]
-fn libprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
+fn libpyprjoxide(py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
     m.add_wrapped(wrap_pyfunction!(write_tilegrid_html))?;
     m.add_wrapped(wrap_pyfunction!(write_region_html))?;

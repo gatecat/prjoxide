@@ -1,0 +1,15 @@
+[package]
+name = "pyprjoxide"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+prjoxide = { path = "../prjoxide" }
+
+[dependencies.pyo3]
+version = "0.8.4"
+features = ["extension-module"]
+
+[lib]
+name = "pyprjoxide"
+crate-type = ["cdylib"]

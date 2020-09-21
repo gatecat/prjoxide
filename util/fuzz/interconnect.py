@@ -4,7 +4,7 @@ Utilities for fuzzing interconect
 
 import threading
 import tiles
-import libprjoxide
+import libpyprjoxide
 import fuzzconfig
 import fuzzloops
 import lapie
@@ -73,7 +73,7 @@ def fuzz_interconnect(
     def per_sink(to_wire):
         # Get a unique prefix from the thread ID
         prefix = "thread{}_".format(threading.get_ident())
-        fz = libprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], ignore_tiles, full_mux_style, not (fc_filter(to_wire)))
+        fz = libpyprjoxide.Fuzzer.pip_fuzzer(fuzzconfig.db, base_bitf, set(config.tiles), to_wire, config.tiles[0], ignore_tiles, full_mux_style, not (fc_filter(to_wire)))
         for from_wire in sinks[to_wire]:
             arcs_attr = r', \dm:arcs ="{}.{}"'.format(to_wire, from_wire)
             substs = extra_substs.copy()

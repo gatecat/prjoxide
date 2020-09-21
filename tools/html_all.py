@@ -15,7 +15,7 @@ import html_tilegrid
 import html_tilebits
 import fuzzloops
 import glob
-import libprjoxide
+import libpyprjoxide
 
 oxide_docs_index = """
 <html>
@@ -89,7 +89,7 @@ def main(argv):
         htmlfn = path.basename(mdfile).replace(".md", ".html")
         htmlfile = path.join(gdir, htmlfn)
         with open(htmlfile, "w") as f:
-            f.write(libprjoxide.md_file_to_html(mdfile))
+            f.write(libpyprjoxide.md_file_to_html(mdfile))
         gen_docs_toc += '<li><a href="general/{}">{}</a></li>\n'.format(htmlfn, title)
     docs_toc = ""
     for fam, fam_data in sorted(database.get_devices()["families"].items()):

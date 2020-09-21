@@ -6,7 +6,7 @@ from os import path
 from string import Template
 import radiant
 import database
-import libprjoxide
+import libpyprjoxide
 
 db = None
 
@@ -41,7 +41,7 @@ class FuzzConfig:
         # Load the global database if it doesn't exist already
         global db
         if db is None:
-            db = libprjoxide.Database(database.get_db_root())
+            db = libpyprjoxide.Database(database.get_db_root())
 
         self.make_workdir()
         if not skip_specimen:

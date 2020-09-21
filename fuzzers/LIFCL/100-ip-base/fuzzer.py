@@ -3,7 +3,7 @@ import nonrouting
 import fuzzloops
 import database
 from os import path
-import libprjoxide
+import libpyprjoxide
 import json
 
 cfg = fuzzconfig.FuzzConfig(job="IPADDR", device="LIFCL-40", sv="ip.v", tiles=[])
@@ -60,7 +60,7 @@ def main():
         if wid_idx != -1:
             prim_type = prim_type[0:wid_idx]
         bit = cfg.build_design(cfg.sv, dict(cmt="", prim=prim_type, site=site, config=ip_settings[prim]))
-        chip = libprjoxide.Chip.from_bitstream(fuzzconfig.db, bit)
+        chip = libpyprjoxide.Chip.from_bitstream(fuzzconfig.db, bit)
         ipv = chip.get_ip_values()
         assert len(ipv) > 0
         addr = ipv[0][0]
