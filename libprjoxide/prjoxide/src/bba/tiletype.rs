@@ -113,7 +113,7 @@ impl TileType {
             driven_wire_ids: BTreeSet::new(),
             neighbour_wire_ids: BTreeMap::new(),
             neighbours: BTreeSet::new(),
-            bels: get_tile_bels(tt),
+            bels: get_tile_bels(tt, &db.tile_bitdb(fam, tt).db),
         };
         // Add wires from pips
         for (to_wire, wire_pips) in tt.data.pips.iter() {

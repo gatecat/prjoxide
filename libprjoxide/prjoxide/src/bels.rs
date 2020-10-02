@@ -1,4 +1,5 @@
 use crate::chip::*;
+use crate::database::TileBitsDatabase;
 
 // A reference to a wire in a relatively located tile
 #[derive(Clone)]
@@ -9,25 +10,30 @@ pub struct RelWire {
 }
 
 impl RelWire {
+    pub fn prefix(total_rel_x : i32, total_rel_y : i32) -> String {
+        let mut prefix = String::new();
+        if total_rel_y < 0 {
+            prefix.push_str(&format!("N{}", -total_rel_y));
+        }
+        if total_rel_y > 0 {
+            prefix.push_str(&format!("S{}", total_rel_y));
+        }
+        if total_rel_x < 0 {
+            prefix.push_str(&format!("W{}", -total_rel_x));
+        }
+        if total_rel_x > 0 {
+            prefix.push_str(&format!("E{}", total_rel_x));
+        }
+        if !prefix.is_empty() {
+            prefix.push(':');
+        }
+        prefix
+    }
     pub fn rel_name(&self, bel_rel_x : i32, bel_rel_y : i32) -> String {
         let mut name = String::new();
         let total_rel_x = bel_rel_x + self.rel_x;
         let total_rel_y = bel_rel_y + self.rel_y;
-        if total_rel_y < 0 {
-            name.push_str(&format!("N{}", -total_rel_y));
-        }
-        if total_rel_y > 0 {
-            name.push_str(&format!("S{}", total_rel_y));
-        }
-        if total_rel_x < 0 {
-            name.push_str(&format!("W{}", -total_rel_x));
-        }
-        if total_rel_x > 0 {
-            name.push_str(&format!("E{}", total_rel_x));
-        }
-        if !name.is_empty() {
-            name.push(':');
-        }
+        name.push_str(&RelWire::prefix(total_rel_x, total_rel_y));
         name.push_str(&self.name);
         name
     }
@@ -173,6 +179,37 @@ macro_rules! def_pin_mapped {
 const Z_TO_CHAR: [char; 4] = ['A', 'B', 'C', 'D'];
 
 impl Bel {
+    // Copy inputs and outputs based on connectivity in the routing graph
+    fn get_io(db: &TileBitsDatabase, postfix: &str, rel_x : i32, rel_y : i32) -> Vec<BelPin> {
+        let mut pins = Vec::new();
+        let prefix = RelWire::prefix(rel_x, rel_y);
+
+        let mut add_wire = |wire : &str, dir| {
+            if wire.starts_with(&prefix) && wire.ends_with(postfix) {
+                // Remove the relative location prefix
+                let wire_name = &wire[prefix.len()..];
+                // Determine the pin name by removing the postfix
+                let mut pin_name = &wire_name[..wire_name.len()-postfix.len()];
+
+                if pin_name.starts_with('J') {
+                    // If applicable, generally for CIB signals, remove the mysterious 'J' prefix
+                    pin_name = &pin_name[1..];
+                }
+
+                pins.push(BelPin::new(&pin_name, "", dir, wire_name, 0, 0));
+            }
+        };
+
+        for src_wire in db.get_source_wires() {
+            add_wire(&src_wire, PinDir::OUTPUT);
+        }
+
+        for sink_wire in db.get_sink_wires() {
+            add_wire(&sink_wire, PinDir::INPUT);
+        }
+        return pins;
+    }
+
     pub fn make_oxide_ff(slice: usize, ff: usize) -> Bel {
         let ch = Z_TO_CHAR[slice];
         let postfix = format!("SLICE{}", ch);
@@ -387,9 +424,20 @@ impl Bel {
             z: 0,
         }
     }
+
+    pub fn make_ebr(tiledata: &TileBitsDatabase, z: usize) -> Bel {
+        Bel {
+            name: format!("EBR_CORE"),
+            beltype: format!("OXIDE_EBR"),
+            pins: Bel::get_io(&tiledata, "_EBR_CORE", -1, -1),
+            rel_x: -1,
+            rel_y: -1,
+            z: z as u32,
+        }
+    }
 }
 
-pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
+pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
     let mut stt = tiletype;
     if tiletype.ends_with("_EVEN") || tiletype.ends_with("_ODD") {
         stt = &tiletype[0..tiletype.rfind('_').unwrap()];
@@ -416,6 +464,10 @@ pub fn get_tile_bels(tiletype: &str) -> Vec<Bel> {
         }
         "SYSIO_B3_0" | "SYSIO_B4_0" | "SYSIO_B5_0" => (0..2).map(Bel::make_seio18).collect(),
         "EFB_1_OSC" => vec![Bel::make_osc_core()],
+        "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
+        "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
+        "EBR_7" => vec![Bel::make_ebr(&tiledata, 2)],
+        "EBR_8" => vec![Bel::make_ebr(&tiledata, 3)],
         _ => vec![],
     }
 }
@@ -447,10 +499,10 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
         }
         "SEIO18_CORE" | "DIFF18_CORE" => vec![tn, rel_tile_prefix(1, 0, "SYSIO")],
         "OXIDE_EBR" => match bel.z {
-            0 => vec![rel_tile(1, 0, "EBR_1"), rel_tile(2, 0, "EBR_2")],
-            1 => vec![rel_tile(1, 0, "EBR_4"), rel_tile(2, 0, "EBR_5")],
-            2 => vec![rel_tile(1, 0, "EBR_7"), rel_tile(2, 0, "EBR_8")],
-            3 => vec![rel_tile(1, 0, "EBR_8"), rel_tile(2, 0, "EBR_9")],
+            0 => vec![rel_tile(0, 0, "EBR_1"), rel_tile(1, 0, "EBR_2")],
+            1 => vec![rel_tile(0, 0, "EBR_4"), rel_tile(1, 0, "EBR_5")],
+            2 => vec![rel_tile(0, 0, "EBR_7"), rel_tile(1, 0, "EBR_8")],
+            3 => vec![rel_tile(0, 0, "EBR_8"), rel_tile(1, 0, "EBR_9")],
             _ => panic!("unknown EBR z-index")
         }
         _ => vec![tn]

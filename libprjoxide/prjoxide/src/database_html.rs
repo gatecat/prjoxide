@@ -239,7 +239,7 @@ pub fn write_bits_html(
     };
 
     // Write out links to bels
-    let bels = get_tile_bels(tiletype);
+    let bels = get_tile_bels(tiletype, &bitdb);
     if !bels.is_empty() {
         writeln!(html, "<h2>Tile Bels</h2>").unwrap();
         writeln!(

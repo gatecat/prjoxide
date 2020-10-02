@@ -221,6 +221,30 @@ pub struct TileBitsDatabase {
     pub always_on: BTreeSet<ConfigBit>,
 }
 
+impl TileBitsDatabase {
+    pub fn get_source_wires(&self) -> BTreeSet<String> {
+        let mut sources = BTreeSet::new();
+        for pip in self.pips.values().flatten() {
+            sources.insert(pip.from_wire.to_string());
+        }
+        for conn in self.conns.values().flatten() {
+            sources.insert(conn.from_wire.to_string());
+        }
+        return sources;
+    }
+
+    pub fn get_sink_wires(&self) -> BTreeSet<String> {
+        let mut sinks = BTreeSet::new();
+        for pip_sink in self.pips.keys() {
+            sinks.insert(pip_sink.to_string());
+        }
+        for conn_sink in self.conns.keys() {
+            sinks.insert(conn_sink.to_string());
+        }
+        return sinks;
+    }
+}
+
 pub struct TileBitsData {
     tiletype: String,
     pub db: TileBitsDatabase,
