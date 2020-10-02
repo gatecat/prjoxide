@@ -9,19 +9,21 @@ pub struct RelWire {
 }
 
 impl RelWire {
-    pub fn rel_name(&self) -> String {
+    pub fn rel_name(&self, bel_rel_x : i32, bel_rel_y : i32) -> String {
         let mut name = String::new();
-        if self.rel_y < 0 {
-            name.push_str(&format!("N{}", -self.rel_y));
+        let total_rel_x = bel_rel_x + self.rel_x;
+        let total_rel_y = bel_rel_y + self.rel_y;
+        if total_rel_y < 0 {
+            name.push_str(&format!("N{}", -total_rel_y));
         }
-        if self.rel_y > 0 {
-            name.push_str(&format!("S{}", self.rel_y));
+        if total_rel_y > 0 {
+            name.push_str(&format!("S{}", total_rel_y));
         }
-        if self.rel_x < 0 {
-            name.push_str(&format!("W{}", -self.rel_x));
+        if total_rel_x < 0 {
+            name.push_str(&format!("W{}", -total_rel_x));
         }
-        if self.rel_x > 0 {
-            name.push_str(&format!("E{}", self.rel_x));
+        if total_rel_x > 0 {
+            name.push_str(&format!("E{}", total_rel_x));
         }
         if !name.is_empty() {
             name.push(':');
@@ -114,6 +116,8 @@ pub struct Bel {
     pub name: String,
     pub beltype: String,
     pub pins: Vec<BelPin>,
+    pub rel_x: i32,
+    pub rel_y: i32,
     pub z: u32,
 }
 
@@ -194,6 +198,8 @@ impl Bel {
             name: format!("{}_FF{}", &postfix, ff),
             beltype: String::from("OXIDE_FF"),
             pins: pins,
+            rel_x: 0,
+            rel_y: 0,
             z: (slice << 3 | (ff + 2)) as u32,
         }
     }
@@ -249,6 +255,8 @@ impl Bel {
             name: format!("{}_LUT{}", &postfix, lut),
             beltype: String::from("OXIDE_COMB"),
             pins: pins,
+            rel_x: 0,
+            rel_y: 0,
             z: (slice << 3 | lut) as u32,
         }
     }
@@ -283,6 +291,8 @@ impl Bel {
             name: format!("{}_RAMW", &postfix),
             beltype: String::from("RAMW"),
             pins: pins,
+            rel_x: 0,
+            rel_y: 0,
             z: (slice << 3 | 4) as u32,
         }
     }
@@ -316,6 +326,8 @@ impl Bel {
                 input!(&postfix, "I3CRESEN", "I3C strong pullup enable"),
                 input!(&postfix, "I3CWKPU", "I3C weak pullup enable"),
             ],
+            rel_x: 0,
+            rel_y: 0,
             z: z as u32,
         }
     }
@@ -354,6 +366,8 @@ impl Bel {
                 output!(&postfix, "INLP", "DPHY LP mode input buffer output"),
                 output!(&postfix, "INADC", "analog signal out to ADC"),
             ],
+            rel_x: 0,
+            rel_y: 0,
             z: z as u32,
         }
     }
@@ -364,10 +378,12 @@ impl Bel {
             name: format!("OSC_CORE"),
             beltype: String::from("OSC_CORE"),
             pins: vec![
-                output!(&postfix, "HFCLKOUT", "HF oscillator output", 0, 1),
-                output!(&postfix, "LFCLKOUT", "LF oscillator output", 0, 1),
-                input!(&postfix, "HFOUTEN", "HF oscillator output enable", 0, 1),
+                output!(&postfix, "HFCLKOUT", "HF oscillator output"),
+                output!(&postfix, "LFCLKOUT", "LF oscillator output"),
+                input!(&postfix, "HFOUTEN", "HF oscillator output enable"),
             ],
+            rel_x: 0,
+            rel_y: 1,
             z: 0,
         }
     }

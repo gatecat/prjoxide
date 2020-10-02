@@ -585,7 +585,7 @@ pub fn write_bel_html(docs_root: &str, tiletype: &str, bel: &Bel, filepath: &str
             PinDir::INOUT => "&LeftRightArrow;",
         };
         writeln!(html, "<tr {s}><td style=\"padding-left: 20px; padding-right: 20px; margin-left: 0px;\">{p}</td><td>{a}</td>\n\
-                <td style=\"padding-left: 20px; padding-right: 20px\">{w}</td><td>{d}</tr>", s=style, p=pin.name, a=arrow, w=&pin.wire.rel_name(), d=pin.desc).unwrap();
+                <td style=\"padding-left: 20px; padding-right: 20px\">{w}</td><td>{d}</tr>", s=style, p=pin.name, a=arrow, w=&pin.wire.rel_name(bel.rel_x, bel.rel_y), d=pin.desc).unwrap();
     }
     writeln!(html, "</table>").unwrap();
     writeln!(html, "</body></html>").unwrap();

@@ -140,7 +140,7 @@ impl TileType {
         // Add wires from bel pins
         for bel in tt.bels.iter() {
             for pin in bel.pins.iter() {
-                let wire_name = pin.wire.rel_name();
+                let wire_name = pin.wire.rel_name(bel.rel_x, bel.rel_y);
                 let wire_id = ids.id(&wire_name);
                 tt.wire_ids.insert(wire_id);
                 if pin.dir == PinDir::OUTPUT {

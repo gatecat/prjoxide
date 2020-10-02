@@ -556,7 +556,7 @@ impl LocationTypes {
                 for port in ports.iter() {
                     let wire_idx = data
                         .wires
-                        .get_index(&ids.id(&port.wire.rel_name()))
+                        .get_index(&ids.id(&port.wire.rel_name(bel.rel_x, bel.rel_y)))
                         .unwrap();
                     wire_belpins
                         .entry(wire_idx)
@@ -577,8 +577,8 @@ impl LocationTypes {
                 out.bel_info(
                     ids.id(&bel.name),
                     ids.id(&bel.beltype),
-                    0,
-                    0,
+                    bel.rel_x.try_into().unwrap(),
+                    bel.rel_y.try_into().unwrap(),
                     bel.z,
                     &format!("tt{}b{}_bw", i, j),
                     bel.pins.len(),
