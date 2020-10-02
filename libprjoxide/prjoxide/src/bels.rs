@@ -207,6 +207,11 @@ impl Bel {
         for sink_wire in db.get_sink_wires() {
             add_wire(&sink_wire, PinDir::INPUT);
         }
+
+        if pins.is_empty() {
+            panic!("no IO pins found for postfix {}, prefix {}", postfix, prefix);
+        }
+
         return pins;
     }
 
@@ -435,6 +440,17 @@ impl Bel {
             z: z as u32,
         }
     }
+
+    pub fn make_dsp(tiledata: &TileBitsDatabase, name: &str, beltype: &str, x: i32, y: i32, z: usize) -> Bel {
+        Bel {
+            name: name.to_string(),
+            beltype: beltype.to_string(),
+            pins: Bel::get_io(&tiledata, &format!("_{}_{}", &beltype, &name), x, y),
+            rel_x: x,
+            rel_y: y,
+            z: z as u32,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
@@ -467,7 +483,52 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
         "EBR_7" => vec![Bel::make_ebr(&tiledata, 2)],
-        "EBR_8" => vec![Bel::make_ebr(&tiledata, 3)],
+        "EBR_9" => vec![Bel::make_ebr(&tiledata, 3)],
+        "DSP_R_1" => vec![
+            Bel::make_dsp(&tiledata, "PREADD9_L0", "PREADD9_CORE", 0, -1, 0),
+            Bel::make_dsp(&tiledata, "PREADD9_H0", "PREADD9_CORE", 0, -1, 1),
+            Bel::make_dsp(&tiledata, "MULT9_L0", "MULT9_CORE", 0, -1, 2),
+            Bel::make_dsp(&tiledata, "MULT9_H0", "MULT9_CORE", 0, -1, 3),
+            Bel::make_dsp(&tiledata, "MULT18_0", "MULT18_CORE", 0, -1, 4),
+        ],
+        "DSP_R_2" => vec![
+            Bel::make_dsp(&tiledata, "PREADD9_L1", "PREADD9_CORE", 0, -1, 0),
+            Bel::make_dsp(&tiledata, "PREADD9_H1", "PREADD9_CORE", 0, -1, 1),
+            Bel::make_dsp(&tiledata, "MULT9_L1", "MULT9_CORE", 0, -1, 2),
+            Bel::make_dsp(&tiledata, "MULT9_H1", "MULT9_CORE", 0, -1, 3),
+            Bel::make_dsp(&tiledata, "MULT18_1", "MULT18_CORE", 0, -1, 4),
+        ],
+        "DSP_R_3" => vec![
+            Bel::make_dsp(&tiledata, "REG18_L0_0", "REG18_CORE", 0, -1, 0),
+            Bel::make_dsp(&tiledata, "REG18_L0_1", "REG18_CORE", 0, -1, 1),
+            Bel::make_dsp(&tiledata, "REG18_L1_0", "REG18_CORE", 0, -1, 2),
+            Bel::make_dsp(&tiledata, "REG18_L1_1", "REG18_CORE", 0, -1, 3),
+            Bel::make_dsp(&tiledata, "MULT18X36_0", "MULT18X36_CORE", 0, -1, 4),
+            Bel::make_dsp(&tiledata, "ACC54_0", "ACC54_CORE", 0, -1, 5),
+        ],
+        "DSP_R_5" => vec![
+            Bel::make_dsp(&tiledata, "PREADD9_L2", "PREADD9_CORE", 0, -1, 0),
+            Bel::make_dsp(&tiledata, "PREADD9_H2", "PREADD9_CORE", 0, -1, 1),
+            Bel::make_dsp(&tiledata, "MULT9_L2", "MULT9_CORE", 0, -1, 2),
+            Bel::make_dsp(&tiledata, "MULT9_H2", "MULT9_CORE", 0, -1, 3),
+            Bel::make_dsp(&tiledata, "MULT18_2", "MULT18_CORE", 0, -1, 4),
+        ],
+        "DSP_R_6" => vec![
+            Bel::make_dsp(&tiledata, "PREADD9_L3", "PREADD9_CORE", 0, -1, 0),
+            Bel::make_dsp(&tiledata, "PREADD9_H3", "PREADD9_CORE", 0, -1, 1),
+            Bel::make_dsp(&tiledata, "MULT9_L3", "MULT9_CORE", 0, -1, 2),
+            Bel::make_dsp(&tiledata, "MULT9_H3", "MULT9_CORE", 0, -1, 3),
+            Bel::make_dsp(&tiledata, "MULT18_3", "MULT18_CORE", 0, -1, 4),
+        ],
+        "DSP_R_7" => vec![
+            Bel::make_dsp(&tiledata, "REG18_H0_0", "REG18_CORE", 0, -1, 0),
+            Bel::make_dsp(&tiledata, "REG18_H0_1", "REG18_CORE", 0, -1, 1),
+            Bel::make_dsp(&tiledata, "REG18_H1_0", "REG18_CORE", 0, -1, 2),
+            Bel::make_dsp(&tiledata, "REG18_H1_1", "REG18_CORE", 0, -1, 3),
+            Bel::make_dsp(&tiledata, "MULT18X36_1", "MULT18X36_CORE", 0, -1, 4),
+            Bel::make_dsp(&tiledata, "ACC54_1", "ACC54_CORE", 0, -1, 5),
+            Bel::make_dsp(&tiledata, "MULT36", "MULT36_CORE", 0, -1, 6),
+        ],
         _ => vec![],
     }
 }
@@ -502,7 +563,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             0 => vec![rel_tile(0, 0, "EBR_1"), rel_tile(1, 0, "EBR_2")],
             1 => vec![rel_tile(0, 0, "EBR_4"), rel_tile(1, 0, "EBR_5")],
             2 => vec![rel_tile(0, 0, "EBR_7"), rel_tile(1, 0, "EBR_8")],
-            3 => vec![rel_tile(0, 0, "EBR_8"), rel_tile(1, 0, "EBR_9")],
+            3 => vec![rel_tile(0, 0, "EBR_9"), rel_tile(1, 0, "EBR_10")],
             _ => panic!("unknown EBR z-index")
         }
         _ => vec![tn]
