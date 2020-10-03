@@ -178,6 +178,12 @@ impl Chip {
                 .filter_map(|(k, v)| if k == "oxide.meta" { Some(v) } else { None })
                 .cloned(),
         );
+        for t in chip.tiles.iter_mut() {
+            let tdb = db.tile_bitdb(&chip.family, &t.tiletype);
+            for aon in tdb.db.always_on.iter() {
+                t.cram.set(aon.frame, aon.bit, true);
+            }
+        }
         for (tn, ft) in fasm.tiles.iter() {
             chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
         }
