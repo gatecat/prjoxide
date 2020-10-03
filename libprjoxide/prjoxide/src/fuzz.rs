@@ -247,6 +247,9 @@ impl Fuzzer {
                                         })
                                         .collect()
                                 };
+                                if bits.is_empty() && *skip_fixed {
+                                    continue;
+                                }
                                 // Add the pip to the tile data
                                 let tile_data = self.base.tile_by_name(tile).unwrap();
                                 let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);

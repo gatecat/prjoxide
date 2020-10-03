@@ -35,7 +35,7 @@ def main():
             from_wire, to_wire = pip
             return not ("_CORE" in from_wire or "_CORE" in to_wire or "JCIBMUXOUT" in to_wire)
         def fc_filter(to_wire):
-            return "CIBMUX" in to_wire or "CIBTEST" in to_wire
+            return "CIBMUX" in to_wire or "CIBTEST" in to_wire or to_wire.startswith("R{}C{}_J".format(r, c))
         fuzz_interconnect(config=cfg, nodenames=nodes, regex=True, bidir=True, ignore_tiles=ignore,
             pip_predicate=pip_filter, fc_filter=fc_filter)
         fuzz_interconnect(config=cfg, nodenames=extra_sources, regex=False, bidir=False, ignore_tiles=ignore,
