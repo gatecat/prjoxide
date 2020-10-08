@@ -29,11 +29,9 @@ def main():
                     cm = "CLK:::CLK=#SIG"
                 elif mux == "INV":
                     cm = "CLK:::CLK=#INV"
-                elif mux == "0":
-                    cm = "CONST:::CONST=0"
                 elif mux == "1":
                     cm = "CONST:::CONST=1"
-                elif mux == "OFF":
+                elif mux == "0":
                     cm = "#OFF"
                 elif mux == "DDR":
                     return get_substs(mux="REGDDR:ENABLED")
@@ -73,7 +71,7 @@ def main():
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.REGDDR".format(slicen, r), ["ENABLED", "DISABLED"],
             lambda x: get_ddr_substs(x), False,
             desc="if ENABLED then FFs in SLICE {} are clocked by both edges of the clock".format(h))
-        nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.CLKMUX".format(slicen, r), ["CLK", "INV", "OFF", "DDR"],
+        nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.CLKMUX".format(slicen, r), ["CLK", "INV", "0", "DDR"],
             lambda x: get_clkmux_substs(x), False,
             desc="selects clock polarity")
         nonrouting.fuzz_enum_setting(cfg, empty, "SLICE{}.CEMUX".format(slicen, r), ["CE", "INV"],
