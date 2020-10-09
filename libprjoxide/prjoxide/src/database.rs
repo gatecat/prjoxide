@@ -152,6 +152,25 @@ impl DeviceGlobalsData {
     }
 }
 
+// IO pad pin data
+#[derive(Deserialize, Clone)]
+pub struct PadData {
+    pub bank: i32,
+    pub dqs: Vec<i32>,
+    pub func: Vec<String>,
+    pub offset: i32,
+    pub pins: Vec<String>,
+    pub pio: i32,
+    pub side: String,
+    pub vref: i32,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct DeviceIOData {
+    pub packages: Vec<String>,
+    pub pads: Vec<PadData>
+}
+
 // Tile bit database structures
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -382,6 +401,7 @@ pub struct Database {
     tilegrids: HashMap<(String, String), DeviceTilegrid>,
     baseaddrs: HashMap<(String, String), DeviceBaseAddrs>,
     globals: HashMap<(String, String), DeviceGlobalsData>,
+    iodbs: HashMap<(String, String), DeviceIOData>,
     tilebits: HashMap<(String, String), TileBitsData>,
     ipbits: HashMap<(String, String), TileBitsData>,
 }
@@ -400,6 +420,7 @@ impl Database {
             tilegrids: HashMap::new(),
             baseaddrs: HashMap::new(),
             globals: HashMap::new(),
+            iodbs: HashMap::new(),
             tilebits: HashMap::new(),
             ipbits: HashMap::new(),
         }
@@ -458,7 +479,7 @@ impl Database {
     // Global data for a device by family and name
     pub fn device_globals(&mut self, family: &str, device: &str) -> &DeviceGlobalsData {
         let key = (family.to_string(), device.to_string());
-        if !self.baseaddrs.contains_key(&key) {
+        if !self.globals.contains_key(&key) {
             let mut bs_json_buf = String::new();
             // read the whole file
             File::open(format!("{}/{}/{}/globals.json", self.root, family, device))
@@ -469,6 +490,21 @@ impl Database {
             self.globals.insert(key.clone(), bs);
         }
         self.globals.get(&key).unwrap()
+    }
+    // IO data for a device by family and name
+    pub fn device_iodb(&mut self, family: &str, device: &str) -> &DeviceIOData {
+        let key = (family.to_string(), device.to_string());
+        if !self.iodbs.contains_key(&key) {
+            let mut io_json_buf = String::new();
+            // read the whole file
+            File::open(format!("{}/{}/{}/iodb.json", self.root, family, device))
+                .unwrap()
+                .read_to_string(&mut io_json_buf)
+                .unwrap();
+            let io = serde_json::from_str(&io_json_buf).unwrap();
+            self.iodbs.insert(key.clone(), io);
+        }
+        self.iodbs.get(&key).unwrap()
     }
     // Bit database for a tile by family and tile type
     pub fn tile_bitdb(&mut self, family: &str, tiletype: &str) -> &mut TileBitsData {

@@ -33,38 +33,39 @@ def main():
 			func = splitl[COL_FUNC]
 			io_offset = -1
 			io_side = ''
-			io_spfunc = ''
+			io_spfunc = []
 			io_pio = -1
 			io_dqs = []
-			io_vref = []
+			io_vref = -1
 			if len(func) >= 4 and func[0] == 'P' and func[1] in ('T', 'L', 'R', 'B') and func[-1] in ('A', 'B', 'C', 'D'):
 				# Regular PIO
 				io_offset = int(func[2:-1])
 				io_side = func[1]
-				io_spfunc = splitl[COL_DF]
+				io_spfunc = splitl[COL_DF].split('/')
 				io_pio = "ABCD".index(func[-1])
-				if io_spfunc == '-':
-					io_spfunc = ''
+				if io_spfunc == ['-']:
+					io_spfunc = []
 				io_dqs = splitl[COL_DQS]
 				if io_dqs == "":
 					io_dqs = []
 				elif io_dqs.find("DQSN") == 1:
-					io_dqs = ["DQSN", io_dqs[0], int(io_dqs[5:])]
+					io_dqs = [2, int(io_dqs[5:])]
 				elif io_dqs.find("DQS") == 1:
-					io_dqs = ["DQS", io_dqs[0], int(io_dqs[4:])]
+					io_dqs = [1, int(io_dqs[4:])]
 				elif io_dqs.find("DQ") == 1:
-					io_dqs = ["DQ", io_dqs[0], int(io_dqs[3:])]
+					io_dqs = [0, int(io_dqs[3:])]
 				else:
 					assert False, "bad DQS type"
 
-				for spf in io_spfunc.split('/'):
+				for spf in io_spfunc:
 					if spf.startswith('VREF'):
 						bank, _, ref = spf[4:].partition('_')
-						io_vref = [int(bank), int(ref)]
+						assert int(bank) == int(splitl[COL_BANK])
+						io_vref = int(ref)
 
 			elif func.startswith('ADC_') or func.startswith('DPHY') or func.startswith('SD0') or func.startswith('JTAG_'):
 				# Special IO, that we still want in the db
-				io_spfunc = func
+				io_spfunc = [func, ]
 			else:
 				continue
 			io_bank = int(splitl[COL_BANK]) if splitl[COL_BANK].isdigit() else -1

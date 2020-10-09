@@ -9,6 +9,7 @@ use crate::database::*;
 use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap};
 use std::convert::TryInto;
+use std::iter::FromIterator;
 
 pub struct TileLocation {
     tiletypes: Vec<String>,
@@ -67,12 +68,14 @@ pub struct LocationGrid {
     pub height: usize,
     tiles: Vec<TileLocation>,
     glb: DeviceGlobalsData,
+    iodb: DeviceIOData
 }
 
 impl LocationGrid {
     pub fn new(ch: &Chip, db: &mut Database, tts: &TileTypes) -> LocationGrid {
         let width = ch.data.max_col + 1;
         let height = ch.data.max_row + 1;
+        let iodb = db.device_iodb(&ch.family, &ch.device).clone();
         let globals = db.device_globals(&ch.family, &ch.device);
         let locs = (0..height)
             .cartesian_product(0..width)
@@ -83,6 +86,7 @@ impl LocationGrid {
             height: height as usize,
             tiles: locs,
             glb: globals.clone(),
+            iodb: iodb,
         }
     }
     pub fn get(&self, x: usize, y: usize) -> Option<&TileLocation> {
@@ -274,6 +278,52 @@ impl LocationGrid {
         )?;
         Ok(())
     }
+
+    // Write out the IO data for a chip
+    pub fn write_chip_iodb(&self, out: &mut BBAStructs, device_idx: u32, ids: &mut IdStringDB) -> std::io::Result<()> {
+        for (i, pad) in self.iodb.pads.iter().enumerate() {
+            // List of pad function IdStrings
+            let ids = Vec::from_iter(pad.func.iter().map(|x| ids.id(x).val().try_into().unwrap()));
+            out.id_list(&format!("{}_padfunc_{}", device_idx, i), &ids)?;
+            // List of package pins
+            out.string_list(&format!("{}_pins_{}", device_idx, i), &pad.pins)?;
+        }
+
+        out.list_begin(&format!("{}_pads", device_idx))?;
+
+        for (i, pad) in self.iodb.pads.iter().enumerate() {
+            let side: i8 = match &pad.side[..] {
+                "L" => 0,
+                "R" => 1,
+                "T" => 2,
+                "B" => 3,
+                "" => -1,
+                _ => panic!("unknown IO side {}", &pad.side)
+            };
+            let (dqs_func, dqs_group) = if pad.dqs.is_empty() {
+                (-1, -1)
+            } else {
+                (pad.dqs[0], pad.dqs[1])
+            };
+            out.pad_info(
+                pad.offset,
+                side,
+                pad.pio,
+                pad.bank,
+                dqs_group,
+                dqs_func,
+                pad.vref,
+                pad.func.len(),
+                &format!("{}_padfunc_{}", device_idx, i),
+                &format!("{}_pins_{}", device_idx, i),
+            )?;
+        }
+
+        out.string_list(&format!("d{}_packages", device_idx), &self.iodb.packages)?;
+
+        Ok(())
+    }
+
     // Write out the bba for a chip type
     pub fn write_chip_bba(
         &self,
@@ -288,6 +338,8 @@ impl LocationGrid {
             self.height * self.width,
             &format!("d{}_grid", device_idx),
             &format!("d{}_globals", device_idx),
+            &format!("d{}_pads", device_idx),
+            &format!("d{}_packages", device_idx),
         )?;
         Ok(())
     }

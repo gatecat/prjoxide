@@ -42,6 +42,7 @@ fn main() -> Result<()> {
     let mut bba_s = BBAStructs::new(&mut bba);
     lts.write_locs_bba(&mut bba_s, &mut ids, &tts)?;
     lgrid.write_grid_bba(&mut bba_s, 0, &mut ids, &empty_chip)?;
+    lgrid.write_chip_iodb(&mut bba_s, 0, &mut ids)?;
     bba_s.list_begin("chips")?;
     lgrid.write_chip_bba(&mut bba_s, 0, &empty_chip)?;
     ids.write_bba(&mut bba_s)?;

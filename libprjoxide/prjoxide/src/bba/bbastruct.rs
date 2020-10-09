@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 4;
+pub const BBA_VERSION: u32 = 5;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -156,10 +156,18 @@ impl<'a> BBAStructs<'a> {
         Ok(())
     }
 
-    pub fn idstring_list(&mut self, label: &str, strings: &[String]) -> Result<()> {
+    pub fn string_list(&mut self, label: &str, strings: &[String]) -> Result<()> {
         self.out.label(label)?;
         for id in strings {
             self.out.str_val(&id)?;
+        }
+        Ok(())
+    }
+
+    pub fn id_list(&mut self, label: &str, ids: &[u32]) -> Result<()> {
+        self.out.label(label)?;
+        for id in ids {
+            self.out.u32_val(*id)?;
         }
         Ok(())
     }
@@ -277,22 +285,22 @@ impl<'a> BBAStructs<'a> {
         &mut self,
         offset: i32,
         side: i8,
-        pio_index: i8,
-        bank: i16,
-        dqs_group: i16,
-        dqs_func: i8,
-        vref_index: i8,
+        pio_index: i32,
+        bank: i32,
+        dqs_group: i32,
+        dqs_func: i32,
+        vref_index: i32,
         num_funcs: usize,
         func_str_ref: &str,
         pins_ref: &str
     ) -> Result<()> {
         self.out.i16_val(offset.try_into().unwrap())?;
         self.out.i8_val(side)?;
-        self.out.i8_val(pio_index)?;
-        self.out.i16_val(bank)?;
-        self.out.i16_val(dqs_group)?;
-        self.out.i8_val(dqs_func)?;
-        self.out.i8_val(vref_index)?;
+        self.out.i8_val(pio_index.try_into().unwrap())?;
+        self.out.i16_val(bank.try_into().unwrap())?;
+        self.out.i16_val(dqs_group.try_into().unwrap())?;
+        self.out.i8_val(dqs_func.try_into().unwrap())?;
+        self.out.i8_val(vref_index.try_into().unwrap())?;
         self.out.u16_val(num_funcs.try_into().unwrap())?;
         self.out.u16_val(0)?; // padding
         self.out.ref_label(func_str_ref)?;
@@ -338,6 +346,8 @@ impl<'a> BBAStructs<'a> {
         num_tiles: usize,
         grid_ref: &str,
         globals_ref: &str,
+        pads_ref: &str,
+        pkgs_ref: &str,
     ) -> Result<()> {
         self.out.str_val(device_name)?;
         self.out.u16_val(width.try_into().unwrap())?;
@@ -345,6 +355,8 @@ impl<'a> BBAStructs<'a> {
         self.out.u32_val(num_tiles.try_into().unwrap())?;
         self.out.ref_label(grid_ref)?;
         self.out.ref_label(globals_ref)?;
+        self.out.ref_label(pads_ref)?;
+        self.out.ref_label(pkgs_ref)?;
         Ok(())
     }
 
