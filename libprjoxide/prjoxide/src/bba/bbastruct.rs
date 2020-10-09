@@ -263,6 +263,43 @@ impl<'a> BBAStructs<'a> {
         Ok(())
     }
 
+    pub fn package_info(
+        &mut self,
+        full_name: &str,
+        short_name: &str
+    ) -> Result<()> {
+        self.out.str_val(full_name)?;
+        self.out.str_val(short_name)?;
+        Ok(())
+    }
+
+    pub fn pad_info(
+        &mut self,
+        offset: i32,
+        side: i8,
+        pio_index: i8,
+        bank: i16,
+        dqs_group: i16,
+        dqs_func: i8,
+        vref_index: i8,
+        num_funcs: usize,
+        func_str_ref: &str,
+        pins_ref: &str
+    ) -> Result<()> {
+        self.out.i16_val(offset.try_into().unwrap())?;
+        self.out.i8_val(side)?;
+        self.out.i8_val(pio_index)?;
+        self.out.i16_val(bank)?;
+        self.out.i16_val(dqs_group)?;
+        self.out.i8_val(dqs_func)?;
+        self.out.i8_val(vref_index)?;
+        self.out.u16_val(num_funcs.try_into().unwrap())?;
+        self.out.u16_val(0)?; // padding
+        self.out.ref_label(func_str_ref)?;
+        self.out.ref_label(pins_ref)?;
+        Ok(())
+    }
+
     pub fn global_info(
         &mut self,
         num_branches: usize,

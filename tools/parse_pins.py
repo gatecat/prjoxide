@@ -34,6 +34,7 @@ def main():
 			io_offset = -1
 			io_side = ''
 			io_spfunc = ''
+			io_pio = -1
 			io_dqs = []
 			io_vref = []
 			if len(func) >= 4 and func[0] == 'P' and func[1] in ('T', 'L', 'R', 'B') and func[-1] in ('A', 'B', 'C', 'D'):
@@ -41,6 +42,7 @@ def main():
 				io_offset = int(func[2:-1])
 				io_side = func[1]
 				io_spfunc = splitl[COL_DF]
+				io_pio = "ABCD".index(func[-1])
 				if io_spfunc == '-':
 					io_spfunc = ''
 				io_dqs = splitl[COL_DQS]
@@ -67,7 +69,7 @@ def main():
 				continue
 			io_bank = int(splitl[COL_BANK]) if splitl[COL_BANK].isdigit() else -1
 			io_pins = splitl[COL_PKG_START:]
-			pads.append(dict(side=io_side, offset=io_offset, func=io_spfunc, bank=io_bank, dqs=io_dqs, vref=io_vref, pins=io_pins))
+			pads.append(dict(side=io_side, offset=io_offset, pio=io_pio, func=io_spfunc, bank=io_bank, dqs=io_dqs, vref=io_vref, pins=io_pins))
 	with open(sys.argv[2], "w") as jsf:
 		jsf.write(json.dumps(dict(packages=packages, pads=pads), sort_keys=True, indent=4))
 		jsf.write('\n')
