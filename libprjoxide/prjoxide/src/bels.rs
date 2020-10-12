@@ -477,7 +477,8 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
         | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C" => {
             (0..2).map(Bel::make_seio33).collect()
-        }
+        },
+        "SYSIO_B1_DED" => vec![Bel::make_seio33(1)],
         "SYSIO_B3_0" | "SYSIO_B4_0" | "SYSIO_B5_0" => (0..2).map(Bel::make_seio18).collect(),
         "EFB_1_OSC" => vec![Bel::make_osc_core()],
         "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
@@ -537,16 +538,24 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
 pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
     let tn = tile.name.to_string();
     let rel_tile = |dx, dy, tt| {
-        chip.tile_by_xy_type(tile.x + dx, tile.y + dy, tt).unwrap().tiletype.to_string()
+        chip.tile_by_xy_type(tile.x + dx, tile.y + dy, tt).unwrap().name.to_string()
     };
 
     let rel_tile_prefix = |dx, dy, tt_prefix| {
         for tile in chip.tiles_by_xy(tile.x + dx, tile.y + dy).iter() {
-            if tile.name.starts_with(tt_prefix) {
-                return tile.tiletype.to_string();
+            if tile.tiletype.starts_with(tt_prefix) {
+                return tile.name.to_string();
             }
         }
-        panic!("no tile matched prefix");
+        panic!("no tile matched prefix ({}, {}, {})", tile.x + dx, tile.y + dy, tt_prefix);
+    };
+    let rel_tile_suffix = |dx, dy, tt_suffix| {
+        for tile in chip.tiles_by_xy(tile.x + dx, tile.y + dy).iter() {
+            if tile.tiletype.ends_with(tt_suffix) {
+                return tile.name.to_string();
+            }
+        }
+        panic!("no tile matched suffix ({}, {}, {})", tile.x + dx, tile.y + dy, tt_suffix);
     };
 
     let tt = &tile.tiletype[..];
@@ -563,7 +572,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             0 => vec![rel_tile(0, 0, "EBR_1"), rel_tile(1, 0, "EBR_2")],
             1 => vec![rel_tile(0, 0, "EBR_4"), rel_tile(1, 0, "EBR_5")],
             2 => vec![rel_tile(0, 0, "EBR_7"), rel_tile(1, 0, "EBR_8")],
-            3 => vec![rel_tile(0, 0, "EBR_9"), rel_tile(1, 0, "EBR_10")],
+            3 => vec![rel_tile(0, 0, "EBR_9"), rel_tile_suffix(1, 0, "EBR_10")],
             _ => panic!("unknown EBR z-index")
         }
         _ => vec![tn]

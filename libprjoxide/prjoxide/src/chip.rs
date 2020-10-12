@@ -1,5 +1,6 @@
 use crate::database::*;
 use crate::fasmparse::*;
+use crate::bels::*;
 use multimap::MultiMap;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
@@ -106,6 +107,8 @@ pub struct Chip {
     // Fast references to tiles
     tiles_by_name: HashMap<String, usize>,
     tiles_by_loc: MultiMap<(u32, u32), usize>,
+    // Groups of tiles for bitgen purposes
+    pub tilegroups: HashMap<String, Vec<String>>,
     // Metadata (comment strings in bitstream)
     pub metadata: Vec<String>,
 }
@@ -129,6 +132,7 @@ impl Chip {
             ipconfig: BTreeMap::new(),
             tiles_by_name: HashMap::new(),
             tiles_by_loc: MultiMap::new(),
+            tilegroups: HashMap::new(),
             metadata: Vec::new(),
         };
         c.tiles_by_name = c
@@ -172,6 +176,7 @@ impl Chip {
                 Chip::from_name(db, name)
             }
         };
+        chip.create_tilegroups(db);
         chip.metadata.extend(
             fasm.attrs
                 .iter()
@@ -185,7 +190,12 @@ impl Chip {
             }
         }
         for (tn, ft) in fasm.tiles.iter() {
-            chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
+            // Might be a tilegroup or single tile
+            if chip.tilegroups.contains_key(tn) {
+                chip.apply_tilegroup(tn, db, ft);
+            } else {
+                chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
+            }
         }
         chip.tiles_to_cram();
         return chip;
@@ -317,6 +327,91 @@ impl Chip {
             format!("UWG{}", &long_name[5..])
         } else {
             panic!("unknown package name {}", &long_name);
+        }
+    }
+    // Set up tile groups
+    pub fn create_tilegroups(&mut self, db: &mut Database) {
+        // Create tilegroups for all bels
+        for t in self.tiles.iter() {
+            let bels = get_tile_bels(&t.tiletype, &db.tile_bitdb(&self.family, &t.tiletype).db);
+            for bel in bels {
+                let bel_name = format!("R{}C{}_{}", (t.y as i32) + bel.rel_y, (t.x as i32) + bel.rel_x, bel.name);
+                let bel_tiles = get_bel_tiles(&self, t, &bel);
+                self.tilegroups.insert(bel_name, bel_tiles);
+            }
+        }
+        // Create a tilegroup for chipwide settings
+        // It will contain every tile other than logic and basic interconnect
+        let global_tiles : Vec::<String> = self.tiles.iter().filter(|x| x.tiletype != "PLC" && x.tiletype != "CIB").map(|x| x.name.to_string()).collect();
+        self.tilegroups.insert("GLOBAL".to_string(), global_tiles);
+    }
+    // Apply a tilegroup to all tiles within it
+    // This sets applicable words and enums to all tiles that match inside the tilegroup
+    pub fn apply_tilegroup(&mut self, group: &str, db: &mut Database, ft: &FasmTile) {
+        let tg = self.tilegroups.get(group).unwrap_or_else(|| panic!("No tilegroup named {}", group)).clone();
+        let tdbs : Vec<TileBitsDatabase> = tg.iter().map(|x| db.tile_bitdb(&self.family, &self.tile_by_name(x).unwrap().tiletype).db.clone()).collect();
+        for i in 0..2 {
+            // Process "BASE_" enums first
+            for (k, v) in ft
+                .enums
+                .iter()
+                .filter(|(k, _)| k.starts_with("BASE_") == (i == 0) && !k.starts_with("UNKNOWN."))
+            {
+                let mut found = false;
+                for (tile, tdb) in tg.iter().zip(tdbs.iter()) {
+                    match tdb.enums.get(k) {
+                        Some(en) => {
+                            let opt = en.options.get(v).unwrap_or_else(|| panic!("No option named {} for enum {} in tile {}.\n\
+Valid options are: {}\n\
+Please make sure Oxide and nextpnr are up to date and input source code is meaningful. If they are, consider reporting this as an issue.",
+                                        v, k, &tile,
+                                        en.options.keys().cloned().collect::<Vec<String>>().join(", ")));
+                            let tiledata = self.tile_by_name_mut(&tile).unwrap();
+                            for bit in opt.iter() {
+                                tiledata.cram.set(bit.frame, bit.bit, !bit.invert);
+                            }
+                            found = true;
+                        }
+                        None => {}
+                    }
+                }
+                if !found {
+                    panic!("No enum named {} in tilegroup {}.\n\
+Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, group);
+                }
+            }
+        }
+        // Process words
+        for (k, v) in ft.words.iter() {
+            let mut found = false;
+            for (tile, tdb) in tg.iter().zip(tdbs.iter()) {
+                match tdb.words.get(k) {
+                    Some(w) => {
+                        if (v.significant_bits() as usize) > w.bits.len() {
+                            panic!(
+                                "Word {} in tile {} has value width {} exceeding database width of {}",
+                                k,
+                                &tile,
+                                v.significant_bits(),
+                                w.bits.len()
+                            );
+                        }
+                        let tiledata = self.tile_by_name_mut(&tile).unwrap();
+                        for (i, wb) in w.bits.iter().enumerate() {
+                            let bit_val = v.get_bit(i as u32);
+                            for bit in wb {
+                                tiledata.cram.set(bit.frame, bit.bit, bit.invert != bit_val);
+                            }
+                        }
+                        found = true;
+                    }
+                    None => {}
+                }
+            }
+            if !found {
+                panic!("No word named {} in tilegroup {}.\n\
+Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, group);
+            }
         }
     }
 }
