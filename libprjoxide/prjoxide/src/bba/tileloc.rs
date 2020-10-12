@@ -289,7 +289,7 @@ impl LocationGrid {
             out.string_list(&format!("{}_pins_{}", device_idx, i), &pad.pins)?;
         }
 
-        out.list_begin(&format!("{}_pads", device_idx))?;
+        out.list_begin(&format!("d{}_pads", device_idx))?;
 
         for (i, pad) in self.iodb.pads.iter().enumerate() {
             let side: i8 = match &pad.side[..] {
@@ -319,7 +319,10 @@ impl LocationGrid {
             )?;
         }
 
-        out.string_list(&format!("d{}_packages", device_idx), &self.iodb.packages)?;
+        out.list_begin(&format!("d{}_packages", device_idx))?;
+        for package in self.iodb.packages.iter() {
+            out.package_info(package, &Chip::get_package_short_name(package))?;
+        }
 
         Ok(())
     }
@@ -336,6 +339,8 @@ impl LocationGrid {
             self.width,
             self.height,
             self.height * self.width,
+            self.iodb.pads.len(),
+            self.iodb.packages.len(),
             &format!("d{}_grid", device_idx),
             &format!("d{}_globals", device_idx),
             &format!("d{}_pads", device_idx),

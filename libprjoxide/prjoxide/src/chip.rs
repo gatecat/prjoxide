@@ -303,6 +303,22 @@ impl Chip {
             ),
         }
     }
+    // Convert a long package name to a short one
+    pub fn get_package_short_name(long_name: &str) -> String {
+        if long_name.starts_with("CABGA") {
+            format!("BG{}", &long_name[5..])
+        } else if long_name.starts_with("CSBGA") {
+            format!("MG{}", &long_name[5..])
+        } else if long_name.starts_with("CSFBGA") {
+            format!("MG{}", &long_name[6..])
+        } else if long_name.starts_with("QFN") {
+            format!("SG{}", &long_name[3..])
+        } else if long_name.starts_with("WLCSP") {
+            format!("UWG{}", &long_name[5..])
+        } else {
+            panic!("unknown package name {}", &long_name);
+        }
+    }
 }
 
 // Actual instance of a tile

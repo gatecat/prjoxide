@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 5;
+pub const BBA_VERSION: u32 = 6;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -344,6 +344,8 @@ impl<'a> BBAStructs<'a> {
         width: usize,
         height: usize,
         num_tiles: usize,
+        num_pads: usize,
+        num_pkgs: usize,
         grid_ref: &str,
         globals_ref: &str,
         pads_ref: &str,
@@ -353,6 +355,8 @@ impl<'a> BBAStructs<'a> {
         self.out.u16_val(width.try_into().unwrap())?;
         self.out.u16_val(height.try_into().unwrap())?;
         self.out.u32_val(num_tiles.try_into().unwrap())?;
+        self.out.u32_val(num_pads.try_into().unwrap())?;
+        self.out.u32_val(num_pkgs.try_into().unwrap())?;
         self.out.ref_label(grid_ref)?;
         self.out.ref_label(globals_ref)?;
         self.out.ref_label(pads_ref)?;
