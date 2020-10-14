@@ -451,6 +451,30 @@ impl Bel {
             z: z as u32,
         }
     }
+
+    pub fn make_dcc(side: &str, z: usize) -> Bel {
+        let postfix = format!("DCC_DCC{}", z);
+        let rel_x = match side {
+            "R" => -1,
+            _ => 0,
+        };
+        let rel_y = match side {
+            "C" => -1,
+            _ => 0,
+        };
+        Bel {
+            name: format!("DCC_{}{}", side, z),
+            beltype: format!("DCC"),
+            pins: vec![
+                input!(&postfix, "CLKI", "DCC clock input"),
+                input!(&postfix, "CE", "DCC clock enable"),
+                output!(&postfix, "CLKO", "DCC clock output"),
+            ],
+            rel_x: rel_x,
+            rel_y: rel_y,
+            z: z as u32,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
@@ -530,6 +554,11 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             Bel::make_dsp(&tiledata, "ACC54_1", "ACC54_CORE", 0, -1, 5),
             Bel::make_dsp(&tiledata, "MULT36", "MULT36_CORE", 0, -1, 6),
         ],
+        "LMID" => (0..12).map(|x| Bel::make_dcc("L", x)).collect(),
+        "RMID_DLY20" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
+        "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),
+        "BMID_0_ECLK_1" => (0..18).map(|x| Bel::make_dcc("B", x)).collect(),
+        "CMUX_0" => (0..4).map(|x| Bel::make_dcc("C", x)).collect(),
         _ => vec![],
     }
 }
