@@ -401,7 +401,8 @@ impl TileBitsData {
 }
 
 pub struct Database {
-    root: String,
+    root: Option<String>,
+    builtin: Option<include_dir::Dir<'static>>,
     devices: DevicesDatabase,
     tilegrids: HashMap<(String, String), DeviceTilegrid>,
     baseaddrs: HashMap<(String, String), DeviceBaseAddrs>,
@@ -420,7 +421,8 @@ impl Database {
             .read_to_string(&mut devices_json_buf)
             .unwrap();
         Database {
-            root: root.to_string(),
+            root: Some(root.to_string()),
+            builtin: None,
             devices: serde_json::from_str(&devices_json_buf).unwrap(),
             tilegrids: HashMap::new(),
             baseaddrs: HashMap::new(),
@@ -428,6 +430,44 @@ impl Database {
             iodbs: HashMap::new(),
             tilebits: HashMap::new(),
             ipbits: HashMap::new(),
+        }
+    }
+    pub fn new_builtin(data: include_dir::Dir<'static>) -> Database {
+        let devices_json_buf = data.get_file("devices.json").unwrap().contents_utf8().unwrap();
+        Database {
+            root: None,
+            builtin: Some(data),
+            devices: serde_json::from_str(&devices_json_buf).unwrap(),
+            tilegrids: HashMap::new(),
+            baseaddrs: HashMap::new(),
+            globals: HashMap::new(),
+            iodbs: HashMap::new(),
+            tilebits: HashMap::new(),
+            ipbits: HashMap::new(),
+        }
+    }
+    // Check if a file exists
+    pub fn file_exists(&self, path: &str) -> bool {
+        match &self.root {
+            Some(r) => {
+                Path::new(&format!("{}/{}", r, path)).exists()
+            }
+            None => {
+                self.builtin.unwrap().get_file(path).is_some()
+            }
+        }
+    }
+    // Get the content of a file
+    pub fn read_file(&self, path: &str) -> String {
+        match &self.root {
+            Some(r) => {
+                let mut buf = String::new();
+                File::open(format!("{}/{}", r, path)).unwrap().read_to_string(&mut buf).unwrap();
+                buf
+            }
+            None => {
+                self.builtin.unwrap().get_file(path).unwrap().contents_utf8().unwrap().to_string()
+            }
         }
     }
     // Both functions return a (family, name, data) 3-tuple
@@ -457,12 +497,7 @@ impl Database {
     pub fn device_tilegrid(&mut self, family: &str, device: &str) -> &DeviceTilegrid {
         let key = (family.to_string(), device.to_string());
         if !self.tilegrids.contains_key(&key) {
-            let mut tg_json_buf = String::new();
-            // read the whole file
-            File::open(format!("{}/{}/{}/tilegrid.json", self.root, family, device))
-                .unwrap()
-                .read_to_string(&mut tg_json_buf)
-                .unwrap();
+            let tg_json_buf = self.read_file(&format!("{}/{}/tilegrid.json", family, device));
             let tg = serde_json::from_str(&tg_json_buf).unwrap();
             self.tilegrids.insert(key.clone(), tg);
         }
@@ -472,12 +507,7 @@ impl Database {
     pub fn device_baseaddrs(&mut self, family: &str, device: &str) -> &DeviceBaseAddrs {
         let key = (family.to_string(), device.to_string());
         if !self.baseaddrs.contains_key(&key) {
-            let mut bs_json_buf = String::new();
-            // read the whole file
-            File::open(format!("{}/{}/{}/baseaddr.json", self.root, family, device))
-                .unwrap()
-                .read_to_string(&mut bs_json_buf)
-                .unwrap();
+            let bs_json_buf = self.read_file(&format!("{}/{}/baseaddr.json", family, device));
             let bs = serde_json::from_str(&bs_json_buf).unwrap();
             self.baseaddrs.insert(key.clone(), bs);
         }
@@ -487,12 +517,7 @@ impl Database {
     pub fn device_globals(&mut self, family: &str, device: &str) -> &DeviceGlobalsData {
         let key = (family.to_string(), device.to_string());
         if !self.globals.contains_key(&key) {
-            let mut bs_json_buf = String::new();
-            // read the whole file
-            File::open(format!("{}/{}/{}/globals.json", self.root, family, device))
-                .unwrap()
-                .read_to_string(&mut bs_json_buf)
-                .unwrap();
+            let bs_json_buf = self.read_file(&format!("{}/{}/globals.json", family, device));
             let bs = serde_json::from_str(&bs_json_buf).unwrap();
             self.globals.insert(key.clone(), bs);
         }
@@ -502,12 +527,7 @@ impl Database {
     pub fn device_iodb(&mut self, family: &str, device: &str) -> &DeviceIOData {
         let key = (family.to_string(), device.to_string());
         if !self.iodbs.contains_key(&key) {
-            let mut io_json_buf = String::new();
-            // read the whole file
-            File::open(format!("{}/{}/{}/iodb.json", self.root, family, device))
-                .unwrap()
-                .read_to_string(&mut io_json_buf)
-                .unwrap();
+            let io_json_buf = self.read_file(&format!("{}/{}/iodb.json", family, device));
             let io = serde_json::from_str(&io_json_buf).unwrap();
             self.iodbs.insert(key.clone(), io);
         }
@@ -518,13 +538,9 @@ impl Database {
         let key = (family.to_string(), tiletype.to_string());
         if !self.tilebits.contains_key(&key) {
             // read the whole file
-            let filename = format!("{}/{}/tiletypes/{}.ron", self.root, family, tiletype);
-            let tb = if Path::new(&filename).exists() {
-                let mut tt_ron_buf = String::new();
-                File::open(filename)
-                    .unwrap()
-                    .read_to_string(&mut tt_ron_buf)
-                    .unwrap();
+            let filename = format!("{}/tiletypes/{}.ron", family, tiletype);
+            let tb = if self.file_exists(&filename) {
+                let tt_ron_buf = self.read_file(&filename);
                 ron::de::from_str(&tt_ron_buf).unwrap()
             } else {
                 TileBitsDatabase {
@@ -545,13 +561,9 @@ impl Database {
         let key = (family.to_string(), iptype.to_string());
         if !self.ipbits.contains_key(&key) {
             // read the whole file
-            let filename = format!("{}/{}/iptypes/{}.ron", self.root, family, iptype);
-            let tb = if Path::new(&filename).exists() {
-                let mut tt_ron_buf = String::new();
-                File::open(filename)
-                    .unwrap()
-                    .read_to_string(&mut tt_ron_buf)
-                    .unwrap();
+            let filename = format!("{}/iptypes/{}.ron", family, iptype);
+            let tb = if self.file_exists(&filename) {
+                let tt_ron_buf = self.read_file(&filename);
                 ron::de::from_str(&tt_ron_buf).unwrap()
             } else {
                 TileBitsDatabase {
@@ -585,7 +597,7 @@ impl Database {
             let tt_ron_buf = ron::ser::to_string_pretty(&tilebits.db, pretty).unwrap();
             File::create(format!(
                 "{}/{}/tiletypes/{}.ron",
-                self.root, family, tiletype
+                self.root.as_ref().unwrap(), family, tiletype
             ))
             .unwrap()
             .write_all(tt_ron_buf.as_bytes())
@@ -610,7 +622,7 @@ impl Database {
                 separate_tuple_members: false,
             };
             let tt_ron_buf = ron::ser::to_string_pretty(&ipbits.db, pretty).unwrap();
-            File::create(format!("{}/{}/iptypes/{}.ron", self.root, family, iptype))
+            File::create(format!("{}/{}/iptypes/{}.ron", self.root.as_ref().unwrap(), family, iptype))
                 .unwrap()
                 .write_all(tt_ron_buf.as_bytes())
                 .unwrap();
