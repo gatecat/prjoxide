@@ -116,7 +116,7 @@ impl BitstreamParser {
         // IDCODE check
         b.write_byte(VERIFY_ID);
         b.write_zeros(3);
-        b.write_u32(ch.data.idcode);
+        b.write_u32(ch.get_idcode());
         // Set CTRL0
         let ctrl0 = 0x00000000;
         b.write_byte(LSC_PROG_CNTRL0);

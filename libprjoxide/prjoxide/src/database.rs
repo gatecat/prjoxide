@@ -18,9 +18,13 @@ pub struct FamilyData {
 }
 
 #[derive(Deserialize, Clone)]
+pub struct DeviceVariantData {
+    pub idcode: u32,
+}
+
+#[derive(Deserialize, Clone)]
 pub struct DeviceData {
     pub packages: Vec<String>,
-    pub idcode: u32,
     pub frames: usize,
     pub bits_per_frame: usize,
     pub pad_bits_after_frame: usize,
@@ -30,6 +34,7 @@ pub struct DeviceData {
     pub max_col: u32,
     pub col_bias: u32,
     pub fuzz: bool,
+    pub variants: BTreeMap<String, DeviceVariantData>,
 }
 
 // Deserialization of 'tilegrid.json'
@@ -436,11 +441,13 @@ impl Database {
         }
         None
     }
-    pub fn device_by_idcode(&self, idcode: u32) -> Option<(String, String, DeviceData)> {
+    pub fn device_by_idcode(&self, idcode: u32) -> Option<(String, String, String, DeviceData)> {
         for (f, fd) in self.devices.families.iter() {
             for (d, data) in fd.devices.iter() {
-                if data.idcode == idcode {
-                    return Some((f.to_string(), d.to_string(), data.clone()));
+                for (v, var_data) in data.variants.iter() {
+                    if var_data.idcode == idcode {
+                        return Some((f.to_string(), d.to_string(), v.to_string(), data.clone()));
+                    }
                 }
             }
         }

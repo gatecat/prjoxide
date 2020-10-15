@@ -17,6 +17,7 @@ fn main() -> Result<()> {
     let mut outfile = File::create(&args[2])?;
 
     writeln!(outfile, "{{ oxide.device=\"{}\" }}", chip.device)?;
+    writeln!(outfile, "{{ oxide.device_variant=\"{}\" }}", chip.variant)?;
     writeln!(outfile, "")?;
 
     for metadata in chip.metadata.iter() {

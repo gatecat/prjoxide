@@ -96,6 +96,8 @@ pub struct Chip {
     pub family: String,
     // Device name
     pub device: String,
+    // Variant name
+    pub variant: String,
     // Device data
     pub data: DeviceData,
     // Entire main bitstream content
@@ -118,10 +120,11 @@ pub type ChipDelta = BTreeMap<String, Vec<(usize, usize, bool)>>;
 pub type IPDelta = Vec<(u32, u8, bool)>;
 
 impl Chip {
-    pub fn new(family: &str, device: &str, data: &DeviceData, tiles: &DeviceTilegrid) -> Chip {
+    pub fn new(family: &str, device: &str, variant: &str,  data: &DeviceData, tiles: &DeviceTilegrid) -> Chip {
         let mut c = Chip {
             family: family.to_string(),
             device: device.to_string(),
+            variant: variant.to_string(),
             data: data.clone(),
             cram: BitMatrix::new(data.frames, data.bits_per_frame),
             tiles: tiles
@@ -151,17 +154,23 @@ impl Chip {
     }
     // Create a new chip from the database based on IDCODE or name
     pub fn from_idcode(db: &mut Database, idcode: u32) -> Chip {
-        let (fam, device, data) = db.device_by_idcode(idcode).expect(&format!(
+        let (fam, device, variant, data) = db.device_by_idcode(idcode).expect(&format!(
             "no device in database with IDCODE {:08x}\n",
             idcode
         ));
-        Chip::new(&fam, &device, &data, db.device_tilegrid(&fam, &device))
+        Chip::new(&fam, &device, &variant, &data, db.device_tilegrid(&fam, &device))
     }
     pub fn from_name(db: &mut Database, name: &str) -> Chip {
         let (fam, device, data) = db
             .device_by_name(name)
             .expect(&format!("no device in database with name {}\n", name));
-        Chip::new(&fam, &device, &data, db.device_tilegrid(&fam, &device))
+        Chip::new(&fam, &device, "", &data, db.device_tilegrid(&fam, &device))
+    }
+    pub fn from_name_variant(db: &mut Database, name: &str, variant: &str) -> Chip {
+        let (fam, device, data) = db
+            .device_by_name(name)
+            .expect(&format!("no device in database with name {}\n", name));
+        Chip::new(&fam, &device, variant, &data, db.device_tilegrid(&fam, &device))
     }
     pub fn from_fasm(db: &mut Database, fasm: &ParsedFasm, device: Option<&str>) -> Chip {
         let mut chip = match device {
@@ -173,7 +182,14 @@ impl Chip {
                     .find(|(k, _)| k == "oxide.device")
                     .unwrap()
                     .1;
-                Chip::from_name(db, name)
+                let default_variant = ("".to_string(), "".to_string());
+                let variant = &fasm
+                    .attrs
+                    .iter()
+                    .find(|(k, _)| k == "oxide.device_variant")
+                    .unwrap_or(&default_variant)
+                    .1;
+                Chip::from_name_variant(db, name, variant)
             }
         };
         chip.create_tilegroups(db);
@@ -413,6 +429,11 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
 Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, group);
             }
         }
+    }
+    // Lookup idcode
+    pub fn get_idcode(&self) -> u32 {
+        self.data.variants.get(&self.variant).unwrap_or_else(|| panic!("Chip {} has no variant named {}",
+            self.device, self.variant)).idcode
     }
 }
 
