@@ -1,5 +1,6 @@
 use crate::chip::*;
 use crate::database::TileBitsDatabase;
+use std::convert::TryInto;
 
 // A reference to a wire in a relatively located tile
 #[derive(Clone)]
@@ -207,11 +208,12 @@ impl Bel {
         for sink_wire in db.get_sink_wires() {
             add_wire(&sink_wire, PinDir::INPUT);
         }
-
+/*
+        *** temporarily disabled check due to missing DSP wires
         if pins.is_empty() {
             panic!("no IO pins found for postfix {}, prefix {}", postfix, prefix);
         }
-
+*/
         return pins;
     }
 
@@ -509,21 +511,21 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
         "EBR_7" => vec![Bel::make_ebr(&tiledata, 2)],
         "EBR_9" => vec![Bel::make_ebr(&tiledata, 3)],
-        "DSP_R_1" => vec![
+        "DSP_R_1" | "DSP_L_0" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L0", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H0", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L0", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H0", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_0", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_2" => vec![
+        "DSP_R_2" | "DSP_L_1" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L1", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H1", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L1", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H1", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_1", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_3" => vec![
+        "DSP_R_3" | "DSP_L_2" => vec![
             Bel::make_dsp(&tiledata, "REG18_L0_0", "REG18_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "REG18_L0_1", "REG18_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "REG18_L1_0", "REG18_CORE", 0, -1, 2),
@@ -531,21 +533,21 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             Bel::make_dsp(&tiledata, "MULT18X36_0", "MULT18X36_CORE", 0, -1, 4),
             Bel::make_dsp(&tiledata, "ACC54_0", "ACC54_CORE", 0, -1, 5),
         ],
-        "DSP_R_5" => vec![
+        "DSP_R_5" | "DSP_L_4" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L2", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H2", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L2", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H2", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_2", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_6" => vec![
+        "DSP_R_6" | "DSP_L_5" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L3", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H3", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L3", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H3", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_3", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_7" => vec![
+        "DSP_R_7" | "DSP_L_6" => vec![
             Bel::make_dsp(&tiledata, "REG18_H0_0", "REG18_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "REG18_H0_1", "REG18_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "REG18_H1_0", "REG18_CORE", 0, -1, 2),
@@ -566,8 +568,9 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
 // Get the tiles that a bel's configuration might be split across
 pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
     let tn = tile.name.to_string();
-    let rel_tile = |dx, dy, tt| {
-        chip.tile_by_xy_type(tile.x + dx, tile.y + dy, tt).unwrap().name.to_string()
+    let rel_tile = |dx: i32, dy: i32, tt: &str| {
+        chip.tile_by_xy_type((tile.x as i32 + dx).try_into().unwrap(),
+            (tile.y as i32 + dy).try_into().unwrap(), tt.clone()).unwrap().name.to_string()
     };
 
     let rel_tile_prefix = |dx, dy, tt_prefix| {
@@ -603,6 +606,16 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             2 => vec![rel_tile(0, 0, "EBR_7"), rel_tile(1, 0, "EBR_8")],
             3 => vec![rel_tile(0, 0, "EBR_9"), rel_tile_suffix(1, 0, "EBR_10")],
             _ => panic!("unknown EBR z-index")
+        }
+        "PREADD9_CORE" | "MULT9_CORE" | "MULT18_CORE" | "REG18_CORE" |
+        "MULT18X36_CORE" | "MULT36_CORE" | "ACC54_CORE" => {
+            let split_tile: Vec<&str> = tile.tiletype.split('_').collect();
+            let offset = split_tile[2].parse::<i32>().unwrap();
+            match split_tile[1] {
+                "L" => (0..11).map(|x| rel_tile(x - offset, 0, &format!("DSP_L_{}", x))).collect(),
+                "R" => (1..12).map(|x| rel_tile(x - offset, 0, &format!("DSP_R_{}", x))).collect(),
+                _ => panic!("bad DSP tile {}", &tile.tiletype)
+            }
         }
         _ => vec![tn]
     }
