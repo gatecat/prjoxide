@@ -287,8 +287,8 @@ impl Bel {
                 input!(&postfix, "WAD3", "LUTRAM write address 3 (from RAMW)"),
                 input_m!(
                     &postfix,
-                    "WD",
-                    &format!("WD{}", lut),
+                    "WDI",
+                    &format!("WDI{}", lut),
                     "LUTRAM write data (from RAMW)"
                 ),
                 input!(&postfix, "WCK", "LUTRAM write clock (from RAMW)"),
