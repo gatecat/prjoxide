@@ -352,11 +352,11 @@ impl Chip {
     // Get the base address for an IP
     pub fn get_ip_baseaddr(&self, db: &mut Database, ip: &str) -> u32 {
         let baseaddrs = db.device_baseaddrs(&self.family, &self.device);
-        if ip.starts_with("BRAM_WID") {
+        if ip.starts_with("EBR_WID") {
             // Special case as we don't want to fill up the DB with 2048 entries
-            let base = baseaddrs.regions.get("BRAM_WID0").unwrap().addr;
-            let offset = baseaddrs.regions.get("BRAM_WID1").unwrap().addr - base;
-            let wid = ip[8..].parse::<u32>().unwrap();
+            let base = baseaddrs.regions.get("EBR_WID0").unwrap().addr;
+            let offset = baseaddrs.regions.get("EBR_WID1").unwrap().addr - base;
+            let wid = ip[7..].parse::<u32>().unwrap();
             return base + wid * offset;
         } else {
             return baseaddrs.regions.get(ip).unwrap_or_else(|| panic!("no IP named {}", ip)).addr;

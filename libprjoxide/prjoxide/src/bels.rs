@@ -471,7 +471,7 @@ impl Bel {
 
     pub fn make_ebr(tiledata: &TileBitsDatabase, z: usize) -> Bel {
         Bel {
-            name: format!("EBR_CORE"),
+            name: format!("EBR{}", z),
             beltype: format!("OXIDE_EBR"),
             pins: Bel::get_io(&tiledata, "_EBR_CORE", -1, -1),
             rel_x: -1,
