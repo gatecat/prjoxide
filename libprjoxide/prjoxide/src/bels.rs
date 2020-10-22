@@ -416,6 +416,43 @@ impl Bel {
         }
     }
 
+    pub fn make_diffio18() -> Bel {
+        let postfix = format!("DIFFIO18_CORE_IOA");
+        Bel {
+            name: format!("DIFFIO18"),
+            beltype: String::from("DIFFIO18_CORE"),
+            pins: vec![
+                inout_m!(&postfix, "B", "IOPAD", "top level pad signal"),
+                input_m!(
+                    &postfix,
+                    "I",
+                    "PADDO",
+                    "output buffer input from fabric/IOLOGIC"
+                ),
+                input_m!(
+                    &postfix,
+                    "T",
+                    "PADDT",
+                    "output buffer tristate (0=driven, 1=hi-z)"
+                ),
+                output_m!(
+                    &postfix,
+                    "O",
+                    "PADDI",
+                    "input buffer output to fabric/IOLOGIC"
+                ),
+                input!(&postfix, "DOLP", "DPHY LP mode output buffer input"),
+                input!(&postfix, "HSRXEN", "DPHY high-speed receiver enable"),
+                input!(&postfix, "HSTXEN", "DPHY high-speed transmitter enable"),
+                output!(&postfix, "INLP", "DPHY LP mode input buffer output"),
+                output!(&postfix, "INADC", "analog signal out to ADC"),
+            ],
+            rel_x: 0,
+            rel_y: 0,
+            z: 2,
+        }
+    }
+
     pub fn make_osc_core() -> Bel {
         let postfix = format!("OSC_CORE");
         Bel {
@@ -505,7 +542,9 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             (0..2).map(Bel::make_seio33).collect()
         },
         "SYSIO_B1_DED" => vec![Bel::make_seio33(1)],
-        "SYSIO_B3_0" | "SYSIO_B4_0" | "SYSIO_B5_0" => (0..2).map(Bel::make_seio18).collect(),
+        "SYSIO_B3_0" | "SYSIO_B3_0_DLY30_V18" | "SYSIO_B3_0_DQS1" | "SYSIO_B3_0_DQS3"
+        | "SYSIO_B4_0" | "SYSIO_B4_0_DQS1" | "SYSIO_B4_0_DQS3" | "SYSIO_B4_0_DLY50" | "SYSIO_B4_0_DLY42"
+        |  "SYSIO_B5_0" => vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18()],
         "EFB_1_OSC" => vec![Bel::make_osc_core()],
         "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
