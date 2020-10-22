@@ -140,6 +140,8 @@ impl BitstreamParser {
         b.write_zeros(2);
         b.write_byte(0x01);
         b.write_padding(12);
+        // Write IP config
+        b.write_ip_config(ch);
         // Write usercode
         b.write_byte(ISC_PROGRAM_USERCODE);
         b.write_byte(0x80); // CRC check enable flag
@@ -314,6 +316,51 @@ impl BitstreamParser {
             self.write_bytes(&frame_bytes);
             self.insert_crc();
             self.write_byte(0xFF);
+        }
+    }
+    fn write_ip_config(&mut self, c: &Chip) {
+        // Create continguous chunks
+        let mut last_addr = None;
+        let mut curr_chunk : Option<(u32, Vec<u8>)> = None;
+        let mut chunks = Vec::new();
+        for (&addr, &val) in c.ipconfig.iter() {
+            if last_addr.is_none() || (last_addr.unwrap() + 1 != addr)
+                || (curr_chunk.is_some() && curr_chunk.as_ref().unwrap().1.len() >= 65536) {
+                // All cases where we start a new chunk
+                if curr_chunk.is_some() {
+                    chunks.push(curr_chunk.unwrap());
+                }
+                curr_chunk = Some((addr, Vec::new()));
+            }
+            curr_chunk.as_mut().unwrap().1.push(val);
+            last_addr = Some(addr);
+        }
+        if curr_chunk.is_some() {
+            chunks.push(curr_chunk.unwrap());
+        }
+        // Write out chunks
+        for (start, bytes) in chunks {
+            // Write address
+            self.write_byte(LSC_BUS_ADDRESS);
+            self.write_zeros(3);
+            self.write_u32(start);
+            // Padding
+            self.write_padding(9);
+            // Write data
+            let frame_size = c.get_bus_frame_size(start);
+            let frame_count = (bytes.len() + frame_size - 1) / frame_size;
+            self.write_byte(LSC_BUS_WRITE);
+            self.write_byte(0xD0); // check CRC
+            self.write_u16(frame_count.try_into().unwrap());
+            let total_bytes = frame_size * frame_count;
+            for i in 0..total_bytes {
+                if i <  bytes.len() {
+                    self.write_byte(bytes[i]);
+                } else {
+                    self.write_byte(0x00);
+                }
+            }
+            self.insert_crc();
         }
     }
     // "Push out" last 16 bits to get final crc16

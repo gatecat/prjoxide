@@ -87,7 +87,7 @@ impl Unpack {
         }
 
         for (addr, val) in chip.ipconfig.iter() {
-            writeln!(outfile, "IP.0x{:08X}[7:0] = 8'h{:02X};", addr, val)?;
+            writeln!(outfile, "IP_UNKNOWN.0x{:08X}[7:0] = 8'h{:02X};", addr, val)?;
         }
 
         Ok(())

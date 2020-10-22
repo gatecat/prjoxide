@@ -207,7 +207,11 @@ impl Chip {
         }
         for (tn, ft) in fasm.tiles.iter() {
             // Might be a tilegroup or single tile
-            if chip.tilegroups.contains_key(tn) {
+            if tn.starts_with("IP_") {
+                // IP configuration space
+                let ip_name = &tn[3..];
+                chip.configure_ip(ip_name, db, ft);
+            } else if chip.tilegroups.contains_key(tn) {
                 chip.apply_tilegroup(tn, db, ft);
             } else {
                 chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
@@ -345,6 +349,28 @@ impl Chip {
             panic!("unknown package name {}", &long_name);
         }
     }
+    // Get the base address for an IP
+    pub fn get_ip_baseaddr(&self, db: &mut Database, ip: &str) -> u32 {
+        let baseaddrs = db.device_baseaddrs(&self.family, &self.device);
+        if ip.starts_with("BRAM_WID") {
+            // Special case as we don't want to fill up the DB with 2048 entries
+            let base = baseaddrs.regions.get("BRAM_WID0").unwrap().addr;
+            let offset = baseaddrs.regions.get("BRAM_WID1").unwrap().addr - base;
+            let wid = ip[8..].parse::<u32>().unwrap();
+            return base + wid * offset;
+        } else {
+            return baseaddrs.regions.get(ip).unwrap_or_else(|| panic!("no IP named {}", ip)).addr;
+        }
+    }
+    // Sets an IP bit
+    pub fn set_ip_bit(&mut self, offset: u32, word: u32, bit: u32, value: bool) {
+        let byte = self.ipconfig.entry(offset + word).or_insert(0);
+        if value {
+            *byte |= 1 << bit;
+        } else {
+            *byte &= !(1 << bit);
+        }
+    }
     // Set up tile groups
     pub fn create_tilegroups(&mut self, db: &mut Database) {
         // Create tilegroups for all bels
@@ -427,6 +453,69 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             if !found {
                 panic!("No word named {} in tilegroup {}.\n\
 Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, group);
+            }
+        }
+    }
+    // Go from IP name to IP type
+    pub fn get_ip_type(&self, ip: &str) -> &'static str {
+        if ip.starts_with("EBR_WID") {
+            return "EBR_INIT";
+        } else if ip.starts_with("PLL_") {
+            return "PLL_CORE";
+        } else {
+            panic!("no IP data for {}", ip);
+        }
+    }
+    // Configure an IP
+    pub fn configure_ip(&mut self, ip: &str, db: &mut Database, ft: &FasmTile) {
+        // This is a special tile for currently-unknown IP bits
+        if ip == "UNKNOWN" {
+            for (k, v) in ft.words.iter() {
+                assert!(&k[0..2] == "0x");
+                let addr = u32::from_str_radix(&k[2..], 16).unwrap();
+                for i in 0..8 {
+                    let bit_val = v.get_bit(i);
+                    self.set_ip_bit(0x0,  addr, i, bit_val);
+                }
+            }
+        } else {
+            let baseaddr = self.get_ip_baseaddr(db, ip);
+            let tdb = &db.ip_bitdb(&self.family, self.get_ip_type(ip)).db;
+            // Enums
+            for (k, v) in ft
+                .enums
+                .iter()
+            {
+                let en = tdb.enums.get(k).unwrap_or_else(|| panic!("No enum named {} in IP {}.\n\
+    Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, ip));
+                let opt = en.options.get(v).unwrap_or_else(|| panic!("No option named {} for enum {} in tile {}.\n\
+    Valid options are: {}\n\
+    Please make sure Oxide and nextpnr are up to date and input source code is meaningful. If they are, consider reporting this as an issue.",
+                            v, k, ip,
+                            en.options.keys().cloned().collect::<Vec<String>>().join(", ")));
+                for bit in opt.iter() {
+                    self.set_ip_bit(baseaddr, bit.frame as u32, bit.bit as u32, !bit.invert);
+                }
+            }
+            // Words
+            for (k, v) in ft.words.iter() {
+                let w = tdb.words.get(k).unwrap_or_else(|| panic!("No word named {} in IP {}.\n\
+    Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, ip));
+                if (v.significant_bits() as usize) > w.bits.len() {
+                    panic!(
+                        "Word {} in IP {} has value width {} exceeding database width of {}",
+                        k,
+                        ip,
+                        v.significant_bits(),
+                        w.bits.len()
+                    );
+                }
+                for (i, wb) in w.bits.iter().enumerate() {
+                    let bit_val = v.get_bit(i as u32);
+                    for bit in wb {
+                        self.set_ip_bit(baseaddr, bit.frame as u32, bit.bit as u32, bit.invert != bit_val);
+                    }
+                }
             }
         }
     }
