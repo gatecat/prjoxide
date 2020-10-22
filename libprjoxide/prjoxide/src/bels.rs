@@ -514,6 +514,19 @@ impl Bel {
             z: z as u32,
         }
     }
+
+    pub fn make_vcc() -> Bel {
+        Bel {
+            name: format!("VCC_DRV"),
+            beltype: format!("VCC_DRV"),
+            pins: vec![
+                BelPin::new("Z", "global Vcc net access", PinDir::OUTPUT, "G:VCC", 0, 0)
+            ],
+            rel_x: 0,
+            rel_y: 0,
+            z: 0,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
@@ -595,6 +608,9 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             Bel::make_dsp(&tiledata, "ACC54_1", "ACC54_CORE", 0, -1, 5),
             Bel::make_dsp(&tiledata, "MULT36", "MULT36_CORE", 0, -1, 6),
         ],
+
+        "CIB_T" => vec![Bel::make_vcc()],
+
         "LMID" => (0..12).map(|x| Bel::make_dcc("L", x)).collect(),
         "RMID_DLY20" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
         "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),

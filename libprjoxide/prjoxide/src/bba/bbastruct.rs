@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 6;
+pub const BBA_VERSION: u32 = 7;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -25,6 +25,7 @@ pub const REL_LOC_BRANCH_L: u8 = 3;
 pub const REL_LOC_BRANCH_R: u8 = 4;
 pub const REL_LOC_SPINE: u8 = 5;
 pub const REL_LOC_HROW: u8 = 6;
+pub const REL_LOC_VCC: u8 = 7;
 // Tile location flags
 pub const LOC_LOGIC: u32 = 0x000001;
 pub const LOC_IO18: u32 = 0x000002;

@@ -122,6 +122,13 @@ impl LocationGrid {
                     None
                 }
             }
+            Neighbour::Vcc => {
+                if x != 0 || y != 0 {
+                    Some((0, 0))
+                } else {
+                    None
+                }
+            }
             Neighbour::Branch => {
                 let branch_col = self.glb.branch_sink_to_origin(x).unwrap();
                 Some((branch_col, y))
@@ -756,6 +763,9 @@ impl LocationTypes {
                             }
                             Neighbour::Global => {
                                 rel_type = REL_LOC_GLOBAL;
+                            }
+                            Neighbour::Vcc => {
+                                rel_type = REL_LOC_VCC;
                             }
                             Neighbour::Branch => {
                                 rel_type = REL_LOC_BRANCH;
