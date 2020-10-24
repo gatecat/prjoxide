@@ -563,21 +563,21 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
         "EBR_7" => vec![Bel::make_ebr(&tiledata, 2)],
         "EBR_9" => vec![Bel::make_ebr(&tiledata, 3)],
-        "DSP_R_1" | "DSP_L_0" => vec![
+        "DSP_R_1" | "DSP_L_1" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L0", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H0", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L0", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H0", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_0", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_2" | "DSP_L_1" => vec![
+        "DSP_R_2" | "DSP_L_2" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L1", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H1", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L1", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H1", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_1", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_3" | "DSP_L_2" => vec![
+        "DSP_R_3" | "DSP_L_3" => vec![
             Bel::make_dsp(&tiledata, "REG18_L0_0", "REG18_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "REG18_L0_1", "REG18_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "REG18_L1_0", "REG18_CORE", 0, -1, 2),
@@ -585,21 +585,21 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             Bel::make_dsp(&tiledata, "MULT18X36_0", "MULT18X36_CORE", 0, -1, 4),
             Bel::make_dsp(&tiledata, "ACC54_0", "ACC54_CORE", 0, -1, 5),
         ],
-        "DSP_R_5" | "DSP_L_4" => vec![
+        "DSP_R_5" | "DSP_L_5" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L2", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H2", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L2", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H2", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_2", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_6" | "DSP_L_5" => vec![
+        "DSP_R_6" | "DSP_L_6" => vec![
             Bel::make_dsp(&tiledata, "PREADD9_L3", "PREADD9_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "PREADD9_H3", "PREADD9_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "MULT9_L3", "MULT9_CORE", 0, -1, 2),
             Bel::make_dsp(&tiledata, "MULT9_H3", "MULT9_CORE", 0, -1, 3),
             Bel::make_dsp(&tiledata, "MULT18_3", "MULT18_CORE", 0, -1, 4),
         ],
-        "DSP_R_7" | "DSP_L_6" => vec![
+        "DSP_R_7" | "DSP_L_7" => vec![
             Bel::make_dsp(&tiledata, "REG18_H0_0", "REG18_CORE", 0, -1, 0),
             Bel::make_dsp(&tiledata, "REG18_H0_1", "REG18_CORE", 0, -1, 1),
             Bel::make_dsp(&tiledata, "REG18_H1_0", "REG18_CORE", 0, -1, 2),
