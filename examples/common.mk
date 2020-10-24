@@ -1,7 +1,6 @@
 # Common Makefile for Nexus examples
 
-# *** Remove these flags as nextpnr-nexus support improves
-SYNTH_ARGS=-flatten -noccu2 -nolutram -nowidelut -nobram
+SYNTH_ARGS=-flatten
 
 YOSYS?=yosys
 NEXTPNR?=nextpnr-nexus
