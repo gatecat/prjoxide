@@ -24,6 +24,8 @@ lazy_static! {
     static ref ECLK_MUXIN_RE: Regex = Regex::new(r"^J(MUXIN(\d+)|[LU][LR]CLKO[PS]\d?|PCLK[TC]\d+)_ECLKBANK_CORE_ECLKBANK(\d+)$").unwrap();
     // Edge clock feedback
     static ref ECLK_FEEDBACK_RE: Regex = Regex::new(r"^J[LU][LR]CLKO[PS]\d?_ECLKLOGICMUXPLLFB_CORE_ECLKPLLFBR$").unwrap();
+    // DDR delay code signals
+    static ref DLL_CODE_RE: Regex = Regex::new(r"^JCODEI(\d+)_I_DQS_TOP_DLL_CODE_ROUTING_MUX$").unwrap();
     // DQS group shared signals
     static ref DQS_GROUP_RE: Regex = Regex::new(r"^J(WRPNTR\d|RDPNTR\d|DQSR90|DQSW270|DQSW)_DQSBUF_CORE_I_DQS_TOP$").unwrap();
 
@@ -45,6 +47,7 @@ fn is_full_global_wn(wire: &str) -> bool {
         || ECLK_RE.is_match(wire)
         || ECLK_MUXIN_RE.is_match(wire)
         || ECLK_FEEDBACK_RE.is_match(wire)
+        || DLL_CODE_RE.is_match(wire)
 }
 
 pub fn handle_edge_name(
