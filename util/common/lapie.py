@@ -33,7 +33,7 @@ def run(commands, workdir=None):
     return output
 
 def run_with_udb(udb, commands):
-    run(['des_read_udb "{}"'.format(path.abspath(udb))] + commands)
+    return run(['des_read_udb "{}"'.format(path.abspath(udb))] + commands)
 
 class PipInfo:
     def __init__(self, from_wire, to_wire, is_bidi = False, flags = 0, buffertype = ""):
@@ -114,3 +114,65 @@ def get_node_data(udb, nodes, regex=False):
         format(nodefile, "-re " if regex else "", nodelist)])
     with open(nodefile, 'r') as nf:
         return parse_node_report(nf.read())
+
+def list_nets(udb):
+    output = run_with_udb(udb, ['des_list_net'])
+    net_list = []
+    in_nets = False
+
+    for line in output.split('\n'):
+        if 'Successfully loading udb' in line:
+            in_nets = True
+        elif in_nets:
+            if '-------------------------------------' in line:
+                break
+            else:
+                net_name = line.strip()
+                if len(net_name) > 0:
+                    net_list.append(net_name)
+
+    return net_list
+
+
+class NetPin:
+    def __init__(self, cell, pin, node):
+        self.cell = cell
+        self.pin = pin
+        self.node = node
+
+class NetPip:
+    def __init__(self, node1, node2, is_dir):
+        self.node1 = node1
+        self.node2 = node2
+        self.is_dir = is_dir
+
+class NetRouting:
+    def __init__(self):
+        self.pins = []
+        self.pips = []
+
+def get_routing(udb, nets):
+    output = run_with_udb(udb, ['des_report_net {}'.format(n) for n in nets])
+    curr_routing = NetRouting()
+    routing = {}
+    name_re = re.compile(r'Name = ([^ ]*) id = \d+ power_type = \d+')
+    pin_re = re.compile(r'comp= ([^ ]*) pin= ([^ ]*) node= ([^ ]*) subnet= \d+ num_x=\d+')
+    pip_re = re.compile(r'node1= ([^ ]*) node2= ([^ ]*) subnet= \d+  type=\(\d+ -> \d+\)  dir=([A-Z])')
+
+    for line in output.split('\n'):
+        sl = line.strip()
+        nm = name_re.match(sl)
+        if nm:
+            curr_net = nm.group(1)
+            routing[curr_net] = curr_routing
+            curr_routing = NetRouting()
+            continue
+        pm = pin_re.match(sl)
+        if pm:
+            curr_routing.pins.append(NetPin(pm.group(1), pm.group(2), pm.group(3)))
+            continue
+        pipm = pip_re.match(sl)
+        if pipm:
+            is_dir = pipm.group(3) == "D"
+            curr_routing.pips.append(NetPip(pipm.group(1), pipm.group(2), is_dir))
+    return routing
