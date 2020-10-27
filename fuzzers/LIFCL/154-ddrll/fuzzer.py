@@ -35,7 +35,7 @@ def main():
             return ("R{}C{}_".format(r, c) in x) and ("ECLKDDR" in x or "DDRDLL_CORE" in x or "JCLKOUT_I" in x or "JPCLK_I" in x or "JECLK" in x)
         def pip_filter(x, nodes):
             src, snk = x
-            return "JD0_I4" not in snk and "JD1_I4" not in snk
+            return True
         fuzz_interconnect(config=cfg, nodenames=nodes, nodename_predicate=nodename_filter, pip_predicate=pip_filter, regex=True, bidir=True, ignore_tiles=ignore_tiles)
 
         cfg.sv = "../shared/empty_40.v"

@@ -27,7 +27,7 @@ lazy_static! {
     // Edge clock to DDRDLL
     static ref ECLK_DDRDLL_RE: Regex = Regex::new(r"^JCLKOUT_ECLKDDR[RL]_\d$").unwrap();
     // DDR delay code signals
-    static ref DLL_CODE_RE: Regex = Regex::new(r"^JCODEI(\d+)_I_DQS_TOP_DLL_CODE_ROUTING_MUX$").unwrap();
+    static ref DLL_CODE_RE: Regex = Regex::new(r"^J(CODEI(\d+)_I_DQS_TOP_DLL_CODE_ROUTING_MUX|D[01]_I4_\d)$").unwrap();
     // DQS group shared signals
     static ref DQS_GROUP_RE: Regex = Regex::new(r"^J(WRPNTR\d|RDPNTR\d|DQSR90|DQSW270|DQSW)_DQSBUF_CORE_I_DQS_TOP$").unwrap();
 
