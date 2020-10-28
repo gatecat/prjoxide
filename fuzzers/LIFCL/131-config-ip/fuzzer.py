@@ -76,6 +76,7 @@ sites = [
     ("TCONFIG_IP_CORE73", "CONFIG_IP_CORE"),
     ("TCONFIG_HSE_CORE73", "CONFIG_HSE_CORE"),
     ("TCONFIG_MULTIBOOT_CORE73", "CONFIG_MULTIBOOT_CORE"),
+    ("TCONFIG_LMMI_CORE73", "CONFIG_LMMI_CORE"),
 ]
 
 cfg = FuzzConfig(job="CONFIGIP", device="LIFCL-40", sv="../shared/empty_40.v",
