@@ -118,7 +118,12 @@ impl BitstreamParser {
         b.write_zeros(3);
         b.write_u32(ch.get_idcode());
         // Set CTRL0
-        let ctrl0 = 0x00000000;
+        let mut ctrl0 = 0x00000000;
+        for (k, v) in ch.settings.iter() {
+            if k == "background" && v == "1" {
+                ctrl0 |= 0x27800000;
+            }
+        }
         b.write_byte(LSC_PROG_CNTRL0);
         b.write_zeros(3);
         b.write_u32(ctrl0);

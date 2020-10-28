@@ -113,6 +113,8 @@ pub struct Chip {
     pub tilegroups: HashMap<String, Vec<String>>,
     // Metadata (comment strings in bitstream)
     pub metadata: Vec<String>,
+    // Extra bitstream settings
+    pub settings: BTreeMap<String, String>,
 }
 
 pub type ChipDelta = BTreeMap<String, Vec<(usize, usize, bool)>>;
@@ -137,6 +139,7 @@ impl Chip {
             tiles_by_loc: MultiMap::new(),
             tilegroups: HashMap::new(),
             metadata: Vec::new(),
+            settings: BTreeMap::new(),
         };
         c.tiles_by_name = c
             .tiles

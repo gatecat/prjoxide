@@ -37,10 +37,13 @@ enum SubCommand {
 
 #[derive(Clap)]
 struct Pack {
+    #[clap(long, about = "create background programmable bitstream (advanced)")]
+    background: bool,
     #[clap(about = "input FASM file")]
     fasm: String,
     #[clap(about = "output bitstream")]
     bitstream: String,
+
 }
 
 impl Pack {
@@ -48,7 +51,11 @@ impl Pack {
         let mut db = Database::new_builtin(DATABASE_DIR);
         let parsed_fasm = ParsedFasm::parse(&self.fasm).unwrap();
 
-        let chip = Chip::from_fasm(&mut db, &parsed_fasm, None);
+        let mut chip = Chip::from_fasm(&mut db, &parsed_fasm, None);
+
+        if self.background {
+            chip.settings.insert("background".to_string(), "1".to_string());
+        }
         let bs = BitstreamParser::serialise_chip(&chip);
         let mut outfile = File::create(&self.bitstream).unwrap();
         outfile.write_all(&bs)?;
