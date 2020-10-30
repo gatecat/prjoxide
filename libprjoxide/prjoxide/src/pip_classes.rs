@@ -43,6 +43,11 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
         ("JF?_SLICE?", "f_lut"),
         ("JOFX?_SLICE?", "ofx"),
 
+        ("JQ?_SLICE?", "q_dff"),
+        ("JCLK_SLICE?", "clk_dff"),
+        ("JLSR_SLICE?", "lsr_dff"),
+        ("JCE_SLICE?", "ce_dff"),
+
         ("JCIBMUXINA?", "a_cibmuxi"),
         ("JCIBMUXINB?", "b_cibmuxi"),
         ("JCIBMUXINC?", "c_cibmuxi"),
@@ -54,8 +59,6 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
         ("JCIBMUXOUTD?", "d_cibmuxo"),
 
         ("HPBX0?00", "hpbx"),
-        ("VPSX0?00", "vpsx"),
-        ("HPRX0?00", "hprx"),
     ];
 
     static CIB_PRIMS: &[(&'static str, &'static str)] = &[
@@ -135,8 +138,8 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
 
         if DSP_PRIMS.contains(sp) {
             // DSP route-thrus
-            let postfix1 = sp.splitn(1, '_').nth(1).unwrap();
-            let postfix2 = sp.splitn(1, '_').nth(1).unwrap();
+            let postfix1 = src_name.splitn(2, '_').nth(1).unwrap();
+            let postfix2 = dst_name.splitn(2, '_').nth(1).unwrap();
             if postfix1 == postfix2 {
                 // Is a route-thru, as both sides of the PIP are the same primitive
                 return Some(format!("{}_routethru", sp));
@@ -152,19 +155,19 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
     // Global clock routing
     if src_name.contains("MIDMUX") && dst_name.contains("MIDMUX") {
         if dst_name.starts_with("JVPF") || dst_name.starts_with("JHPF") {
-            let clksource = src_name.splitn(1, '_').nth(0).unwrap().to_lowercase();
+            let clksource = src_name.splitn(2, '_').nth(0).unwrap().to_lowercase();
             return Some(format!("{} -> {}_mid", clksource, dst_name[0..4].to_lowercase()));
         }
     }
     const DIGIT_OR_US: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'];
     if src_name.contains("_DCC_") && dst_name.contains("_CMUX_CORE_") {
         // From DCC to center mux
-        let cmux_entry = dst_name.splitn(1, &DIGIT_OR_US[..]).nth(0).unwrap().to_lowercase();
+        let cmux_entry = dst_name.splitn(2, &DIGIT_OR_US[..]).nth(0).unwrap().to_lowercase();
         return Some(format!("dcc -> {}_cmux", cmux_entry));
     }
     if src_name.contains("_DCC_") && dst_name.contains("_DCSMUX_CORE_") {
         // From DCC to DCS
-        let cmux_entry = dst_name.splitn(1, &DIGIT_OR_US[..]).nth(0).unwrap().to_lowercase();
+        let cmux_entry = dst_name.splitn(2, &DIGIT_OR_US[..]).nth(0).unwrap().to_lowercase();
         return Some(format!("dcc -> {}_dcs", cmux_entry));
     }
     if src_name.contains("DCSOUT") && dst_name.contains("_CMUX_CORE_") {
