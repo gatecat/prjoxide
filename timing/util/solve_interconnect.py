@@ -4,6 +4,7 @@ import lapie
 from parse_sdf import parse_sdf_file
 import libpyprjoxide
 
+import numpy as np
 from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import lsqr
 
@@ -19,11 +20,11 @@ def unescape_sdf_name(name):
     return e
 
 def conv_sdf_port(port):
-    cell, _, pin = port.partiton('/')
+    cell, _, pin = port.partition('/')
     return unescape_sdf_name(cell), unescape_sdf_name(pin)
 
 def get_wirename(wire):
-    rc, _, name = wire.partiton('_')
+    rc, _, name = wire.partition('_')
     r, _, c = rc.partition('C')
     return (int(c), int(r[1:]), name)
 
@@ -37,14 +38,14 @@ var_names = []
 var2idx = {}
 def get_base_variable(pipcls):
     v = (pipcls, "base")
-    if v in var2idx:
+    if v not in var2idx:
         var2idx[v] = len(var_names)
         var_names.append(v)
     return var2idx[v]
 
 def get_fanout_adder_variable(pipcls):
     v = (pipcls, "fanout_adder")
-    if v in var2idx:
+    if v not in var2idx:
         var2idx[v] = len(var_names)
         var_names.append(v)
     return var2idx[v]
@@ -79,8 +80,9 @@ def process_design(udb, sdf):
         for pin in route.pins:
             node2pin[pin.node] = (pin.cell, pin.pin)
 
-        for pin in route.pins:
-            cursor = pin.node
+        for rpin in route.pins:
+            pin = (rpin.cell, rpin.pin)
+            cursor = rpin.node
             if cursor not in tree:
                 continue
             pin_route = []
@@ -96,7 +98,7 @@ def process_design(udb, sdf):
                 pin_route.append((prev_wire, cursor))
                 cursor = prev_wire
     # Correlate with interconnect delays in the Tcl, and build equations
-    parsed_sdf = parse_sdf_file(sdf)
+    parsed_sdf = parse_sdf_file(sdf).cells["top"]
     for from_pin, to_pin in sorted(parsed_sdf.interconnect.keys()):
         src = conv_sdf_port(from_pin)
         dst = conv_sdf_port(to_pin)
@@ -120,7 +122,7 @@ def process_design(udb, sdf):
             max(dly.rising.typv, dly.falling.typv),
             max(dly.rising.maxv, dly.falling.maxv),
         )
-        eqn_rows.append((tuples(sorted(coeff.items())), rhs))
+        eqn_rows.append((tuple(sorted(coeff.items())), rhs))
 
 def main():
     # Import SDF and UDB files
@@ -141,7 +143,7 @@ def main():
     b = np.array(rhs)
     x, istop, itn, r1norm = lsqr(A, b)[:4]
     for i, var in enumerate(var_names):
-        print("{:60s} {:10s} {:6.0f}".format(var[0], var[1], x[i]))
+        print("{:40s} {:20s} {:6.0f}".format(var[0], var[1], x[i]))
 
 if __name__ == '__main__':
     main()
