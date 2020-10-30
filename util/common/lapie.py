@@ -152,7 +152,7 @@ class NetRouting:
         self.pips = []
 
 def get_routing(udb, nets):
-    output = run_with_udb(udb, ['des_report_net {}'.format(n) for n in nets])
+    output = run_with_udb(udb, ['des_report_net {{{}}}'.format(n) for n in nets])
     curr_routing = NetRouting()
     routing = {}
     name_re = re.compile(r'Name = ([^ ]*) id = \d+ power_type = \d+')
