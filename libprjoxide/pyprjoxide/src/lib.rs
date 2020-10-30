@@ -14,6 +14,7 @@ use prjoxide::fuzz;
 use prjoxide::ipfuzz;
 use prjoxide::nodecheck;
 use prjoxide::wires;
+use prjoxide::pip_classes;
 
 #[pyclass]
 struct Database {
@@ -336,6 +337,11 @@ fn md_file_to_html(filename: &str) -> String {
     docs::md_file_to_html(filename)
 }
 
+#[pyfunction]
+fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i32, dst_name: &str) -> Option<String> {
+    pip_classes::classify_pip(src_x, src_y, src_name, dst_x, dst_y, dst_name)
+}
+
 #[pymodule]
 fn libpyprjoxide(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(parse_bitstream))?;
@@ -346,6 +352,7 @@ fn libpyprjoxide(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(check_nodes))?;
     m.add_wrapped(wrap_pyfunction!(copy_db))?;
     m.add_wrapped(wrap_pyfunction!(add_always_on_bits))?;
+    m.add_wrapped(wrap_pyfunction!(classify_pip))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<IPFuzzer>()?;

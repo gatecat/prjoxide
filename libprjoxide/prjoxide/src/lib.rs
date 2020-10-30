@@ -23,3 +23,4 @@ pub mod fuzz;
 pub mod ipfuzz;
 pub mod nodecheck;
 pub mod wires;
+pub mod pip_classes;
