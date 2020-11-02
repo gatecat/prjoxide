@@ -48,15 +48,18 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
         ("JLSR_SLICE?", "lsr_dff"),
         ("JCE_SLICE?", "ce_dff"),
 
-        ("JCIBMUXINA?", "a_cibmuxi"),
-        ("JCIBMUXINB?", "b_cibmuxi"),
-        ("JCIBMUXINC?", "c_cibmuxi"),
-        ("JCIBMUXIND?", "d_cibmuxi"),
+        // ("JCIBMUXINA?", "a_cibmuxi"),
+        // ("JCIBMUXINB?", "b_cibmuxi"),
+        // ("JCIBMUXINC?", "c_cibmuxi"),
+        // ("JCIBMUXIND?", "d_cibmuxi"),
 
-        ("JCIBMUXOUTA?", "a_cibmuxo"),
-        ("JCIBMUXOUTB?", "b_cibmuxo"),
-        ("JCIBMUXOUTC?", "c_cibmuxo"),
-        ("JCIBMUXOUTD?", "d_cibmuxo"),
+        // ("JCIBMUXOUTA?", "a_cibmuxo"),
+        // ("JCIBMUXOUTB?", "b_cibmuxo"),
+        // ("JCIBMUXOUTC?", "c_cibmuxo"),
+        // ("JCIBMUXOUTD?", "d_cibmuxo"),
+
+        ("JCIBMUXIN??", "cibmuxi"),
+        ("JCIBMUXOUT??", "cibmuxo"),
 
         ("HPBX0?00", "hpbx"),
     ];
@@ -75,6 +78,7 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
         ("_REG18_CORE_", "reg18"),
         ("_ACC54_CORE_", "acc54"),
         ("_MULT36_CORE_", "mult36"),
+        ("_LRAM_CORE", "lram"),
         ("_PLL_CORE_", "pll"),
         ("_CONFIG_", "cfg"),
         ("_DCC_", "dcc"),
@@ -152,6 +156,12 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
             return Some(format!("{} -> {}", sp, dp));
         }
     }
+
+    // These are a useful zero-delay hint to the solver; if seemingly meaningless otherwise
+    if src_name.contains("VCC") && dst_wire_cls.is_some() {
+        return Some(format!("vcc -> {}", dst_wire_cls.unwrap()));
+    }
+
     // Global clock routing
     if src_name.contains("MIDMUX") && dst_name.contains("MIDMUX") {
         if dst_name.starts_with("JVPF") || dst_name.starts_with("JHPF") {
