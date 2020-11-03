@@ -13,7 +13,7 @@ prims = [
     ("MULTPREADD9X9",   1,   9,      9,      9,   18, ()),
 ]
 
-max_cost = 56*2 # LIFCL-40 has 56 '18x18 multipliers' which are 2 cost units
+max_cost = 56
 
 print("module top(input clk, input [3:0] ce, input [3:0] rst, input [7:0] d, output [7:0] q);")
 data = ["d[{}]".format(i) for i in range(8)]

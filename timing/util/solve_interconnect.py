@@ -8,6 +8,9 @@ import numpy as np
 from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import lsqr
 
+from os import path
+import glob
+
 from timing_config import *
 
 def unescape_sdf_name(name):
@@ -96,8 +99,15 @@ def process_design(picklef, sdf):
 
 def main():
     # Import SDF and pickle files
-    for i in range(1, len(sys.argv), 2):
-        process_design(sys.argv[i], sys.argv[i + 1])
+    folder = sys.argv[1]
+    grade = "12" if len(sys.argv) == 2 else sys.argv[2]
+
+    for pickle in glob.glob(path.join(folder, "*.pickle")):
+        sdf = pickle.replace("_route.pickle", "_{}.sdf".format(grade))
+        if path.exists(sdf):
+            print("Importing {}...".format(pickle))
+            process_design(pickle, sdf)
+        
     skip_vars = set()
     row_ind = []
     col_ind = []
@@ -105,7 +115,7 @@ def main():
     rhs = []
     # Don't add a fanout variable where fanout is never seen
     for pipcls, max_f in max_cls_fanout.items():
-        if max_f == 1 and (pipcls, "fanout_adder") in var2idx:
+        if (pipcls, "fanout_adder") in var2idx:
             skip_vars.add(var2idx[(pipcls, "fanout_adder")])
 
     for i, row in enumerate(eqn_rows):
@@ -128,6 +138,7 @@ def main():
         rows += 1
     A = csc_matrix((data_values, (row_ind, col_ind)), (rows, len(var_names)))
     b = np.array(rhs)
+    print("Running least squares solver...")
     x, istop, itn, r1norm = lsqr(A, b)[:4]
     for i, var in sorted(enumerate(var_names), key=lambda x: x[1]):
         print("{:40s} {:20s} {:6.0f}".format(var[0], var[1], x[i]))

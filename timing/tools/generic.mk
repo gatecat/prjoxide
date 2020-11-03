@@ -30,4 +30,4 @@ work/%.stamp: work/design_%.bit
 
 	touch $@
 
-.PRECIOUS: %.v
+.PRECIOUS: work/design_%.v work/design_%.bit work/%.stamp
