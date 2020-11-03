@@ -1,4 +1,4 @@
-import sys
+import sys, pickle
 
 import lapie
 from parse_sdf import parse_sdf_file
@@ -60,47 +60,11 @@ dly_types = ("min", "typ", "max")
 
 max_cls_fanout = {}
 
-def process_design(udb, sdf):
-    # Get actual routed path using Tcl
-    nets = lapie.list_nets(udb)
-    routing = lapie.get_routing(udb, nets)
-
-    # (source, sink) -> pips
-    arc2pips = {}
-
-    # Keep track of fanout - we'll need this later!
-    wire_fanout = {}
-
-    for net in sorted(nets):
-        if net not in routing:
-            continue
-        route = routing[net]
-        tree = {}
-        # Construct route tree dst->src
-        for pip in route.pips:
-            tree[pip.node2] = pip.node1
-        # Mapping node -> pin
-        node2pin = {}
-        for pin in route.pins:
-            node2pin[pin.node] = (pin.cell, pin.pin)
-
-        for rpin in route.pins:
-            pin = (rpin.cell, rpin.pin)
-            cursor = rpin.node
-            if cursor not in tree:
-                continue
-            pin_route = []
-            while True:
-                wire_fanout[cursor] = wire_fanout.get(cursor, 0) + 1
-                if cursor not in tree:
-                    if cursor in node2pin:
-                        # Found a complete (src, sink) route
-                        pin_route.reverse()
-                        arc2pips[(node2pin[cursor], pin)] = pin_route
-                    break
-                prev_wire = tree[cursor]
-                pin_route.append((prev_wire, cursor))
-                cursor = prev_wire
+def process_design(picklef, sdf):
+    with open(picklef, "rb") as pf:
+        parsed = pickle.load(pf)
+        arc2pips = parsed["arc2pips"]
+        wire_fanout = parsed["wire_fanout"]
     # Correlate with interconnect delays in the Tcl, and build equations
     parsed_sdf = parse_sdf_file(sdf).cells["top"]
     for from_pin, to_pin in sorted(parsed_sdf.interconnect.keys()):
@@ -131,7 +95,7 @@ def process_design(udb, sdf):
         eqn_rows.append((tuple(sorted(coeff.items())), rhs))
 
 def main():
-    # Import SDF and UDB files
+    # Import SDF and pickle files
     for i in range(1, len(sys.argv), 2):
         process_design(sys.argv[i], sys.argv[i + 1])
     skip_vars = set()
