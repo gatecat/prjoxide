@@ -12,7 +12,27 @@ def unescape_sdf_name(name):
         e += c
     return e
 
+# DSP cell types
+dsp_celltypes = {
+    "MULT9_CORE",
+    "PREADD9_CORE",
+    "MULT18_CORE",
+    "REG18_CORE",
+    "MULT18X36_CORE",
+    "MULT36_CORE",
+    "ACC54_CORE",
+}
 
+# We strip off these prefices, as all delays to 'subports' are the same
+dsp_prefixes = [
+    "M9ADDSUB", "ADDSUB",
+    "SFTCTRL", "DSPIN", "CINPUT", "DSPOUT", "CASCOUT", "CASCIN",
+    "PML72", "PMH72", "SUM1", "SUM0",
+    "BRS1", "BRS2", "BLS1", "BLS2", "BLSO", "BRSO", "PL18", "PH18", "PL36", "PH36", "PL72", "PH72",
+    "P72", "P36", "P18", "AS1", "AS2", "ARL", "ARH", "BRL", "BRH",
+    "AO", "BO", "AB", "AR", "BR", "PM", "PP",
+    "A", "B", "C",
+]
 
 def rewrite_path(modules, celltype, from_pin, to_pin):
     # Rewrite a (celltype, from_pin, to_pin) tuple given cell data, or returns None to drop the path
@@ -53,6 +73,15 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
             ffinst = modules["modules"][celltype]["cells"]["INST10"]
             synctype = "ASYNC" if ffinst["parameters"].get("ASYNC", "NO") == "YES" else "SYNC"
             return ("OXIDE_FF:{}:{}".format(invstr, synctype), from_pin, to_pin)
+        for dsp_type in dsp_celltypes:
+            if not celltype.startswith(dsp_type):
+                continue
+            def strip_prefix(x):
+                for pr in dsp_prefixes:
+                    if x.startswith(pr) and x[len(pr):].isdigit():
+                        return pr
+                return x
+            return (dsp_type, strip_prefix(from_pin), strip_prefix(to_pin))
     return None
 
 def main():
