@@ -53,4 +53,6 @@ while True:
     print("   );")
     data =  ["d_{}[{}]".format(i, j) for j in range(Z)]
     i += 1
+
+print("    assign q = {{{}}};".format(", ".join(np.random.choice(data) for j in range(8))))
 print("endmodule")
