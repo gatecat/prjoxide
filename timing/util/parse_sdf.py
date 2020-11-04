@@ -94,7 +94,7 @@ def parse_delay(delay):
     return Delay(sp[0], sp[1], sp[2])
 
 
-def parse_sdf_file(filename):
+def parse_sdf_file(filename, route_mode=False):
     sdata = parse_sexpr_file(filename)
     assert sdata[0] == "DELAYFILE"
     sdf = SDFData()
@@ -105,6 +105,8 @@ def parse_sdf_file(filename):
         celltype = entry[1][1]
         assert entry[2][0] == "INSTANCE"
         if len(entry[2]) > 1:
+            if route_mode:
+                continue
             inst = entry[2][1]
         else:
             inst = "top"
