@@ -3,10 +3,10 @@ use crate::bels::*;
 // Function to classify a pip for timing purposes
 pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i32, dst_name: &str) -> Option<String> {
     static WIRE_CLASSES: &[(&'static str, &'static str)] = &[
-        ("JA?", "a"),
-        ("JB?", "b"),
-        ("JC?", "c"),
-        ("JD?", "d"),
+        ("JA?", "abcd"),
+        ("JB?", "abcd"),
+        ("JC?", "abcd"),
+        ("JD?", "abcd"),
         ("JM?", "m"),
         ("JCLK?", "clk"),
         ("JCE?", "ce"),

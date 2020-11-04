@@ -1,4 +1,4 @@
-import sys, pickle
+import sys, pickle, math
 
 import lapie
 from parse_sdf import parse_sdf_file
@@ -148,6 +148,28 @@ def main():
     x, istop, itn, r1norm = lsqr(A, b)[:4]
     for i, var in sorted(enumerate(var_names), key=lambda x: x[1]):
         print("{:40s} {:20s} {:6.0f}".format(var[0], var[1], x[i]))
+
+    for i, var in sorted(enumerate(var_names), key=lambda x: x[1]):
+        if x[i] < 0:
+            x[i] = 0
+
+    min_err = 99999
+    max_err = -99999
+    rms_err = 0
+    N = 0
+    for i, row in enumerate(eqn_rows):
+        coeff, dlys = row
+        model = 0
+        for j, val in coeff:
+            model += val * x[j]
+        err = model - dlys[2]
+        print("model: {:.1f}ps actual: {:.1f}ps".format(model, dlys[2]))
+        min_err = min(err, min_err)
+        max_err = max(err, max_err)
+        rms_err += err ** 2
+        N += 1
+
+    print("error: min={:.1f}ps, max={:.1f}ps, rms={:.1f}ps".format(min_err, max_err, math.sqrt(rms_err/N)))
 
 if __name__ == '__main__':
     main()

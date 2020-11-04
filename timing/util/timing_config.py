@@ -10,4 +10,5 @@ zero_delay_classes = {
     "f -> b",
     "f -> c",
     "f -> d",
+    "q -> abcd",
 }
