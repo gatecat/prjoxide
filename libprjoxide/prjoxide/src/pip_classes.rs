@@ -43,6 +43,7 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
         ("JF?_SLICE?", "f_lut"),
         ("JOFX?_SLICE?", "ofx"),
 
+        ("JDI?_SLICE?", "di_dff"),
         ("JQ?_SLICE?", "q_dff"),
         ("JCLK_SLICE?", "clk_dff"),
         ("JLSR_SLICE?", "lsr_dff"),
@@ -62,6 +63,12 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
         ("JCIBMUXOUT??", "cibmuxo"),
 
         ("HPBX0?00", "hpbx"),
+        ("VPSX0?00", "vpsx"),
+        ("HPRX0?00", "hprx"),
+        ("?HPRX?", "hprx_g"),
+        ("?HPRX??", "hprx_g"),
+        ("JHPRX?_CMUX_CORE_CMUX?", "hprx_cmux"),
+        ("JHPRX??_CMUX_CORE_CMUX?", "hprx_cmux"),
     ];
 
     static CIB_PRIMS: &[(&'static str, &'static str)] = &[
@@ -111,8 +118,14 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
     let dst_wire_cls = get_wire_class(dst_name);
     if src_wire_cls.is_some() && dst_wire_cls.is_some() {
         // Standard case of two classified wires
-        return Some(format!("{}{} -> {}",
-            RelWire::prefix(src_x - dst_x, src_y - dst_y).to_lowercase(), src_wire_cls.unwrap(), dst_wire_cls.unwrap()))
+        let src_cls = src_wire_cls.unwrap();
+        if src_cls == &"hpbx" || src_cls == &"vpsx" || src_cls == &"hprx" || src_cls == &"hprx_g" || src_cls == &"hprx_cmux" {
+             return Some(format!("{} -> {}", src_cls, dst_wire_cls.unwrap()));
+        } else {
+            return Some(format!("{}{} -> {}",
+                RelWire::prefix(src_x - dst_x, src_y - dst_y).to_lowercase(), src_cls, dst_wire_cls.unwrap()));
+        }
+
     }
 
     let src_prim = get_cib_prim(src_name);
@@ -128,11 +141,11 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
     // Special cases - logic
     if src_name.contains("_SLICE") || dst_name.contains("_SLICE") || src_name.ends_with("CDMUX") || dst_name.ends_with("DIMUX") ||  dst_name.ends_with("DRMUX") {
         if dst_name.starts_with("JW") {
-            return Some("lutram_internal".to_string())
+            return Some("lutram_internal".to_string());
         }
-        return Some("slice_internal".to_string())
+        return Some("slice_internal".to_string());
     } else if src_name == "JFCOUT" && dst_name == "HFIE0000" {
-        return Some("tile_carry".to_string())
+        return Some("tile_carry".to_string());
     }
     // Internal block routing
     if src_prim.is_some() && dst_prim.is_some() {
@@ -161,13 +174,22 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
     if src_name.contains("VCC") && dst_wire_cls.is_some() {
         return Some(format!("vcc -> {}", dst_wire_cls.unwrap()));
     }
-
+    if (src_name.contains("VCC") && dst_name.contains("VCC")) || src_name.contains("VHI") {
+        return Some("vcc_internal".to_string());
+    }
     // Global clock routing
     if src_name.contains("MIDMUX") && dst_name.contains("MIDMUX") {
         if dst_name.starts_with("JVPF") || dst_name.starts_with("JHPF") {
             let clksource = src_name.splitn(2, '_').nth(0).unwrap().to_lowercase();
             return Some(format!("{} -> {}_mid", clksource, dst_name[0..4].to_lowercase()));
         }
+    }
+    if src_name.contains("MIDMUX") && dst_name.contains("DCC") {
+        return Some("mid -> dcc".to_string());
+    }
+    if dst_name.contains("MIDMUX") && !src_name.contains("MIDMUX") {
+        let clksource = dst_name.splitn(2, '_').nth(0).unwrap().to_lowercase();
+        return Some(format!("{}_mid_entry", clksource));
     }
     const DIGIT_OR_US: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '_'];
     if src_name.contains("_DCC_") && dst_name.contains("_CMUX_CORE_") {
@@ -182,6 +204,11 @@ pub fn classify_pip(src_x: i32, src_y: i32, src_name: &str, dst_x: i32, dst_y: i
     }
     if src_name.contains("DCSOUT") && dst_name.contains("_CMUX_CORE_") {
         return Some("dcs -> cmux".to_string());
+    }
+    if src_name.contains("_CMUX_CORE_") && dst_name.contains("_CMUX_CORE_") && dst_name.contains("JHPRX") {
+        // Main center mux
+        let cmux_node = src_name.splitn(2, &DIGIT_OR_US[..]).nth(0).unwrap().to_lowercase();
+        return Some(format!("{}_cmux -> hprx_cmux", cmux_node));
     }
     None
 }

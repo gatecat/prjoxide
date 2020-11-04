@@ -77,18 +77,24 @@ def process_design(picklef, sdf):
             continue
         dly = parsed_sdf.interconnect[from_pin, to_pin]
         coeff = {}
+        skip_route = False
         for pip in arc2pips[src, dst]:
             pipcls = get_pip_class(pip)
-            if pipcls is None or pipcls in zero_delay_classes:
+            if pipcls is None:
+                skip_route = True
+                break
+            if pipcls in zero_delay_classes:
                 continue
             base_var = get_base_variable(pipcls)
             if base_var is not None:
                 coeff[base_var] = coeff.get(base_var, 0) + 1
-            fan_var = get_fanout_adder_variable(pipcls)
-            if fan_var is not None:
-                fanout = wire_fanout.get(pip[0], 1)
-                max_cls_fanout[pipcls] = max(max_cls_fanout.get(pipcls, 0), fanout)
-                coeff[fan_var] = coeff.get(fan_var, 0) + fanout
+            #fan_var = get_fanout_adder_variable(pipcls)
+            #if fan_var is not None:
+            #    fanout = wire_fanout.get(pip[0], 1)
+            #    max_cls_fanout[pipcls] = max(max_cls_fanout.get(pipcls, 0), fanout)
+            #    coeff[fan_var] = coeff.get(fan_var, 0) + fanout
+        if skip_route:
+            continue
         # AFAICS all Nexus delays are the same for rising and falling, so don't bother solving both
         rhs = (
             min(dly.rising.minv, dly.falling.minv),
@@ -114,9 +120,9 @@ def main():
     data_values = []
     rhs = []
     # Don't add a fanout variable where fanout is never seen
-    for pipcls, max_f in max_cls_fanout.items():
-        if (pipcls, "fanout_adder") in var2idx:
-            skip_vars.add(var2idx[(pipcls, "fanout_adder")])
+    #for pipcls, max_f in max_cls_fanout.items():
+    #    if (pipcls, "fanout_adder") in var2idx:
+    #        skip_vars.add(var2idx[(pipcls, "fanout_adder")])
 
     for i, row in enumerate(eqn_rows):
         coeff, dlys = row
