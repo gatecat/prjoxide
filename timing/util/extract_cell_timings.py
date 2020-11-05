@@ -1,4 +1,4 @@
-from parse_sdf import parse_sdf_file, IOPath
+from parse_sdf import parse_sdf_file, IOPath, SetupHoldCheck
 import sys, json
 
 def unescape_sdf_name(name):
@@ -70,6 +70,10 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
             invstr = "N" if "CLK_INVERTERIN" in mod_cells else "P"
             invstr += "N" if "LSR_INVERTERIN" in mod_cells else "P"
             invstr += "N" if "CE_INVERTERIN" in mod_cells else "P"
+
+            # Skip these, as they aren't actually different numerically so we can derive them later on and just clutter things up
+            if invstr != "PPP":
+                return None
             ffinst = modules["modules"][celltype]["cells"]["INST10"]
             synctype = "ASYNC" if ffinst["parameters"].get("ASYNC", "NO") == "YES" else "SYNC"
             return ("OXIDE_FF:{}:{}".format(invstr, synctype), from_pin, to_pin)
@@ -93,18 +97,31 @@ def main():
         celltype = unescape_sdf_name(cell.type)
         for path in cell.entries:
             if isinstance(path, IOPath):
-                from_port = path.from_pin[1] if isinstance(path.from_pin, tuple) else path.from_pin
-                rewritten = rewrite_path(modules, celltype, from_port, path.to_pin)
+                rewritten = rewrite_path(modules, celltype, path.from_pin, path.to_pin)
                 if rewritten is None:
                     continue
-                paths.add((rewritten[0], rewritten[1], rewritten[2],
-                    min(path.rising.minv, path.falling.minv),
-                    max(path.rising.typv, path.falling.typv),
-                    max(path.rising.maxv, path.falling.maxv),
+                paths.add((
+                    rewritten[0],
+                    "IOPath",
+                    rewritten[1],
+                    rewritten[2],
+                    path.rising.minv, path.rising.typv, path.rising.maxv,
+                    path.falling.minv, path.falling.typv, path.falling.maxv,
                 ))
-
+            elif isinstance(path, SetupHoldCheck):
+                rewritten = rewrite_path(modules, celltype, path.pin, path.clock[1])
+                if rewritten is None:
+                    continue
+                paths.add((
+                    rewritten[0],
+                    "SetupHold",
+                    rewritten[1],
+                    "({}, {})".format(path.clock[0], rewritten[2]),
+                    path.setup.minv, path.setup.typv, path.setup.maxv,
+                    path.hold.minv, path.hold.typv, path.hold.maxv,
+                ))
     for path in sorted(paths):
-        print("{:60s} {:10s} {:10s} {:4d} {:4d} {:4d}".format(*path))
+        print("{:40s} {:10s} {:20s} {:20s} {:4d} {:4d} {:4d} {:4d} {:4d} {:4d}".format(*path))
 
 if __name__ == '__main__':
     main()
