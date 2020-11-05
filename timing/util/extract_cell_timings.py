@@ -23,6 +23,14 @@ dsp_celltypes = {
     "ACC54_CORE",
 }
 
+ebr_celltypes = {
+    "SP16K_MODE",
+    "DP16K_MODE",
+    "PDP16K_MODE",
+    "PDPSC16K_MODE",
+    "FIFO16K_MODE",
+}
+
 # We strip off these prefices, as all delays to 'subports' are the same
 dsp_prefixes = [
     "M9ADDSUB", "ADDSUB",
@@ -32,6 +40,16 @@ dsp_prefixes = [
     "P72", "P36", "P18", "AS1", "AS2", "ARL", "ARH", "BRL", "BRH",
     "AO", "BO", "AB", "AR", "BR", "PM", "PP",
     "A", "B", "C",
+]
+ebr_prefixes = [
+    "DIA",
+    "DIB",
+    "DOA",
+    "DOB",
+    "CSA",
+    "CSB",
+    "ADA",
+    "ADB",
 ]
 
 def rewrite_path(modules, celltype, from_pin, to_pin):
@@ -77,15 +95,29 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
             ffinst = modules["modules"][celltype]["cells"]["INST10"]
             synctype = "ASYNC" if ffinst["parameters"].get("ASYNC", "NO") == "YES" else "SYNC"
             return ("OXIDE_FF:{}:{}".format(invstr, synctype), from_pin, to_pin)
+
+        def strip_prefix(x, p):
+            for pr in p:
+                if x.startswith(pr) and x[len(pr):].isdigit():
+                    return pr
+            return x
+        def strip_prefix_ebr(x, p):
+            for pr in p:
+                if x.startswith(pr) and x[len(pr):].isdigit():
+                    pin = pr
+                    if pr in ("ADA", "ADB"):
+                        i = int(x[len(pr):])
+                        pin += "_13_5" if i > 4 else "_4_0"
+                    return pin
+            return x
         for dsp_type in dsp_celltypes:
             if not celltype.startswith(dsp_type):
                 continue
-            def strip_prefix(x):
-                for pr in dsp_prefixes:
-                    if x.startswith(pr) and x[len(pr):].isdigit():
-                        return pr
-                return x
-            return (dsp_type, strip_prefix(from_pin), strip_prefix(to_pin))
+            return (dsp_type, strip_prefix(from_pin, dsp_prefixes), strip_prefix(to_pin, dsp_prefixes))
+        for ebr_type in ebr_celltypes:
+            if not celltype.startswith(ebr_type):
+                continue
+            return (ebr_type, strip_prefix_ebr(from_pin, ebr_prefixes), strip_prefix_ebr(to_pin, ebr_prefixes))
     return None
 
 def main():
