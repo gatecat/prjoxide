@@ -36,8 +36,8 @@ io18_types = [
     ("HSUL12", 1.2, None),
     ("LVDS", 1.8, None),
     ("SUBLVDS", 1.8, ["INPUT"]),
-    ("SUBLVDSEH", 1.8, ["OUTPUT"]),
-    ("SLVS", 1.2, None),
+#    ("SUBLVDSEH", 1.8, ["OUTPUT"]),
+    ("SLVS", 1.2, ["INPUT"]),
 #    ("MIPI_DPHY", 1.2, None),
     ("SSTL135D_I", 1.35, None),
 #    ("SSTL135D_II", 1.35, None),
@@ -79,9 +79,11 @@ def main():
     pin_settings = {}
     pin2bank = {}
 
-    def get_iotype(bank):
+    def get_iotype(bank, force_output=False):
         while True:
             iotype, vcc, iodirs = random.choice(io18_types if bank in (3, 4, 5) else io33_types)
+            if force_output and iodirs is not None and "OUTPUT" not in iodirs:
+                continue
             if vcc == bank_vcc[bank]:
                 return (iotype, vcc, iodirs) 
 
@@ -108,27 +110,25 @@ def main():
     print("module top (")
     for pin, setting in sorted(pin_settings.items()):
         # Encode config in pin name so we can parse it later on
-        io_name = "{}_{}_{}{}".format(
-            pin, setting[0], setting[1], "".join("_{}_{}".format(k, v) for k, v in setting[2])
+        io_name = "{}__{}__{}{}".format(
+            pin, setting[0], setting[1], "".join("__{}_{}".format(k, v) for k, v in setting[2])
         )
         print('    (* LOC="{}", IO_TYPE="{}"{} *)'.format(
             pin, setting[0], "".join(', {}="{}"'.format(k, v) for k, v in setting[2])
         ))
         print('    {} {},'.format(setting[1].lower(), io_name))
         io_names[pin] = io_name
-    print('    (* IO_TYPE="{}" *) input [5:0] d,'.format(get_iotype(6)[0]))
+    print('    (* IO_TYPE="{}" *) input [6:0] d,'.format(get_iotype(6)[0]))
     print('    (* IO_TYPE="{}" *) input sclk,'.format(get_iotype(2)[0]))
     for b in (3, 4, 5):
         print('    (* IO_TYPE="{}" *) input eclk{},'.format(get_iotype(b)[0], b))
-    print('    (* IO_TYPE="{}" *) output q'.format(get_iotype(2)[0]))
+    print('    (* IO_TYPE="{}" *) output q'.format(get_iotype(2, force_output=True)[0]))
     print(");")
 
     output_count = 0
 
     def i():
         return "d[{}]".format(random.randint(0, 3))
-    def c():
-        return "d[{}]".format(random.randint(4, 5))
     def o():
         nonlocal output_count
         sig = "o[{}]".format(output_count)
@@ -157,30 +157,29 @@ def main():
         iotye, d, extra_args = setting
         print("    wire {};".format(", ".join((sig_i, sig_o, sig_t))))
 
+        bank = pin2bank[pin]
+        # Encode in name for the IOLOGIC cell timing fuzzer
+        iobt = "__IOB_" if bank in (3, 4, 5) else "_S_IOB"
+
         # IO buffer
         if d == "INPUT":
-            print("    IB {p}_b (.I({n}), .O({p}_o));".format(p=pin, n=io_names[pin]))
+            print("    IB {p}{s}_b (.I({n}), .O({p}_o));".format(p=pin, s=iobt, n=io_names[pin]))
             sig_t = None
             sig_i = None
         elif d == "OUTPUT":
-            print("    OB {p}_b (.O({n}), .I({p}_i));".format(p=pin, n=io_names[pin]))
+            print("    OB {p}{s}_b (.O({n}), .I({p}_i));".format(p=pin, s=iobt, n=io_names[pin]))
             sig_o = None
         elif d == "INOUT":
-            print("    BB {p}_b (.B({n}), .I({p}_i), .T({p}_t), .O({p}_o));".format(p=pin, n=io_names[pin]))
+            print("    BB {p}{s}_b (.B({n}), .I({p}_i), .T({p}_t), .O({p}_o));".format(p=pin, s=iobt, n=io_names[pin]))
 
         # Delay
         def delaya_common():
-            print("         .LOAD_N({}),".format(c()))
-            print("         .MOVE({}),".format(c()))
-            print("         .DIRECTION({}),".format(c()))
-            print("         .COARSE0({}),".format(c()))
-            print("         .COARSE1({}),".format(c()))
-            print("         .RANKSELECT({}),".format(c()))
-            print("         .RANKENABLE({}),".format(c()))
-            print("         .RANK0UPDATE({}),".format(c()))
-            print("         .RANK1UPDATE({}),".format(c()))
-            print("         .EDETERR({}),".format(o()))
+            print("         .LOAD_N(!d[4]),")
+            print("         .MOVE(!d[5]),")
+            print("         .DIRECTION(!d[6]),")
             print("         .CFLAG({}),".format(o()))
+
+        od_used = False
 
         if d in ("INPUT", "INOUT") and random.random() < 0.15:
             print("    wire {}_od;".format(pin))
@@ -197,6 +196,7 @@ def main():
                 print("    );")
             sig_o = "{}_od".format(pin)
         elif d in ("OUTPUT", "INOUT") and random.random() < 0.15:
+            od_used = True
             print("    wire {}_id;".format(pin))
             if pin2bank[pin] in (3, 4, 5):
                 print("    DELAYA {}_del (".format(pin))
@@ -212,7 +212,6 @@ def main():
             sig_i = "{}_id".format(pin)
 
         # IOLOGIC
-        bank = pin2bank[pin]
         rate = bank_rates.get(bank, 0)
         iol_types = []
         if d in ("INPUT", "INOUT"):
@@ -270,7 +269,7 @@ def main():
             else:
                 assert False
         if sig_i is not None:
-            print("    assign {} = {};".format(sig_i, i()))
+            print("    assign {} = {}{};".format(sig_i, "!" if od_used else "", i()))
         if sig_t is not None:
             print("    assign {} = {};".format(sig_t, i()))
         if sig_o is not None:

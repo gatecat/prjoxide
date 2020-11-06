@@ -52,11 +52,16 @@ ebr_prefixes = [
     "ADB",
 ]
 
-def rewrite_path(modules, celltype, from_pin, to_pin):
+# Which IOLOGIC signals are relevant for which purposes...
+iol_input_sigs = ["SCLKIN", "CEIN", "LSRIN", "INFF", "DI", "WORDALIGN"] + ["RXDATA{}".format(i) for i in range(10)]
+iol_output_sigs = ["SCLKOUT", "CEOUT", "LSROUT", "DOUT", "TOUT"] + ["TXDATA{}".format(i) for i in range(10)] + ["TSDATA{}".format(i) for i in range(4)]
+iol_dly_sigs = ["INDD", "DIR", "LOAD_N", "MOVE", "CFLAG"]
+
+def rewrite_path(modules, modtype, from_pin, to_pin):
     # Rewrite a (celltype, from_pin, to_pin) tuple given cell data, or returns None to drop the path
     # This looks at the JSON output by Yosys from the Lattice structural Verilog netlist in order
     # to determine what the cells in the SDF file are actually doing
-    mod = modules["modules"][celltype]
+    mod = modules["modules"][modtype]
     mod_cells = mod["cells"]
 
     def get_netid(name):
@@ -102,7 +107,54 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
             ffinst = modules["modules"][celltype]["cells"]["INST10"]
             synctype = "ASYNC" if ffinst["parameters"].get("ASYNC", "NO") == "YES" else "SYNC"
             return ("OXIDE_FF:{}:{}".format(invstr, synctype), from_pin, to_pin)
+        elif "_INPUT" in modtype or "_OUTPUT" in modtype or "_INOUT" in modtype:
+            # PIO config is encoded in name
+            ct = modtype.split("__")
+            new_type = "PIO:{}{}".format(
+                ct[1], "".join(":{}".format(kv) for kv in ct[3:]) 
+            )
+            if "_INPUT" in from_pin or "_OUTPUT" in from_pin or "_INOUT" in from_pin:
+                from_pin = "IOPAD"
+            if "_INPUT" in to_pin or "_OUTPUT" in to_pin or "_INOUT" in to_pin:
+                to_pin = "IOPAD"
+            return (new_type, from_pin, to_pin)
+        if "_S_IOB_" in modtype or "__IOB_" in modtype:
 
+            def idelay_used():
+                di_idx = get_netid("DI")
+                for cellname2, cell2 in mod_cells.items():
+                    if cell2["type"].startswith("DELAY") and cell2["connections"]["A"][0] == di_idx:
+                        return True
+                return False
+            def odelay_used():
+                dout_idx = get_netid("DOUT")
+                for cellname2, cell2 in mod_cells.items():
+                    if cell2["type"].startswith("DELAY") and cell2["connections"]["Z"][0] == dout_idx:
+                        return True
+                return False
+            # For IOLOGIC, we encode in the buffer name (which becomes the IOL name)
+            # whether this is a simple 'SIOLOGIC' or full 'IOLOGIC'
+            s = "S" if "_S_IOB_" in modtype else ""
+            if celltype.startswith("DELAY"):
+                if from_pin in iol_dly_sigs or to_pin in iol_dly_sigs:
+                    return ("{}IOLOGIC:DELAY".format(s), from_pin, to_pin)
+            elif celltype.startswith("IOREG"):
+                if from_pin in iol_input_sigs or to_pin in iol_input_sigs:
+                    return ("{}IOLOGIC:IREG{}".format(s, ":DELAYED" if idelay_used() else ""), from_pin, to_pin)
+                if from_pin in iol_output_sigs or to_pin in iol_output_sigs:
+                    return ("{}IOLOGIC:OREG{}".format(s, ":DELAYED" if odelay_used() else ""), from_pin, to_pin)
+            elif celltype.startswith("IDDR"):
+                ddrtype = celltype[:6]
+                if from_pin in iol_input_sigs or to_pin in iol_input_sigs:
+                    if to_pin[-1].isdigit():
+                        to_pin = to_pin[:-1]
+                    return ("{}IOLOGIC:{}{}".format(s, ddrtype, ":DELAYED" if idelay_used() else ""), from_pin, to_pin)
+            elif celltype.startswith("ODDR"):
+                ddrtype = celltype[:6]
+                if from_pin in iol_output_sigs or to_pin in iol_output_sigs:
+                    if from_pin[-1].isdigit():
+                        from_pin = from_pin[:-1]
+                    return ("{}IOLOGIC:{}{}".format(s, ddrtype, ":DELAYED" if odelay_used() else ""), from_pin, to_pin)
         # Removing prefices as defined above; for buses that share delays
         def strip_prefix(x, p):
             for pr in p:
@@ -150,9 +202,16 @@ def main():
                     path.falling.minv, path.falling.typv, path.falling.maxv,
                 ))
             elif isinstance(path, SetupHoldCheck):
-                rewritten = rewrite_path(modules, celltype, path.pin, path.clock[1])
+                pin = path.pin
+                if isinstance(path.pin, list):
+                    pin = pin[1]
+                rewritten = rewrite_path(modules, celltype, pin, path.clock[1])
                 if rewritten is None:
                     continue
+                if isinstance(path.pin, list):
+                    pin = "({}, {})".format(path.pin[0], rewritten[1])
+                else:
+                    pin = rewritten[1]
                 paths.add((
                     rewritten[0],
                     "SetupHold",
