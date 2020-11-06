@@ -11,4 +11,6 @@ zero_delay_classes = {
     "f -> c",
     "f -> d",
     "q -> abcd",
+    "cibmuxo -> io18",
+    "clk -> clk_dff",
 }

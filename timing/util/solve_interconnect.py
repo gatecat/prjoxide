@@ -1,7 +1,8 @@
-import sys, pickle, math
+import sys, pickle, math, json, os, glob
 
 import lapie
 from parse_sdf import parse_sdf_file
+import database
 import libpyprjoxide
 
 import numpy as np
@@ -9,7 +10,6 @@ from scipy.sparse import csc_matrix
 from scipy.sparse.linalg import lsqr
 
 from os import path
-import glob
 
 from timing_config import *
 
@@ -72,7 +72,14 @@ def process_design(picklef, templ_sdf):
         src = conv_sdf_port(from_pin)
         dst = conv_sdf_port(to_pin)
         if (src, dst) not in arc2pips:
-            continue
+            # messed up IO buffer naming
+            if src[0].endswith("_I") and ((src[0][:-2], src[1]), dst) in arc2pips:
+                src = (src[0][:-2], src[1])
+            elif dst[0].endswith("_I") and (src, (dst[0][:-2], dst[1])) in arc2pips:
+                dst = (dst[0][:-2], dst[1])
+            else:
+                # print("skip missing {}, {}".format(src, dst))
+                continue
         coeff = {}
         skip_route = False
         for pip in arc2pips[src, dst]:
@@ -110,7 +117,9 @@ def main():
             data_values.append(val)
     rows = len(eqn_coeffs)
     A = csc_matrix((data_values, (row_ind, col_ind)), (rows, len(var_names)))
-    b = np.zeros(rows)
+    bmin = np.zeros(rows)
+    bmax = np.zeros(rows)
+
     speedgrades = ["4", "5", "6", "10", "11", "12", "M"]
     for speed in speedgrades:
         # For each speedgrade, set up the right hand side of the equation system by using
@@ -122,34 +131,58 @@ def main():
                 if (from_pin, to_pin) not in arc2row:
                     continue
                 dly = parsed_sdf.interconnect[from_pin, to_pin]
-                b[arc2row[from_pin, to_pin]] = max(dly.rising.maxv, dly.falling.maxv)
+                bmin[arc2row[from_pin, to_pin]] = max(dly.rising.minv, dly.falling.minv)
+                bmax[arc2row[from_pin, to_pin]] = max(dly.rising.maxv, dly.falling.maxv)
         print("Running least squares solver for speed {}...".format(speed))
 
         # Run the least squares solver on the system of equations
-        x, istop, itn, r1norm = lsqr(A, b)[:4]
+        xmin, istop, itn, r1norm = lsqr(A, bmin)[:4]
+        xmax, istop, itn, r1norm = lsqr(A, bmax)[:4]
+
+        delay_json = {"pip_classes": {}}
+
         for i, var in sorted(enumerate(var_names), key=lambda x: x[1]):
-            print("  {:32s} {:20s} {:6.0f}".format(var[0], var[1], x[i]))
+            print("  {:32s} {:20s} {:6.0f} {:6.0f}".format(var[0], var[1], xmin[i], xmax[i]))
+            if var[0] not in delay_json["pip_classes"]:
+                delay_json["pip_classes"][var[0]] = {}
+            delay_json["pip_classes"][var[0]][var[1]] = [int(xmin[i] + 0.5), int(xmax[i] + 0.5)]
+        for zd in sorted(zero_delay_classes):
+            print("  {:32s} {:20s} {:6.0f} {:6.0f} (fixed)".format(zd, "base", 0, 0))
+            delay_json["pip_classes"][zd] = dict(base=[0, 0])
+
+        # Write JSON so it can be used as part of the database  import process
+        timing_root = path.join(database.get_db_root(), "LIFCL", "timing")
+        os.makedirs(timing_root, exist_ok=True)
+        with open(path.join(timing_root, "interconnect_{}.json".format(speed)), "w") as jf:
+            json.dump(delay_json, jf, indent=4, sort_keys=True)
 
         # Compute Ax and compare to b for a simple estimation of the model error
         for i, var in sorted(enumerate(var_names), key=lambda x: x[1]):
-            if x[i] < 0:
-                x[i] = 0
-
+            if xmin[i] < 0:
+                xmin[i] = 0
+            if xmax[i] < 0:
+                xmax[i] = 0
         min_err = 99999
         max_err = -99999
         rms_err = 0
         N = 0
+        min_coeffs = {}
         for i, coeff in enumerate(eqn_coeffs):
             model = 0
             for j, val in coeff:
-                model += val * x[j]
-            err = model - b[i]
+                model += val * xmax[j]
+            err = model - bmax[i]
+            if err < min_err:
+                min_coeffs = coeff
+                min_err = err
             min_err = min(err, min_err)
             max_err = max(err, max_err)
             rms_err += err ** 2
             N += 1
 
-        print("  error: min={:.1f}ps, max={:.1f}ps, rms={:.1f}ps".format(min_err, max_err, math.sqrt(rms_err/N)))
+        print("  error: neg={:.1f}ps, max={:.1f}ps, rms={:.1f}ps".format(min_err, max_err, math.sqrt(rms_err/N)))
+        print("            neg eqn {}".format(" + ".join("{}*{}".format(val, var_names[j][0]) for j, val in min_coeffs)))
+
 
 if __name__ == '__main__':
     main()
