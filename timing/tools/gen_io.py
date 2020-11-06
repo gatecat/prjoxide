@@ -38,7 +38,7 @@ io18_types = [
     ("SUBLVDS", 1.8, ["INPUT"]),
     ("SUBLVDSEH", 1.8, ["OUTPUT"]),
     ("SLVS", 1.2, None),
-    ("MIPI_DPHY", 1.2, None),
+#    ("MIPI_DPHY", 1.2, None),
     ("SSTL135D_I", 1.35, None),
 #    ("SSTL135D_II", 1.35, None),
     ("SSTL15D_I", 1.5, None),
@@ -78,14 +78,18 @@ def main():
     # Pick settings for each pin
     pin_settings = {}
     pin2bank = {}
+
+    def get_iotype(bank):
+        while True:
+            iotype, vcc, iodirs = random.choice(io18_types if bank in (3, 4, 5) else io33_types)
+            if vcc == bank_vcc[bank]:
+                return (iotype, vcc, iodirs) 
+
     for bank, pins in sorted(bank_pins.items()):
         for pin in pins:
             pin2bank[pin] = bank
             # Pick a compatible type
-            while True:
-                iotype, vcc, iodirs = random.choice(io18_types if bank in (3, 4, 5) else io33_types)
-                if vcc == bank_vcc[bank]:
-                    break
+            iotype, vcc, iodirs = get_iotype(bank)
             # Pick a compatible direction
             iodir = random.choice(iodirs if iodirs is not None else ["INPUT", "OUTPUT", "INOUT"])
             # Pick extra settings (drive and slew rate)
@@ -112,15 +116,19 @@ def main():
         ))
         print('    {} {},'.format(setting[1].lower(), io_name))
         io_names[pin] = io_name
-    print('    (* IO_TYPE="{}" *) input [5:0] d,'.format(random.choice(io33_types[bank_vcc[6]])[0]))
-    print('    input sclk, eclk3, eclk4, eclk5,')
-    print('    output q')
+    print('    (* IO_TYPE="{}" *) input [5:0] d,'.format(get_iotype(6)[0]))
+    print('    (* IO_TYPE="{}" *) input sclk,'.format(get_iotype(2)[0]))
+    for b in (3, 4, 5):
+        print('    (* IO_TYPE="{}" *) input eclk{},'.format(get_iotype(b)[0], b))
+    print('    (* IO_TYPE="{}" *) output q'.format(get_iotype(2)[0]))
     print(");")
 
     output_count = 0
 
     def i():
-        return "d[{}]".format(random.randint(0, 5))
+        return "d[{}]".format(random.randint(0, 3))
+    def c():
+        return "d[{}]".format(random.randint(4, 5))
     def o():
         nonlocal output_count
         sig = "o[{}]".format(output_count)
@@ -162,15 +170,15 @@ def main():
 
         # Delay
         def delaya_common():
-            print("         .LOAD_N({}),".format(i()))
-            print("         .MOVE({}),".format(i()))
-            print("         .DIRECTION({}),".format(i()))
-            print("         .COARSE0({}),".format(i()))
-            print("         .COARSE1({}),".format(i()))
-            print("         .RANKSELECT({}),".format(i()))
-            print("         .RANKENABLE({}),".format(i()))
-            print("         .RANK0UPDATE({}),".format(i()))
-            print("         .RANK1UPDATE({}),".format(i()))
+            print("         .LOAD_N({}),".format(c()))
+            print("         .MOVE({}),".format(c()))
+            print("         .DIRECTION({}),".format(c()))
+            print("         .COARSE0({}),".format(c()))
+            print("         .COARSE1({}),".format(c()))
+            print("         .RANKSELECT({}),".format(c()))
+            print("         .RANKENABLE({}),".format(c()))
+            print("         .RANK0UPDATE({}),".format(c()))
+            print("         .RANK1UPDATE({}),".format(c()))
             print("         .EDETERR({}),".format(o()))
             print("         .CFLAG({}),".format(o()))
 
@@ -226,13 +234,15 @@ def main():
                 sig_o = None
             elif iol == "OREG":
                 prim = random.choice(["OFD1P3DX", "OFD1P3IX"])
+                sp = i()
+                cd = i()
                 print("    {prim} {p}_oreg (.CK(sclk), .D({d}), .SP({sp}), .CD({cd}), .Q({io_i}));".format(
-                    prim=prim, p=pin, d=i(), sp=i(), cd=i(), io_i=sig_i,
+                    prim=prim, p=pin, d=i(), sp=sp, cd=cd, io_i=sig_i,
                 ))
                 sig_i = None
                 if sig_t is not None and random.random() > 0.5:
                     print("    {prim} {p}_treg (.CK(sclk), .D({t}), .SP({sp}), .CD({cd}), .Q({io_t}));".format(
-                        prim=prim, p=pin, t=i(), sp=i(), cd=i(), io_t=sig_t,
+                        prim=prim, p=pin, t=i(), sp=sp, cd=cd, io_t=sig_t,
                     ))
                     sig_t = None
             elif iol == "IDDR":
