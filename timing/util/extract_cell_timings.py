@@ -54,6 +54,8 @@ ebr_prefixes = [
 
 def rewrite_path(modules, celltype, from_pin, to_pin):
     # Rewrite a (celltype, from_pin, to_pin) tuple given cell data, or returns None to drop the path
+    # This looks at the JSON output by Yosys from the Lattice structural Verilog netlist in order
+    # to determine what the cells in the SDF file are actually doing
     mod = modules["modules"][celltype]
     mod_cells = mod["cells"]
 
@@ -63,15 +65,20 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
         return mod["netnames"][name]["bits"][0]
 
     for cellname, cell in mod_cells.items():
+        # Go through each sub-cell inside the SDF-level cell module
         celltype = cell["type"]
         if celltype.startswith("UALUT4"):
+            # Simple LUT4s
             if from_pin in ("A0", "A1", "B0", "B1", "C0", "C1", "D0", "D1") and to_pin in ("F0", "F1"):
                 return ("OXIDE_COMB:LUT4", from_pin[0], to_pin[0])
         elif celltype.startswith("UACCU2"):
+            # Carries
             if from_pin in ("A0", "A1", "B0", "B1", "C0", "C1", "D0", "D1", "FCI") and to_pin in ("F0", "F1", "FCO"):
                 # TODO: split in half?
                 return ("OXIDE_COMB:CCU2", from_pin, to_pin)
         elif celltype.startswith("UASLICEREG"):
+            # Flipflops
+            # We need to work if we are index 0 or 1 within the SLICE, use the connectivity of Q1 to determine this
             idx = 1 if cell["connections"]["Q"][0] == get_netid("Q1") else 0
             if from_pin in ("DI0", "DI1", "M0", "M1"):
                 if int(from_pin[-1]) != idx:
@@ -96,6 +103,7 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
             synctype = "ASYNC" if ffinst["parameters"].get("ASYNC", "NO") == "YES" else "SYNC"
             return ("OXIDE_FF:{}:{}".format(invstr, synctype), from_pin, to_pin)
 
+        # Removing prefices as defined above; for buses that share delays
         def strip_prefix(x, p):
             for pr in p:
                 if x.startswith(pr) and x[len(pr):].isdigit():
@@ -110,6 +118,7 @@ def rewrite_path(modules, celltype, from_pin, to_pin):
                         pin += "_13_5" if i > 4 else "_4_0"
                     return pin
             return x
+        # Handle the special cases of DSP and EBR
         for dsp_type in dsp_celltypes:
             if not celltype.startswith(dsp_type):
                 continue
