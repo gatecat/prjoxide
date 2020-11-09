@@ -150,6 +150,9 @@ impl BBAExport {
         lgrid.write_chip_iodb(&mut bba_s, 0, &mut ids)?;
         bba_s.list_begin("chips")?;
         lgrid.write_chip_bba(&mut bba_s, 0, &empty_chip)?;
+
+        bba_tmg.import(&self.family, &mut db, &mut ids);
+
         ids.write_bba(&mut bba_s)?;
         bba_s.list_begin("db")?;
         bba_s.database(1, "LIFCL", "chips", lts.types.len(), "chip_tts")?;

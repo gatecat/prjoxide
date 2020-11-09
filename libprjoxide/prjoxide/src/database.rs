@@ -214,7 +214,7 @@ pub struct CellTypeTiming {
 
 #[derive(Deserialize, Clone)]
 pub struct CellTimingData {
-    pub cell_types: BTreeMap<String, CellTypeTiming>,
+    pub celltypes: BTreeMap<String, CellTypeTiming>,
 }
 
 // Tile bit database structures
