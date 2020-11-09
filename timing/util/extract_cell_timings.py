@@ -57,6 +57,8 @@ iol_input_sigs = ["SCLKIN", "CEIN", "LSRIN", "INFF", "DI", "WORDALIGN"] + ["RXDA
 iol_output_sigs = ["SCLKOUT", "CEOUT", "LSROUT", "DOUT", "TOUT"] + ["TXDATA{}".format(i) for i in range(10)] + ["TSDATA{}".format(i) for i in range(4)]
 iol_dly_sigs = ["INDD", "DIR", "LOAD_N", "MOVE", "CFLAG"]
 
+
+
 def rewrite_path(modules, modtype, from_pin, to_pin):
     # Rewrite a (celltype, from_pin, to_pin) tuple given cell data, or returns None to drop the path
     # This looks at the JSON output by Yosys from the Lattice structural Verilog netlist in order
@@ -185,7 +187,8 @@ def main():
     with open(sys.argv[1], "r") as jf:
         modules = json.load(jf)
     sdf = parse_sdf_file(sys.argv[2])
-    paths = set()
+    iopaths = {}
+    setupholds = {}
     for cell in sdf.cells.values():
         celltype = unescape_sdf_name(cell.type)
         for path in cell.entries:
@@ -193,14 +196,18 @@ def main():
                 rewritten = rewrite_path(modules, celltype, path.from_pin, path.to_pin)
                 if rewritten is None:
                     continue
-                paths.add((
-                    rewritten[0],
-                    "IOPath",
-                    rewritten[1],
-                    rewritten[2],
-                    path.rising.minv, path.rising.typv, path.rising.maxv,
-                    path.falling.minv, path.falling.typv, path.falling.maxv,
-                ))
+                if rewritten in iopaths:
+                    # If path appears multiple times; pick the worst case
+                    iopaths[rewritten] = (
+                        min(iopaths[rewritten][0], path.rising.minv, path.falling.minv),
+                        max(iopaths[rewritten][1], path.rising.maxv, path.falling.maxv),
+                    )
+                else:
+                    # Add to the list of paths
+                    iopaths[rewritten] = (
+                        min(path.rising.minv, path.falling.minv),
+                        max(path.rising.maxv, path.falling.maxv),
+                    )
             elif isinstance(path, SetupHoldCheck):
                 pin = path.pin
                 if isinstance(path.pin, list):
@@ -208,20 +215,32 @@ def main():
                 rewritten = rewrite_path(modules, celltype, pin, path.clock[1])
                 if rewritten is None:
                     continue
-                if isinstance(path.pin, list):
-                    pin = "({}, {})".format(path.pin[0], rewritten[1])
+                if rewritten in setupholds:
+                    setupholds[rewritten] = (
+                        min(setupholds[rewritten][0], path.setup.minv),
+                        max(setupholds[rewritten][1], path.setup.maxv),
+                        min(setupholds[rewritten][2], path.hold.minv),
+                        max(setupholds[rewritten][3], path.hold.maxv),
+                    )
                 else:
-                    pin = rewritten[1]
-                paths.add((
-                    rewritten[0],
-                    "SetupHold",
-                    rewritten[1],
-                    "({}, {})".format(path.clock[0], rewritten[2]),
-                    path.setup.minv, path.setup.typv, path.setup.maxv,
-                    path.hold.minv, path.hold.typv, path.hold.maxv,
-                ))
-    for path in sorted(paths):
-        print("{:40s} {:10s} {:20s} {:20s} {:4d} {:4d} {:4d} {:4d} {:4d} {:4d}".format(*path))
-
+                    setupholds[rewritten] = (
+                        path.setup.minv, path.setup.maxv,
+                        path.hold.minv, path.hold.maxv,
+                    )
+    # Convert to the format that we save to JSON
+    json_celltypes = {}
+    for key, iopath in sorted(iopaths.items()):
+        if key[0] not in json_celltypes:
+            json_celltypes[key[0]] = dict(iopaths=[], setupholds=[])
+        json_celltypes[key[0]]["iopaths"].append(dict(from_pin=key[1], to_pin=key[2], minv=iopath[0], maxv=iopath[1]))
+    for key, sh in sorted(setupholds.items()):
+        if key[0] not in json_celltypes:
+            json_celltypes[key[0]] = dict(iopaths=[], setupholds=[])
+        json_celltypes[key[0]]["setupholds"].append(dict(pin=key[1], clock=key[2],
+            min_setup=sh[0], max_setup=sh[1],
+            min_hold=sh[2], max_hold=sh[3])
+        )
+    with open(sys.argv[3], 'w') as outf:
+        json.dump(json_celltypes, outf, sort_keys=True, indent=4)
 if __name__ == '__main__':
     main()
