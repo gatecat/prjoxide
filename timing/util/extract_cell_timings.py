@@ -1,5 +1,7 @@
 from parse_sdf import parse_sdf_file, IOPath, SetupHoldCheck
-import sys, json
+from os import path
+import database
+import sys, json, os, glob
 
 def unescape_sdf_name(name):
     e = ""
@@ -184,63 +186,81 @@ def rewrite_path(modules, modtype, from_pin, to_pin):
     return None
 
 def main():
-    with open(sys.argv[1], "r") as jf:
-        modules = json.load(jf)
-    sdf = parse_sdf_file(sys.argv[2])
+    folder = sys.argv[1]
     iopaths = {}
     setupholds = {}
-    for cell in sdf.cells.values():
-        celltype = unescape_sdf_name(cell.type)
-        for path in cell.entries:
-            if isinstance(path, IOPath):
-                rewritten = rewrite_path(modules, celltype, path.from_pin, path.to_pin)
-                if rewritten is None:
-                    continue
-                if rewritten in iopaths:
-                    # If path appears multiple times; pick the worst case
-                    iopaths[rewritten] = (
-                        min(iopaths[rewritten][0], path.rising.minv, path.falling.minv),
-                        max(iopaths[rewritten][1], path.rising.maxv, path.falling.maxv),
-                    )
-                else:
-                    # Add to the list of paths
-                    iopaths[rewritten] = (
-                        min(path.rising.minv, path.falling.minv),
-                        max(path.rising.maxv, path.falling.maxv),
-                    )
-            elif isinstance(path, SetupHoldCheck):
-                pin = path.pin
-                if isinstance(path.pin, list):
-                    pin = pin[1]
-                rewritten = rewrite_path(modules, celltype, pin, path.clock[1])
-                if rewritten is None:
-                    continue
-                if rewritten in setupholds:
-                    setupholds[rewritten] = (
-                        min(setupholds[rewritten][0], path.setup.minv),
-                        max(setupholds[rewritten][1], path.setup.maxv),
-                        min(setupholds[rewritten][2], path.hold.minv),
-                        max(setupholds[rewritten][3], path.hold.maxv),
-                    )
-                else:
-                    setupholds[rewritten] = (
-                        path.setup.minv, path.setup.maxv,
-                        path.hold.minv, path.hold.maxv,
-                    )
-    # Convert to the format that we save to JSON
-    json_celltypes = {}
-    for key, iopath in sorted(iopaths.items()):
-        if key[0] not in json_celltypes:
-            json_celltypes[key[0]] = dict(iopaths=[], setupholds=[])
-        json_celltypes[key[0]]["iopaths"].append(dict(from_pin=key[1], to_pin=key[2], minv=iopath[0], maxv=iopath[1]))
-    for key, sh in sorted(setupholds.items()):
-        if key[0] not in json_celltypes:
-            json_celltypes[key[0]] = dict(iopaths=[], setupholds=[])
-        json_celltypes[key[0]]["setupholds"].append(dict(pin=key[1], clock=key[2],
-            min_setup=sh[0], max_setup=sh[1],
-            min_hold=sh[2], max_hold=sh[3])
-        )
-    with open(sys.argv[3], 'w') as outf:
-        json.dump(json_celltypes, outf, sort_keys=True, indent=4)
+
+    speedgrades = ["4", "5", "6", "10", "11", "12", "M"]
+    for speed in speedgrades:
+        iopaths[speed] = {}
+        setupholds[speed] = {}
+
+    # Import JSON netlists and SDF files
+    for netlist in glob.glob(path.join(folder, "*.vo.json")):
+        with open(netlist, "r") as jf:
+            modules = json.load(jf)
+        sdffile = netlist.replace(".vo.json", ".sdf")
+        if not path.exists(sdffile):
+            continue
+        sdf = parse_sdf_file(sdffile)
+
+        speed = sdffile.replace(".sdf", "").split("_")[-1]
+        assert speed in speedgrades
+        for cell in sdf.cells.values():
+            celltype = unescape_sdf_name(cell.type)
+            for entry in cell.entries:
+                if isinstance(entry, IOPath):
+                    rewritten = rewrite_path(modules, celltype, entry.from_pin, entry.to_pin)
+                    if rewritten is None:
+                        continue
+                    if rewritten in iopaths[speed]:
+                        # If path appears multiple times; pick the worst case
+                        iopaths[speed][rewritten] = (
+                            min(iopaths[speed][rewritten][0], entry.rising.minv, entry.falling.minv),
+                            max(iopaths[speed][rewritten][1], entry.rising.maxv, entry.falling.maxv),
+                        )
+                    else:
+                        # Add to the list of paths
+                        iopaths[speed][rewritten] = (
+                            min(entry.rising.minv, entry.falling.minv),
+                            max(entry.rising.maxv, entry.falling.maxv),
+                        )
+                elif isinstance(entry, SetupHoldCheck):
+                    pin = entry.pin
+                    if isinstance(entry.pin, list):
+                        pin = pin[1]
+                    rewritten = rewrite_path(modules, celltype, pin, entry.clock[1])
+                    if rewritten is None:
+                        continue
+                    if rewritten in setupholds[speed]:
+                        setupholds[speed][rewritten] = (
+                            min(setupholds[speed][rewritten][0], entry.setup.minv),
+                            max(setupholds[speed][rewritten][1], entry.setup.maxv),
+                            min(setupholds[speed][rewritten][2], entry.hold.minv),
+                            max(setupholds[speed][rewritten][3], entry.hold.maxv),
+                        )
+                    else:
+                        setupholds[speed][rewritten] = (
+                            entry.setup.minv, entry.setup.maxv,
+                            entry.hold.minv, entry.hold.maxv,
+                        )
+    for speed in speedgrades:
+        # Convert to the format that we save to JSON
+        json_celltypes = {}
+        for key, iopath in sorted(iopaths[speed].items()):
+            if key[0] not in json_celltypes:
+                json_celltypes[key[0]] = dict(iopaths=[], setupholds=[])
+            json_celltypes[key[0]]["iopaths"].append(dict(from_pin=key[1], to_pin=key[2], minv=iopath[0], maxv=iopath[1]))
+        for key, sh in sorted(setupholds[speed].items()):
+            if key[0] not in json_celltypes:
+                json_celltypes[key[0]] = dict(iopaths=[], setupholds=[])
+            json_celltypes[key[0]]["setupholds"].append(dict(pin=key[1], clock=key[2],
+                min_setup=sh[0], max_setup=sh[1],
+                min_hold=sh[2], max_hold=sh[3])
+            )
+        timing_root = path.join(database.get_db_root(), "LIFCL", "timing")
+        os.makedirs(timing_root, exist_ok=True)
+        with open(path.join(timing_root, "cells_{}.json".format(speed)), 'w') as outf:
+            json.dump(dict(celltypes=json_celltypes), outf, sort_keys=True, indent=4)
 if __name__ == '__main__':
     main()
