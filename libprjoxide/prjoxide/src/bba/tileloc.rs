@@ -1,3 +1,4 @@
+use crate::bba::timing::BBATiming;
 use crate::bba::bbastruct::*;
 use crate::bba::idstring::*;
 use crate::bba::idxset::*;
@@ -5,6 +6,7 @@ use crate::bba::tiletype::*;
 
 use crate::chip::*;
 use crate::database::*;
+use crate::pip_classes::classify_pip;
 
 use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap};
@@ -585,10 +587,30 @@ impl LocationTypes {
         }
     }
 
+    // Get the timing class for a pip
+    pub fn get_pip_tmg_class(&self, from_wire: &str, to_wire: &str, tmg: &mut BBATiming) -> usize {
+        let (src_rel, src_name) = Neighbour::parse_wire(from_wire);
+        let (dst_rel, dst_name) = Neighbour::parse_wire(to_wire);
+        let (src_x, src_y) = match src_rel {
+            Some(Neighbour::RelXY { rel_x: x, rel_y: y }) => (x, y),
+            _ => (0, 0)
+        };
+        let (dst_x, dst_y) = match dst_rel {
+            Some(Neighbour::RelXY { rel_x: x, rel_y: y }) => (x, y),
+            _ => (0, 0)
+        };
+        let cls = classify_pip(src_x, src_y, src_name, dst_x, dst_y, dst_name);
+        match cls {
+            None => 0,
+            Some(c) => tmg.pip_classes.add(&c),
+        }
+    }
+
     pub fn write_locs_bba(
         &self,
         out: &mut BBAStructs,
         ids: &mut IdStringDB,
+        tmg: &mut BBATiming,
         tts: &TileTypes,
     ) -> std::io::Result<()> {
         let mut tt_pip_count = vec![0; self.types.len()];
@@ -667,7 +689,8 @@ impl LocationTypes {
                             .entry(to_wire_idx)
                             .or_insert(Vec::new())
                             .push(pip_index);
-                        out.tile_pip(from_wire_idx, to_wire_idx, 0, 0, tt_id)?;
+                        let tmg_cls = self.get_pip_tmg_class(&pip.from_wire, to_wire, tmg);
+                        out.tile_pip(from_wire_idx, to_wire_idx, 0, tmg_cls, tt_id)?;
                         pip_index += 1;
                     }
                 }
@@ -684,7 +707,8 @@ impl LocationTypes {
                             .entry(to_wire_idx)
                             .or_insert(Vec::new())
                             .push(pip_index);
-                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN, 0, tt_id)?;
+                        let tmg_cls = self.get_pip_tmg_class(&pip.from_wire, to_wire, tmg);
+                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN, tmg_cls, tt_id)?;
                         pip_index += 1;
                     }
                 }

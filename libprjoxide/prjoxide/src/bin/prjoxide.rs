@@ -5,6 +5,7 @@ use prjoxide::bba::bbastruct::*;
 use prjoxide::bba::idstring::*;
 use prjoxide::bba::tileloc::*;
 use prjoxide::bba::tiletype::*;
+use prjoxide::bba::timing::*;
 
 use prjoxide::bitstream::*;
 use prjoxide::chip::*;
@@ -122,6 +123,7 @@ impl BBAExport {
             panic!("unsupported family {}", &self.family);
         }
 
+        let speed_grades = vec!["4", "5", "6", "10", "11", "12", "M"];
         let mut db = Database::new_builtin(DATABASE_DIR);
 
         let tts = TileTypes::new(&mut db, &mut ids, "LIFCL", "LIFCL-40");
@@ -141,8 +143,9 @@ impl BBAExport {
         bba.push(&format!("chipdb_blob_{}", &self.family))?;
         bba.ref_label("db")?;
 
+        let mut bba_tmg = BBATiming::new(&speed_grades);
         let mut bba_s = BBAStructs::new(&mut bba);
-        lts.write_locs_bba(&mut bba_s, &mut ids, &tts)?;
+        lts.write_locs_bba(&mut bba_s, &mut ids, &mut bba_tmg, &tts)?;
         lgrid.write_grid_bba(&mut bba_s, 0, &mut ids, &empty_chip)?;
         lgrid.write_chip_iodb(&mut bba_s, 0, &mut ids)?;
         bba_s.list_begin("chips")?;
