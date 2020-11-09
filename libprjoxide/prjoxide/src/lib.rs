@@ -10,6 +10,7 @@ pub mod bba {
     pub mod idxset;
     pub mod tileloc;
     pub mod tiletype;
+    pub mod timing;
 }
 
 pub mod bels;

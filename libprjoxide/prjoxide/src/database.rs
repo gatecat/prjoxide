@@ -176,6 +176,47 @@ pub struct DeviceIOData {
     pub pads: Vec<PadData>
 }
 
+// Interconnect timing data
+#[derive(Deserialize, Clone)]
+pub struct PipClassDelay {
+    pub base: (i32, i32),
+}
+
+#[derive(Deserialize, Clone)]
+pub struct InterconnectTimingData {
+    pub pip_classes: BTreeMap<String, PipClassDelay>,
+}
+
+// Cell timing data
+#[derive(Deserialize, Clone)]
+pub struct CellPropDelay {
+    pub from_pin: String,
+    pub to_pin: String,
+    pub minv: i32,
+    pub maxv: i32,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct CellSetupHold {
+    pub clock: String,
+    pub pin: String,
+    pub min_setup: i32,
+    pub max_setup: i32,
+    pub min_hold: i32,
+    pub max_hold: i32,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct CellTypeTiming {
+    pub iopaths: Vec<CellPropDelay>,
+    pub setupholds: Vec<CellSetupHold>,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct CellTimingData {
+    pub cell_types: BTreeMap<String, CellTypeTiming>,
+}
+
 // Tile bit database structures
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -408,6 +449,8 @@ pub struct Database {
     baseaddrs: HashMap<(String, String), DeviceBaseAddrs>,
     globals: HashMap<(String, String), DeviceGlobalsData>,
     iodbs: HashMap<(String, String), DeviceIOData>,
+    interconn_tmg: HashMap<(String, String), InterconnectTimingData>,
+    cell_tmg: HashMap<(String, String), CellTimingData>,
     tilebits: HashMap<(String, String), TileBitsData>,
     ipbits: HashMap<(String, String), TileBitsData>,
 }
@@ -428,6 +471,8 @@ impl Database {
             baseaddrs: HashMap::new(),
             globals: HashMap::new(),
             iodbs: HashMap::new(),
+            interconn_tmg: HashMap::new(),
+            cell_tmg: HashMap::new(),
             tilebits: HashMap::new(),
             ipbits: HashMap::new(),
         }
@@ -442,6 +487,8 @@ impl Database {
             baseaddrs: HashMap::new(),
             globals: HashMap::new(),
             iodbs: HashMap::new(),
+            interconn_tmg: HashMap::new(),
+            cell_tmg: HashMap::new(),
             tilebits: HashMap::new(),
             ipbits: HashMap::new(),
         }
@@ -532,6 +579,26 @@ impl Database {
             self.iodbs.insert(key.clone(), io);
         }
         self.iodbs.get(&key).unwrap()
+    }
+    // Interconnect timing data by family and speed grade
+    pub fn interconn_timing_db(&mut self, family: &str, grade: &str) -> &InterconnectTimingData {
+        let key = (family.to_string(), grade.to_string());
+        if !self.interconn_tmg.contains_key(&key) {
+            let tmg_json_buf = self.read_file(&format!("{}/timing/interconnect_{}.json", family, grade));
+            let tmg = serde_json::from_str(&tmg_json_buf).unwrap();
+            self.interconn_tmg.insert(key.clone(), tmg);
+        }
+        self.interconn_tmg.get(&key).unwrap()
+    }
+    // Cell timing data by family and speed grade
+    pub fn cell_timing_db(&mut self, family: &str, grade: &str) -> &CellTimingData {
+        let key = (family.to_string(), grade.to_string());
+        if !self.cell_tmg.contains_key(&key) {
+            let tmg_json_buf = self.read_file(&format!("{}/timing/cells_{}.json", family, grade));
+            let tmg = serde_json::from_str(&tmg_json_buf).unwrap();
+            self.cell_tmg.insert(key.clone(), tmg);
+        }
+        self.cell_tmg.get(&key).unwrap()
     }
     // Bit database for a tile by family and tile type
     pub fn tile_bitdb(&mut self, family: &str, tiletype: &str) -> &mut TileBitsData {

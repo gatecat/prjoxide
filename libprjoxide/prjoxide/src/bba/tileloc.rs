@@ -667,7 +667,7 @@ impl LocationTypes {
                             .entry(to_wire_idx)
                             .or_insert(Vec::new())
                             .push(pip_index);
-                        out.tile_pip(from_wire_idx, to_wire_idx, 0, tt_id)?;
+                        out.tile_pip(from_wire_idx, to_wire_idx, 0, 0, tt_id)?;
                         pip_index += 1;
                     }
                 }
@@ -684,7 +684,7 @@ impl LocationTypes {
                             .entry(to_wire_idx)
                             .or_insert(Vec::new())
                             .push(pip_index);
-                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN, tt_id)?;
+                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN, 0, tt_id)?;
                         pip_index += 1;
                     }
                 }

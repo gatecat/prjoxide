@@ -115,12 +115,13 @@ impl<'a> BBAStructs<'a> {
         from_wire: usize,
         to_wire: usize,
         flags: u16,
+        timing_class: usize,
         tile_type: IdString,
     ) -> Result<()> {
         self.out.u16_val(from_wire.try_into().unwrap())?; // src wire index in tile
         self.out.u16_val(to_wire.try_into().unwrap())?; // dst wire index in tile
         self.out.u16_val(flags)?; // pip flags
-        self.out.u16_val(0)?; // padding (reserved for timing class)
+        self.out.u16_val(timing_class.try_into().unwrap())?; // timing class index
         self.out.u32_val(tile_type.val().try_into().unwrap())?; // tile type containing pip IdString
         Ok(())
     }
@@ -324,6 +325,70 @@ impl<'a> BBAStructs<'a> {
         self.out.ref_label(branches_ref)?;
         self.out.ref_label(spines_ref)?;
         self.out.ref_label(hrows_ref)?;
+        Ok(())
+    }
+
+    pub fn cell_prop_delay(
+        &mut self,
+        from_port: IdString,
+        to_port: IdString,
+        min_delay: i32,
+        max_delay: i32,
+    ) -> Result<()> {
+        self.out.u32_val(from_port.val().try_into().unwrap())?; // from port IdString
+        self.out.u32_val(to_port.val().try_into().unwrap())?; // from port IdString
+        self.out.i32_val(min_delay)?; // min delay in ps
+        self.out.i32_val(max_delay)?; // max delay in ps
+        Ok(())
+    }
+
+    pub fn cell_setup_hold(
+        &mut self,
+        sig_port: IdString,
+        clock_port: IdString,
+        min_setup: i32,
+        max_setup: i32,
+        min_hold: i32,
+        max_hold: i32,
+    ) -> Result<()> {
+        self.out.u32_val(sig_port.val().try_into().unwrap())?; // from port IdString
+        self.out.u32_val(clock_port.val().try_into().unwrap())?; // clock port IdString
+        self.out.i32_val(min_setup)?; // min setup time in ps
+        self.out.i32_val(max_setup)?; // max setup time in ps
+        self.out.i32_val(min_hold)?; // min hold time in ps
+        self.out.i32_val(max_hold)?; // max hold time in ps
+        Ok(())
+    }
+
+    pub fn cell_timing(
+        &mut self,
+        cell_type: IdString,
+        cell_variant: IdString,
+        num_prop_delays: usize,
+        num_setup_holds: usize,
+        prop_delays_ref: &str, // must be sorted by (from, to)
+        setup_holds_ref: &str, // must be sorted by (sig, clk)
+    ) -> Result<()> {
+        self.out.u32_val(cell_type.val().try_into().unwrap())?;
+        self.out.u32_val(cell_variant.val().try_into().unwrap())?;
+        self.out.u32_val(num_prop_delays.try_into().unwrap())?;
+        self.out.u32_val(num_setup_holds.try_into().unwrap())?;
+        self.out.ref_label(prop_delays_ref)?;
+        self.out.ref_label(setup_holds_ref)?;
+        Ok(())
+    }
+
+    pub fn pip_timing(
+        &mut self,
+        min_delay: i32,
+        max_delay: i32,
+        min_fanout_adder: i32,
+        max_fanout_adder: i32,
+    ) -> Result<()> {
+        self.out.i32_val(min_delay)?;
+        self.out.i32_val(max_delay)?;
+        self.out.i32_val(min_fanout_adder)?;
+        self.out.i32_val(max_fanout_adder)?;
         Ok(())
     }
 
