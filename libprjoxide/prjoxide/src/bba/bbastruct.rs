@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 7;
+pub const BBA_VERSION: u32 = 8;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -392,6 +392,22 @@ impl<'a> BBAStructs<'a> {
         Ok(())
     }
 
+    pub fn speed_grade(
+        &mut self,
+        name: &str,
+        num_cell_types: usize,
+        num_pip_classes: usize,
+        cell_types_ref: &str,
+        pip_classes_ref: &str,
+    ) -> Result<()> {
+        self.out.str_val(name)?;
+        self.out.u32_val(num_cell_types.try_into().unwrap())?;
+        self.out.u32_val(num_pip_classes.try_into().unwrap())?;
+        self.out.ref_label(cell_types_ref)?;
+        self.out.ref_label(pip_classes_ref)?;
+        Ok(())
+    }
+
     pub fn id_string_db(
         &mut self,
         num_file_ids: usize,
@@ -436,14 +452,17 @@ impl<'a> BBAStructs<'a> {
         family: &str,
         chips_ref: &str,
         num_loctypes: usize,
+        num_speedgrades: usize,
         loctypes_ref: &str,
     ) -> Result<()> {
         self.out.u32_val(BBA_VERSION)?;
         self.out.u32_val(num_chips.try_into().unwrap())?;
         self.out.u32_val(num_loctypes.try_into().unwrap())?;
+        self.out.u32_val(num_speedgrades.try_into().unwrap())?;
         self.out.str_val(family)?;
         self.out.ref_label(chips_ref)?;
         self.out.ref_label(loctypes_ref)?;
+        self.out.ref_label("speed_grades")?;
         self.out.ref_label("id_db")?;
         Ok(())
     }

@@ -153,9 +153,11 @@ impl BBAExport {
 
         bba_tmg.import(&self.family, &mut db, &mut ids);
 
+        bba_tmg.write_bba(&mut bba_s)?;
+
         ids.write_bba(&mut bba_s)?;
         bba_s.list_begin("db")?;
-        bba_s.database(1, "LIFCL", "chips", lts.types.len(), "chip_tts")?;
+        bba_s.database(1, "LIFCL", "chips", lts.types.len(), bba_tmg.speed_grades.len(), "chip_tts")?;
 
         bba_s.out.pop()?;
         Ok(())

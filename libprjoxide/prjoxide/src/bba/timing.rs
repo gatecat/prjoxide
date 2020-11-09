@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use crate::bba::idstring::*;
 use crate::bba::idxset::IndexedSet;
+use crate::bba::bbastruct::*;
 use crate::database::*;
 
 // Structures to represent imported timing data close to what we write out for nextpnr
@@ -134,6 +135,52 @@ impl BBASpeedGrade {
             });
         }
     }
+    pub fn write_bba(&self, bba: &mut BBAStructs) -> std::io::Result<()> {
+        // Cell timing
+        for (i, cell) in self.cell_types.iter().enumerate() {
+            bba.list_begin(&format!("sp{}_c{}_delays", &self.name, i))?;
+            for dly in cell.prop_delays.iter() {
+                bba.cell_prop_delay(
+                    dly.from_port,
+                    dly.to_port,
+                    dly.min_delay,
+                    dly.max_delay,
+                )?;
+            }
+            bba.list_begin(&format!("sp{}_c{}_setupholds", &self.name, i))?;
+            for dly in cell.setup_holds.iter() {
+                bba.cell_setup_hold(
+                    dly.sig_port,
+                    dly.clock_port,
+                    dly.min_setup,
+                    dly.max_setup,
+                    dly.min_hold,
+                    dly.max_hold,
+                )?;
+            }
+        }
+        bba.list_begin(&format!("sp{}_celltypes", &self.name))?;
+        for (i, cell) in self.cell_types.iter().enumerate() {
+            bba.cell_timing(
+                cell.cell_type,
+                cell.cell_variant,
+                cell.prop_delays.len(),
+                cell.setup_holds.len(),
+                &format!("sp{}_c{}_delays", &self.name, i),
+                &format!("sp{}_c{}_setupholds", &self.name, i),
+            )?;
+        }
+        bba.list_begin(&format!("sp{}_pip_classes", &self.name))?;
+        for pip_class in self.pip_classes.iter() {
+            bba.pip_timing(
+                pip_class.min_delay,
+                pip_class.max_delay,
+                pip_class.min_fanout_adder,
+                pip_class.max_fanout_adder,
+            )?;
+        }
+        Ok(())
+    }
 }
 
 pub struct BBATiming {
@@ -156,5 +203,21 @@ impl BBATiming {
             speed.import_cells(family, db, ids);
             speed.import_pipclasses(family, db, &self.pip_classes);
         }
+    }
+    pub fn write_bba(&self, bba: &mut BBAStructs) -> std::io::Result<()> {
+        for speed in self.speed_grades.values() {
+            speed.write_bba(bba)?;
+        }
+        bba.list_begin("speed_grades")?;
+        for speed in self.speed_grades.values() {
+            bba.speed_grade(
+                &speed.name,
+                speed.cell_types.len(),
+                speed.pip_classes.len(),
+                &format!("sp{}_celltypes", &speed.name),
+                &format!("sp{}_pip_classes", &speed.name),
+            )?;
+        }
+        Ok(())
     }
 }
