@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 8;
+pub const BBA_VERSION: u32 = 9;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;

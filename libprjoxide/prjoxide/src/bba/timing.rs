@@ -38,7 +38,7 @@ impl BBACellTiming {
         }
     }
     pub fn sort(&mut self) {
-        self.prop_delays.sort_by(|a, b| (a.from_port, a.to_port).partial_cmp(&(b.from_port, b.to_port)).unwrap());
+        self.prop_delays.sort_by(|a, b| (a.to_port, a.from_port).partial_cmp(&(b.to_port, b.from_port)).unwrap());
         self.setup_holds.sort_by(|a, b| (a.sig_port, a.clock_port).partial_cmp(&(b.sig_port, b.clock_port)).unwrap());
     }
 }
