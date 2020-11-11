@@ -1,7 +1,7 @@
 """
 Utilities for SDF file parsing to determine cell timings
 """
-import sys
+import sys, pickle
 
 
 class SDFData:

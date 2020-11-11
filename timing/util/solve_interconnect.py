@@ -64,7 +64,8 @@ def process_design(picklef, templ_sdf):
         parsed = pickle.load(pf)
         arc2pips = parsed["arc2pips"]
         wire_fanout = parsed["wire_fanout"]
-    parsed_sdf = parse_sdf_file(templ_sdf, route_mode=True).cells["top"]
+    with open(templ_sdf, "rb") as sdff:
+        parsed_sdf = pickle.load(sdff).cells["top"]
     # Based on the routing path in the pickle file; build a system of equations
     # counting the number of pips for each pip class in that row
     arc2row = {}
@@ -101,10 +102,10 @@ def process_design(picklef, templ_sdf):
 def main():
     # Import SDF and pickle files
     folder = sys.argv[1]
-    for pickle in glob.glob(path.join(folder, "*.pickle")):
-        if path.exists(pickle.replace("_route.pickle", "_10.sdf")):
-            print("Importing {}...".format(pickle))
-            process_design(pickle, pickle.replace("_route.pickle", "_10.sdf"))
+    for picklef in glob.glob(path.join(folder, "*_route.pickle")):
+        if path.exists(picklef.replace("_route.pickle", "_10.sdf.pickle")):
+            print("Importing {}...".format(picklef))
+            process_design(picklef, picklef.replace("_route.pickle", "_10.sdf.pickle"))
         
     row_ind = []
     col_ind = []
@@ -125,8 +126,9 @@ def main():
         # For each speedgrade, set up the right hand side of the equation system by using
         # the delays in the interconnect section of the SDF file
         for design, arc2row in design_arc2row.items():
-            sdf = "{}_{}.sdf".format(design, speed)
-            parsed_sdf = parse_sdf_file(sdf, route_mode=True).cells["top"]
+            sdf = "{}_{}.sdf.pickle".format(design, speed)
+            with open(sdf, "rb") as sdff:
+                parsed_sdf = pickle.load(sdff).cells["top"]
             for from_pin, to_pin in sorted(parsed_sdf.interconnect.keys()):
                 if (from_pin, to_pin) not in arc2row:
                     continue

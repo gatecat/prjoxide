@@ -1,4 +1,7 @@
-all: $(foreach run,$(RUNS),work/$(run).stamp)
+all: work/stamp
+
+work/stamp: $(foreach run,$(RUNS),work/$(run).stamp)
+	touch $@
 
 BASE_DIR=../../../../
 OUT_DIR=../../../output/

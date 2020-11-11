@@ -1,7 +1,7 @@
-from parse_sdf import parse_sdf_file, IOPath, SetupHoldCheck
+from parse_sdf import IOPath, SetupHoldCheck
 from os import path
 import database
-import sys, json, os, glob
+import sys, json, os, glob, pickle
 
 def unescape_sdf_name(name):
     e = ""
@@ -199,12 +199,13 @@ def main():
     for netlist in glob.glob(path.join(folder, "*.vo.json")):
         with open(netlist, "r") as jf:
             modules = json.load(jf)
-        sdffile = netlist.replace(".vo.json", ".sdf")
+        sdffile = netlist.replace(".vo.json", ".sdf.pickle")
         if not path.exists(sdffile):
             continue
-        sdf = parse_sdf_file(sdffile)
+        with open(sdffile, "rb") as sdff:
+            sdf = pickle.load(sdff)
 
-        speed = sdffile.replace(".sdf", "").split("_")[-1]
+        speed = sdffile.replace(".sdf.pickle", "").split("_")[-1]
         assert speed in speedgrades
         for cell in sdf.cells.values():
             celltype = unescape_sdf_name(cell.type)
