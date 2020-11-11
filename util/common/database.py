@@ -15,11 +15,11 @@ def get_oxide_root():
 def get_db_root():
     """
     Return the path containing the Project Oxide database
-    This is database/ in the repo, unless the `PROXIDE_DB` environment
+    This is database/ in the repo, unless the `PRJOXIDE_DB` environment
     variable is set to another value.
     """
-    if "PROXIDE_DB" in os.environ and os.environ["PROXIDE_DB"] != "":
-        return os.environ["PROXIDE_DB"]
+    if "PRJOXIDE_DB" in os.environ and os.environ["PRJOXIDE_DB"] != "":
+        return os.environ["PRJOXIDE_DB"]
     else:
         return path.join(get_oxide_root(), "database")
 
