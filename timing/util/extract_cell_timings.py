@@ -59,7 +59,7 @@ iol_input_sigs = ["SCLKIN", "CEIN", "LSRIN", "INFF", "DI", "WORDALIGN"] + ["RXDA
 iol_output_sigs = ["SCLKOUT", "CEOUT", "LSROUT", "DOUT", "TOUT"] + ["TXDATA{}".format(i) for i in range(10)] + ["TSDATA{}".format(i) for i in range(4)]
 iol_dly_sigs = ["INDD", "DIR", "LOAD_N", "MOVE", "CFLAG"]
 
-
+subtracts = {}
 
 def rewrite_path(modules, modtype, from_pin, to_pin):
     # Rewrite a (celltype, from_pin, to_pin) tuple given cell data, or returns None to drop the path
@@ -111,6 +111,26 @@ def rewrite_path(modules, modtype, from_pin, to_pin):
             ffinst = modules["modules"][celltype]["cells"]["INST10"]
             synctype = "ASYNC" if ffinst["parameters"].get("ASYNC", "NO") == "YES" else "SYNC"
             return ("OXIDE_FF:{}:{}".format(invstr, synctype), from_pin, to_pin)
+        elif celltype.startswith("UARAMW"):
+            ramw_pins = (
+                "A0", "A1", "B0", "B1", "C0", "C1", "D0", "D1", "CLK", "LSR",
+                "WDO0", "WDO1", "WDO2", "WDO3", "WADO0", "WADO1", "WADO2", "WADO3", "WCKO", "WREO"
+            )
+            if from_pin in ramw_pins and to_pin in ramw_pins:
+                return ("RAMW", from_pin, to_pin)
+        elif celltype.startswith("UADPRAM"):
+            if from_pin in ("A0", "A1", "B0", "B1", "C0", "C1", "D0", "D1", "WDI0", "WDI1"):
+                return ("OXIDE_COMB:DPRAM", from_pin[:-1], to_pin[:-1])
+        elif celltype.startswith("selmux2"):
+            if to_pin == "OFX0":
+                if from_pin in ("A0", "B0", "C0", "D0"):
+                    return ("OXIDE_COMB:WIDEFN9", from_pin[:-1], to_pin[:-1])
+                elif from_pin == "D1":
+                    key = ("OXIDE_COMB:WIDEFN9", "F1", to_pin[:-1])
+                    subtracts[key] = ("OXIDE_COMB:LUT4", "D", "F")
+                    return key
+                elif from_pin == "SEL":
+                    return ("OXIDE_COMB:WIDEFN9", from_pin, to_pin[:-1])
         elif "_INPUT" in modtype or "_OUTPUT" in modtype or "_INOUT" in modtype:
             # PIO config is encoded in name
             ct = modtype.split("__")
@@ -246,6 +266,22 @@ def main():
                             entry.hold.minv, entry.hold.maxv,
                         )
     for speed in speedgrades:
+        # Apply subtraction rules
+        iopath_keys = sorted(iopaths[speed].keys())
+        for key in iopath_keys:
+            if key not in subtracts:
+                continue
+            sub_key = subtracts[key]
+            sub_iopath = iopaths[speed][sub_key]
+            # Compute all corner combinations
+            cnr00 = iopaths[speed][key][0] - sub_iopath[0]
+            cnr01 = iopaths[speed][key][0] - sub_iopath[1]
+            cnr10 = iopaths[speed][key][1] - sub_iopath[0]
+            cnr11 = iopaths[speed][key][1] - sub_iopath[1]
+            iopaths[speed][key] = (
+                min(cnr00, cnr01, cnr10, cnr11),
+                max(cnr00, cnr01, cnr10, cnr11),
+            )
         # Convert to the format that we save to JSON
         json_celltypes = {}
         for key, iopath in sorted(iopaths[speed].items()):
