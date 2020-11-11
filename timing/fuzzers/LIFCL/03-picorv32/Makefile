@@ -4,4 +4,4 @@ GENERATOR=./gen_picorv32.py
 DEVICE=LIFCL-40
 ALLOW_FAIL=false
 
-include ../../../tools/generic.mk
+include ../../../tools/fuzzer.mk
