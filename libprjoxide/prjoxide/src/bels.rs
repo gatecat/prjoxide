@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use crate::chip::*;
 use crate::database::TileBitsDatabase;
 use std::convert::TryInto;
@@ -201,12 +202,41 @@ impl Bel {
             }
         };
 
-        for src_wire in db.get_source_wires() {
-            add_wire(&src_wire, PinDir::OUTPUT);
+        let mut sink_wires :BTreeSet<String> =  BTreeSet::new();
+        let mut src_wires :BTreeSet<String> = BTreeSet::new();
+
+        for (to_wire, pips) in db.pips.iter() {
+            for pip in pips.iter() {
+                // Look at pips that start with, or end with, the postfix
+                // but not both as that would be a route-through
+                if to_wire.ends_with(postfix) && !pip.from_wire.ends_with(postfix) {
+                    sink_wires.insert(to_wire.to_string());
+                }
+                if !to_wire.ends_with(postfix) && pip.from_wire.ends_with(postfix) {
+                    src_wires.insert(pip.from_wire.to_string());
+                }
+            }
         }
 
-        for sink_wire in db.get_sink_wires() {
-            add_wire(&sink_wire, PinDir::INPUT);
+        for (to_wire, conns) in db.conns.iter() {
+            for conn in conns.iter() {
+                // Look at pips that start with, or end with, the postfix
+                // but not both as that would be a route-through
+                if to_wire.ends_with(postfix) && !conn.from_wire.ends_with(postfix) {
+                    sink_wires.insert(to_wire.to_string());
+                }
+                if !to_wire.ends_with(postfix) && conn.from_wire.ends_with(postfix) {
+                    src_wires.insert(conn.from_wire.to_string());
+                }
+            }
+        }
+
+        for src_wire in src_wires.iter() {
+            add_wire(src_wire, PinDir::OUTPUT);
+        }
+
+        for sink_wire in sink_wires.iter() {
+            add_wire(sink_wire, PinDir::INPUT);
         }
 /*
         *** temporarily disabled check due to missing DSP wires
