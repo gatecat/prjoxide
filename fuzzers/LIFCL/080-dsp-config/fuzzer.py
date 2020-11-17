@@ -134,6 +134,7 @@ misc_config = {
         ("ROUNDRTZI", ["ROUND_TO_ZERO", "ROUND_TO_INFINITE"], "rounding mode"),
         ("CASCOUTREGBYPS", rb, "cascade output register enable or bypass"),
         ("SFTEN", ed, "enable variable shifter controlled by `SFTCTRL`"),
+        ("ACCUMODE", ["MODE{}".format(i) for i in range(8)] , "accumulator mode"),
     ]
 }
 
