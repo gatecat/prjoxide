@@ -198,7 +198,19 @@ def rewrite_path(modules, modtype, from_pin, to_pin):
         for dsp_type in dsp_celltypes:
             if not celltype.startswith(dsp_type):
                 continue
-            return (dsp_type, strip_prefix(from_pin, dsp_prefixes), strip_prefix(to_pin, dsp_prefixes))
+            # Determine DSP cell programming
+            dsp_postfix = set()
+            for sub_cell in modules["modules"][celltype]["cells"].values():
+                for k, v in sub_cell["parameters"].items():
+                    if "REGBYPS" in k and v == "REGISTER":
+                        dsp_postfix.add(k.replace("REGBYPS", "REG"))
+                    if k == "BYPASS_PREADD9" and v == "BYPASS":
+                        dsp_postfix.add("BYPASS")
+            cell_type = dsp_type
+            if len(dsp_postfix) > 0:
+                cell_type += ":"
+                cell_type += ",".join(sorted(dsp_postfix))
+            return (cell_type, strip_prefix(from_pin, dsp_prefixes), strip_prefix(to_pin, dsp_prefixes))
         for ebr_type in ebr_celltypes:
             if not celltype.startswith(ebr_type):
                 continue
