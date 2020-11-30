@@ -42,11 +42,10 @@ This executable contains all data embedded in it; so it can be freely moved to a
 
 ### Building nextpnr-nexus
 
-Clone the development repo and switch to the correct fork
+Clone nextpnr:
 
-    git clone https://github.com/daveshah1/nextpnr nextpnr-nexus
-    cd nextpnr-nexus
-    git checkout nextpnr-nexus
+    git clone https://github.com/YosysHQ/nextpnr
+    cd nextpnr
 
 Build nextpnr-nexus, making sure to point it to the correct path for the prjoxide tool:
 
