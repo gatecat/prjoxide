@@ -32,6 +32,7 @@ def main():
         ("CLKOS3_TRIM", 4, bin2bin, ""),
         ("CLKOS4_TRIM", 4, bin2bin, ""),
         ("CLKOS5_TRIM", 4, bin2bin, ""),
+        ("DIV_DEL", 7, bin2bin, ""),
         ("DYN_SEL", 3, bin2bin, ""),
         ("FBK_CUR_BLE", 8, bin2bin, "feedback bleed current control"),
         ("FBK_IF_TIMING_CTL", 2, bin2bin, ""),

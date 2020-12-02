@@ -46,12 +46,14 @@ def main():
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(prim), ["NONE", "PLL_CORE"],
             lambda x: get_substs(mode=x), False,
             desc="PLL_CORE primitive mode")
+        nonrouting.fuzz_enum_setting(cfg, empty, "{}.CLKMUX_FB".format(prim), ["CMUX_CLKOP", "CMUX_CLKOS", "CMUX_CLKOS2", "CMUX_CLKOS3", "CMUX_CLKOS4", "CMUX_CLKOS5"],
+            lambda x: get_substs(mode="PLL_CORE", kv=("CLKMUX_FB", x)), False,
+            desc="internal feedback selection")
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.LMMICLKMUX".format(prim), ["LMMICLK", "INV"],
             lambda x: get_substs(mode="PLL_CORE", kv=("LMMICLK", x), mux=True), False,
             desc="")
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.LMMIRESETNMUX".format(prim), ["LMMIRESETN", "INV"],
             lambda x: get_substs(mode="PLL_CORE", kv=("LMMIRESETN", x), mux=True), False,
             desc="")
-
 if __name__ == '__main__':
     main()

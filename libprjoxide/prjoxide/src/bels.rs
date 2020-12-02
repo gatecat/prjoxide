@@ -557,6 +557,17 @@ impl Bel {
             z: 16,
         }
     }
+
+    pub fn make_pll_core(name: &str, tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32) -> Bel {
+        Bel {
+            name: name.to_string(),
+            beltype: "PLL_CORE".to_string(),
+            pins: Bel::get_io(&tiledata, "_PLL_CORE_I_PLL_LMMI", rel_x, rel_y),
+            rel_x: rel_x,
+            rel_y: rel_y,
+            z: 0,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
@@ -646,6 +657,9 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),
         "BMID_0_ECLK_1" => (0..18).map(|x| Bel::make_dcc("B", x)).collect(),
         "CMUX_0" => (0..4).map(|x| Bel::make_dcc("C", x)).collect(),
+        "GPLL_LLC" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 1, 0)],
+        "GPLL_ULC" => vec![Bel::make_pll_core("PLL_ULC", &tiledata, 0, 1)],
+        "GPLL_LRC" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, -1, 0)],
         _ => vec![],
     }
 }
