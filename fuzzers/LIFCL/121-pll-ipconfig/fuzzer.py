@@ -79,7 +79,7 @@ def main():
         ("CSET", ["{}P".format(c) for c in range(8, 69, 4)], "LPF C<sub>set</sub>"),
         ("DELAY_CTRL", ["200PS", "300PS"], "PFD delay control"),
         ("DIRECTION", endis, "VCO direction selection"),
-        ("DYN_SOURCE", ["DISABLE_CIB_PORTS", "SELECT_CIB_INPUTS"], "enable phase shifting from CIB"),
+        ("DYN_SOURCE", ["DYNAMIC", "STATIC"], "enable phase shifting from CIB"),
         ("ENCLK_CLKOP", endis, "CLKOP output enable"),
         ("ENCLK_CLKOS", endis, "CLKOS output enable"),
         ("ENCLK_CLKOS2", endis, "CLKOS2 output enable"),
@@ -133,6 +133,7 @@ def main():
         ("TRIMOS3_BYPASS_N", bypuse, "bypass CLKOS3 trimming"),
         ("TRIMOS4_BYPASS_N", bypuse, "bypass CLKOS4 trimming"),
         ("V2I_KVCO_SEL", [str(x) for x in range(10, 90, 5)], ""),
+        ("V2I_1V_EN", endis, "PLL VCC selection"),
     ]
     empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K"))
     for name, options, desc in enum_settings:
