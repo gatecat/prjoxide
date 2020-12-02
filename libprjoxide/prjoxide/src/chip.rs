@@ -484,6 +484,10 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
         } else {
             let baseaddr = self.get_ip_baseaddr(db, ip);
             let tdb = &db.ip_bitdb(&self.family, self.get_ip_type(ip)).db;
+            // Special PLL enable/update bit
+            if ip.starts_with("PLL_") {
+                self.set_ip_bit(baseaddr, 0, 0, true);
+            }
             // Enums
             for (k, v) in ft
                 .enums

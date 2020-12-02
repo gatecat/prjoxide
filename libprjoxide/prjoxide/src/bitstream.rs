@@ -328,7 +328,8 @@ impl BitstreamParser {
         let mut last_addr = None;
         let mut curr_chunk : Option<(u32, Vec<u8>)> = None;
         let mut chunks = Vec::new();
-        for (&addr, &val) in c.ipconfig.iter() {
+        // The 0x0E000000 region is special
+        for (&addr, &val) in c.ipconfig.iter().filter(|(&a, _)| a & 0x0E000000 == 0 ) {
             if last_addr.is_none() || (last_addr.unwrap() + 1 != addr)
                 || (curr_chunk.is_some() && curr_chunk.as_ref().unwrap().1.len() >= 65536) {
                 // All cases where we start a new chunk
@@ -342,6 +343,10 @@ impl BitstreamParser {
         }
         if curr_chunk.is_some() {
             chunks.push(curr_chunk.unwrap());
+        }
+        // PLL bits are written seperately, in reverse order for some reason
+        for (&addr, &val) in c.ipconfig.iter().filter(|(&a, _)| a & 0x0E000000 == 0x0E000000 ).rev() {
+            chunks.push((addr, vec![val]))
         }
         // Write out chunks
         for (start, bytes) in chunks {
