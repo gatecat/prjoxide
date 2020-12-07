@@ -465,6 +465,8 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             return "EBR_INIT";
         } else if ip.starts_with("PLL_") {
             return "PLL_CORE";
+        } else if ip.starts_with("LRAM_") {
+            return "LRAM_INIT";
         } else {
             panic!("no IP data for {}", ip);
         }
