@@ -329,9 +329,9 @@ impl BitstreamParser {
         let mut curr_chunk : Option<(u32, Vec<u8>)> = None;
         let mut chunks = Vec::new();
         // The 0x0E000000 region is special
-        for (&addr, &val) in c.ipconfig.iter().filter(|(&a, _)| a & 0x0E000000 == 0 ) {
+        for (&addr, &val) in c.ipconfig.iter().filter(|(&a, _)| a & 0xFF000000 != 0x0E000000 ) {
             if last_addr.is_none() || (last_addr.unwrap() + 1 != addr)
-                || (curr_chunk.is_some() && curr_chunk.as_ref().unwrap().1.len() >= 65536) {
+                || (curr_chunk.is_some() && curr_chunk.as_ref().unwrap().1.len() >= 40960) {
                 // All cases where we start a new chunk
                 if curr_chunk.is_some() {
                     chunks.push(curr_chunk.unwrap());
@@ -345,7 +345,7 @@ impl BitstreamParser {
             chunks.push(curr_chunk.unwrap());
         }
         // PLL bits are written seperately, in reverse order for some reason
-        for (&addr, &val) in c.ipconfig.iter().filter(|(&a, _)| a & 0x0E000000 == 0x0E000000 ).rev() {
+        for (&addr, &val) in c.ipconfig.iter().filter(|(&a, _)| a & 0xFF000000 == 0x0E000000 ).rev() {
             chunks.push((addr, vec![val]))
         }
         // Write out chunks
@@ -353,7 +353,14 @@ impl BitstreamParser {
             // Write address
             self.write_byte(LSC_BUS_ADDRESS);
             self.write_zeros(3);
-            self.write_u32(start);
+            let mut adj_addr = start;
+            // Fixup LRAM addressing
+            if adj_addr & 0xFF000000 == 0x2E000000 {
+                let ls = adj_addr & 0x1FFFF;
+                let ms = adj_addr & 0xFFFE0000;
+                adj_addr = ms | ((ls * 8) / 10);
+            }
+            self.write_u32(adj_addr);
             // Padding
             self.write_padding(9);
             // Write data

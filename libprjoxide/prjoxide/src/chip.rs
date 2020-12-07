@@ -492,6 +492,11 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             } else if ip.starts_with("LRAM_") {
                 // In order to avoid a multi-megabyte file and slow DB loads, we define most of the LRAM initialisation programmatically
                 assert!(ft.enums.is_empty());
+                // Full set of zeros is needed
+                for i in 0..81920 {
+                    self.set_ip_bit(baseaddr, i, 0, false);
+                }
+
                 for (k, v) in ft.words.iter() {
                     assert!(k.starts_with("INITVAL_"));
                     let init_word: u32 = u32::from_str_radix(&k[8..], 16).unwrap();
@@ -500,10 +505,11 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
                     for (i, wb) in w.bits.iter().enumerate() {
                         let bit_val = v.get_bit(i as u32);
                         for bit in wb {
-                            self.set_ip_bit(baseaddr, bit.frame as u32 + offset, bit.bit as u32, bit.invert != bit_val);
+                            self.set_ip_bit(baseaddr + offset, bit.frame as u32, bit.bit as u32, bit.invert != bit_val);
                         }
                     }
                 }
+                return;
             }
             // Enums
             for (k, v) in ft
