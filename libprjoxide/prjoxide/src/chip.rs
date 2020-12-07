@@ -489,6 +489,21 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             // Special PLL enable/update bit
             if ip.starts_with("PLL_") {
                 self.set_ip_bit(baseaddr, 0, 0, true);
+            } else if ip.starts_with("LRAM_") {
+                // In order to avoid a multi-megabyte file and slow DB loads, we define most of the LRAM initialisation programmatically
+                assert!(ft.enums.is_empty());
+                for (k, v) in ft.words.iter() {
+                    assert!(k.starts_with("INITVAL_"));
+                    let init_word: u32 = u32::from_str_radix(&k[8..], 16).unwrap();
+                    let offset = 0x280 * init_word;
+                    let  w = tdb.words.get("INITVAL_00").unwrap();
+                    for (i, wb) in w.bits.iter().enumerate() {
+                        let bit_val = v.get_bit(i as u32);
+                        for bit in wb {
+                            self.set_ip_bit(baseaddr, bit.frame as u32 + offset, bit.bit as u32, bit.invert != bit_val);
+                        }
+                    }
+                }
             }
             // Enums
             for (k, v) in ft
