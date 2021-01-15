@@ -2,9 +2,9 @@
 
 ## Current Status
 
-A framework is in place to parse bitstreams and fuzz bitstream changes. Currently the logic tile (PLC) config and interconnect; basic IO and IOLOGIC config; EBR config; global routing and basic DSP config have been fuzzed. Remaining work includes finishing IO and DSP fuzzing; and fuzzing the hard IP like PCIe, PLLs and DPHY.
+A framework is in place to parse bitstreams and fuzz bitstream changes. Currently the logic tile (PLC) config and interconnect; basic IO and IOLOGIC config; EBR config; global routing ; DSP and PLL config have been fuzzed. Remaining work includes finishing IO fuzzing; and fuzzing the hard IP like PCIe, and DPHY.
 
-nextpnr development is currently in [this branch](https://github.com/daveshah1/nextpnr/tree/nextpnr-nexus).
+prjoxide will also need to be updated to support the production silicon; including the LIFCL-17 device.
 
 ## Links
 
@@ -27,7 +27,7 @@ nextpnr development is currently in [this branch](https://github.com/daveshah1/n
 
 ### Building the prjoxide tool
 
-Clone prjoxide recursively, so you get a copy of the database too
+Clone prjoxide recursively, so you get a copy of the database too:
 
     git clone --recursive https://github.com/daveshah1/prjoxide
 
@@ -58,6 +58,10 @@ There are currently examples for the CrossLink-NX EVN and VIP boards in prjoxide
 
     cd prjoxide/examples/blinky_evn
     make prog
+
+For more advanced test designs; [LiteX](https://github.com/enjoy-digital/litex) supports the CrossLink-NX device using prjoxide. For example:
+
+    python litex-boards/litex_boards/targets/crosslink_nx_vip.py --toolchain oxide --nexus-es-device --build
 
 ## Getting Started - Developers
 
