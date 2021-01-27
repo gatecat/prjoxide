@@ -323,6 +323,7 @@ impl LocationGrid {
                 dqs_func,
                 pad.vref,
                 pad.func.len(),
+                pad.pins.len(),
                 &format!("{}_padfunc_{}", device_idx, i),
                 &format!("{}_pins_{}", device_idx, i),
             )?;
@@ -836,7 +837,7 @@ impl LocationTypes {
             // Neighbourhood types
             out.list_begin(&format!("tt{}_nhs", i))?;
             for (j, _) in data.nhtypes.iter().enumerate() {
-                out.reference(&format!("tt{}_nh{}_wires", i, j))?;
+                out.ref_slice(&format!("tt{}_nh{}_wires", i, j), data.wires.len())?;
             }
         }
         out.list_begin(&format!("chip_tts"))?;

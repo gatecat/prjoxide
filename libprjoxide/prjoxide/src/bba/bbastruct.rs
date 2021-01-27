@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 9;
+pub const BBA_VERSION: u32 = 10;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -69,8 +69,7 @@ impl<'a> BBAStructs<'a> {
         self.out.i16_val(rel_x)?; // actual location relative X
         self.out.i16_val(rel_y)?; // actual location relative Y
         self.out.u32_val(z)?; // bel Z-coordinate
-        self.out.ref_label(ports_ref)?; // ref to list of ports
-        self.out.u32_val(num_ports.try_into().unwrap())?; // number of ports
+        self.out.ref_slice(ports_ref, num_ports)?; // ref to list of ports
         Ok(())
     }
 
@@ -101,12 +100,9 @@ impl<'a> BBAStructs<'a> {
     ) -> Result<()> {
         self.out.u32_val(name.val().try_into().unwrap())?; // wire name IdString
         self.out.u32_val(flags)?;
-        self.out.u32_val(num_uh.try_into().unwrap())?; // number of uphill pips
-        self.out.u32_val(num_dh.try_into().unwrap())?; // number of downhill pips
-        self.out.u32_val(num_bp.try_into().unwrap())?; // number of bel pins
-        self.out.ref_label(pips_uh_ref)?; // ref to list of uphill pips
-        self.out.ref_label(pips_dh_ref)?; // ref to list of downhill pips
-        self.out.ref_label(bel_pins_ref)?; // ref to list of bel pins
+        self.out.ref_slice(pips_uh_ref, num_uh)?; // ref to list of uphill pips
+        self.out.ref_slice(pips_dh_ref, num_dh)?; // ref to list of downhill pips
+        self.out.ref_slice(bel_pins_ref, num_bp)?; // ref to list of bel pins
         Ok(())
     }
 
@@ -143,8 +139,7 @@ impl<'a> BBAStructs<'a> {
     }
 
     pub fn wire_neighbours(&mut self, nwire_ref: &str, num_neighbours: usize) -> Result<()> {
-        self.out.u32_val(num_neighbours.try_into().unwrap())?; // number of wire neighbours
-        self.out.ref_label(nwire_ref)?; // ref to list of wire neighbours
+        self.out.ref_slice(nwire_ref, num_neighbours)?; // ref to list of wire neighbours
         Ok(())
     }
 
@@ -155,6 +150,11 @@ impl<'a> BBAStructs<'a> {
 
     pub fn reference(&mut self, ref_label: &str) -> Result<()> {
         self.out.ref_label(ref_label)?;
+        Ok(())
+    }
+
+    pub fn ref_slice(&mut self, ref_label: &str, len: usize) -> Result<()> {
+        self.out.ref_slice(ref_label, len)?;
         Ok(())
     }
 
@@ -185,14 +185,10 @@ impl<'a> BBAStructs<'a> {
         pips_ref: &str,
         nh_ref: &str,
     ) -> Result<()> {
-        self.out.u32_val(num_bels.try_into().unwrap())?;
-        self.out.u32_val(num_wires.try_into().unwrap())?;
-        self.out.u32_val(num_pips.try_into().unwrap())?;
-        self.out.u32_val(num_nhtypes.try_into().unwrap())?;
-        self.out.ref_label(bels_ref)?;
-        self.out.ref_label(wires_ref)?;
-        self.out.ref_label(pips_ref)?;
-        self.out.ref_label(nh_ref)?;
+        self.out.ref_slice(bels_ref, num_bels)?;
+        self.out.ref_slice(wires_ref, num_wires)?;
+        self.out.ref_slice(pips_ref, num_pips)?;
+        self.out.ref_slice(nh_ref, num_nhtypes)?;
         Ok(())
     }
 
@@ -213,8 +209,8 @@ impl<'a> BBAStructs<'a> {
         self.out.u32_val(loc_type.try_into().unwrap())?;
         self.out.u32_val(loc_flags)?;
         self.out.u16_val(nh_type.try_into().unwrap())?;
-        self.out.u16_val(num_phys_tiles.try_into().unwrap())?;
-        self.out.ref_label(phys_tiles_ref)?;
+        self.out.u16_val(0)?; // padding
+        self.out.ref_slice(phys_tiles_ref, num_phys_tiles)?;
         Ok(())
     }
 
@@ -268,8 +264,7 @@ impl<'a> BBAStructs<'a> {
     ) -> Result<()> {
         self.out.u16_val(hrow_col.try_into().unwrap())?;
         self.out.u16_val(0)?; // padding
-        self.out.u32_val(num_spine_cols.try_into().unwrap())?;
-        self.out.ref_label(spine_cols_ref)?;
+        self.out.ref_slice(spine_cols_ref, num_spine_cols)?;
         Ok(())
     }
 
@@ -293,8 +288,9 @@ impl<'a> BBAStructs<'a> {
         dqs_func: i32,
         vref_index: i32,
         num_funcs: usize,
+        num_pins: usize,
         func_str_ref: &str,
-        pins_ref: &str
+        pins_ref: &str,
     ) -> Result<()> {
         self.out.i16_val(offset.try_into().unwrap())?;
         self.out.i8_val(side)?;
@@ -303,10 +299,9 @@ impl<'a> BBAStructs<'a> {
         self.out.i16_val(dqs_group.try_into().unwrap())?;
         self.out.i8_val(dqs_func.try_into().unwrap())?;
         self.out.i8_val(vref_index.try_into().unwrap())?;
-        self.out.u16_val(num_funcs.try_into().unwrap())?;
         self.out.u16_val(0)?; // padding
-        self.out.ref_label(func_str_ref)?;
-        self.out.ref_label(pins_ref)?;
+        self.out.ref_slice(func_str_ref, num_funcs)?;
+        self.out.ref_slice(pins_ref, num_pins)?;
         Ok(())
     }
 
@@ -319,12 +314,9 @@ impl<'a> BBAStructs<'a> {
         spines_ref: &str,
         hrows_ref: &str,
     ) -> Result<()> {
-        self.out.u32_val(num_branches.try_into().unwrap())?;
-        self.out.u32_val(num_spines.try_into().unwrap())?;
-        self.out.u32_val(num_hrows.try_into().unwrap())?;
-        self.out.ref_label(branches_ref)?;
-        self.out.ref_label(spines_ref)?;
-        self.out.ref_label(hrows_ref)?;
+        self.out.ref_slice(branches_ref, num_branches)?;
+        self.out.ref_slice(spines_ref, num_spines)?;
+        self.out.ref_slice(hrows_ref, num_hrows)?;
         Ok(())
     }
 
@@ -371,10 +363,8 @@ impl<'a> BBAStructs<'a> {
     ) -> Result<()> {
         self.out.u32_val(cell_type.val().try_into().unwrap())?;
         self.out.u32_val(cell_variant.val().try_into().unwrap())?;
-        self.out.u32_val(num_prop_delays.try_into().unwrap())?;
-        self.out.u32_val(num_setup_holds.try_into().unwrap())?;
-        self.out.ref_label(prop_delays_ref)?;
-        self.out.ref_label(setup_holds_ref)?;
+        self.out.ref_slice(prop_delays_ref, num_prop_delays)?;
+        self.out.ref_slice(setup_holds_ref, num_setup_holds)?;
         Ok(())
     }
 
@@ -401,10 +391,8 @@ impl<'a> BBAStructs<'a> {
         pip_classes_ref: &str,
     ) -> Result<()> {
         self.out.str_val(name)?;
-        self.out.u32_val(num_cell_types.try_into().unwrap())?;
-        self.out.u32_val(num_pip_classes.try_into().unwrap())?;
-        self.out.ref_label(cell_types_ref)?;
-        self.out.ref_label(pip_classes_ref)?;
+        self.out.ref_slice(cell_types_ref, num_cell_types)?;
+        self.out.ref_slice(pip_classes_ref, num_pip_classes)?;
         Ok(())
     }
 
@@ -415,8 +403,7 @@ impl<'a> BBAStructs<'a> {
         bba_ids_ref: &str,
     ) -> Result<()> {
         self.out.u32_val(num_file_ids.try_into().unwrap())?;
-        self.out.u32_val(num_bba_ids.try_into().unwrap())?;
-        self.out.ref_label(bba_ids_ref)?;
+        self.out.ref_slice(bba_ids_ref, num_bba_ids)?;
         Ok(())
     }
 
@@ -436,13 +423,10 @@ impl<'a> BBAStructs<'a> {
         self.out.str_val(device_name)?;
         self.out.u16_val(width.try_into().unwrap())?;
         self.out.u16_val(height.try_into().unwrap())?;
-        self.out.u32_val(num_tiles.try_into().unwrap())?;
-        self.out.u32_val(num_pads.try_into().unwrap())?;
-        self.out.u32_val(num_pkgs.try_into().unwrap())?;
-        self.out.ref_label(grid_ref)?;
+        self.out.ref_slice(grid_ref, num_tiles)?;
         self.out.ref_label(globals_ref)?;
-        self.out.ref_label(pads_ref)?;
-        self.out.ref_label(pkgs_ref)?;
+        self.out.ref_slice(pads_ref, num_pads)?;
+        self.out.ref_slice(pkgs_ref, num_pkgs)?;
         Ok(())
     }
 
@@ -456,13 +440,10 @@ impl<'a> BBAStructs<'a> {
         loctypes_ref: &str,
     ) -> Result<()> {
         self.out.u32_val(BBA_VERSION)?;
-        self.out.u32_val(num_chips.try_into().unwrap())?;
-        self.out.u32_val(num_loctypes.try_into().unwrap())?;
-        self.out.u32_val(num_speedgrades.try_into().unwrap())?;
         self.out.str_val(family)?;
-        self.out.ref_label(chips_ref)?;
-        self.out.ref_label(loctypes_ref)?;
-        self.out.ref_label("speed_grades")?;
+        self.out.ref_slice(chips_ref, num_chips)?;
+        self.out.ref_slice(loctypes_ref, num_loctypes)?;
+        self.out.ref_slice("speed_grades", num_speedgrades)?;
         self.out.ref_label("id_db")?;
         Ok(())
     }

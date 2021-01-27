@@ -1,5 +1,5 @@
-use std::io::Result;
-use std::io::Write;
+use std::convert::TryInto;
+use std::io::{Result, Write};
 
 pub struct BBAWriter<'a> {
     out: &'a mut dyn Write,
@@ -51,6 +51,11 @@ impl<'a> BBAWriter<'a> {
     }
     pub fn ref_label(&mut self, s: &str) -> Result<()> {
         writeln!(&mut self.out, "ref {}", s)?;
+        Ok(())
+    }
+    pub fn ref_slice(&mut self, s: &str, len: usize) -> Result<()> {
+        writeln!(&mut self.out, "ref {}", s)?;
+        self.u32_val(len.try_into().unwrap())?;
         Ok(())
     }
     pub fn str_val(&mut self, s: &str) -> Result<()> {
