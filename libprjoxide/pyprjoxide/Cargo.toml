@@ -7,7 +7,7 @@ edition = "2018"
 prjoxide = { path = "../prjoxide" }
 
 [dependencies.pyo3]
-version = "0.8.4"
+version = "0.13.1"
 features = ["extension-module"]
 
 [lib]

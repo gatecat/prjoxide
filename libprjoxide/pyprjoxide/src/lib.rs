@@ -24,12 +24,10 @@ struct Database {
 #[pymethods]
 impl Database {
     #[new]
-    pub fn __new__(obj: &PyRawObject, root: &str) {
-        obj.init({
-            Database {
-                db: database::Database::new(root),
-            }
-        });
+    pub fn __new__(root: &str) -> Self {
+        Database {
+            db: database::Database::new(root),
+        }
     }
 }
 
@@ -58,8 +56,7 @@ impl Fuzzer {
                 &base_chip,
                 &fuzz_tiles
                     .iter()
-                    .unwrap()
-                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .map(|x| x.extract::<String>().unwrap())
                     .collect(),
                 name,
                 desc,
@@ -87,15 +84,13 @@ impl Fuzzer {
                 &base_chip,
                 &fuzz_tiles
                     .iter()
-                    .unwrap()
-                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .map(|x| x.extract::<String>().unwrap())
                     .collect(),
                 to_wire,
                 fixed_conn_tile,
                 &ignore_tiles
                     .iter()
-                    .unwrap()
-                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .map(|x| x.extract::<String>().unwrap())
                     .collect(),
                 full_mux,
                 skip_fixed,
@@ -120,8 +115,7 @@ impl Fuzzer {
                 &base_chip,
                 &fuzz_tiles
                     .iter()
-                    .unwrap()
-                    .map(|x| x.unwrap().extract::<String>().unwrap())
+                    .map(|x| x.extract::<String>().unwrap())
                     .collect(),
                 name,
                 desc,
@@ -256,12 +250,10 @@ struct Chip {
 #[pymethods]
 impl Chip {
     #[new]
-    pub fn __new__(obj: &PyRawObject, db: &mut Database, name: &str) {
-        obj.init({
-            Chip {
-                c: chip::Chip::from_name(&mut db.db, name),
-            }
-        });
+    pub fn __new__(db: &mut Database, name: &str) -> Self {
+        Chip {
+            c: chip::Chip::from_name(&mut db.db, name),
+        }
     }
 
     #[staticmethod]
