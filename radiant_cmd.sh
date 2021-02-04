@@ -4,7 +4,7 @@
 # You need to set the RADIANTDIR environment variable to the path where you have
 # installed Lattice Radiant, unless it matches this default.
 
-radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.0}"
+radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.2}"
 export FOUNDRY="${radiantdir}/ispfpga"
 bindir="${radiantdir}/bin/lin64"
 LSC_DIAMOND=true

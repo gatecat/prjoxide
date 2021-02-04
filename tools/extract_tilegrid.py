@@ -32,6 +32,7 @@ rc_re = re.compile(r'R(\d+)C(\d+)')
 
 # For some reason TAP tiles don't have a column in their name. Restore them,
 # using locations determined from Radiant physical view (for now)
+# TODO: are these correct for 17k too?
 tap_frame_to_col = {
     16: 14,
     22: 38,

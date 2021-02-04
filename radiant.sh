@@ -19,6 +19,12 @@ PART=$1
 set -- "$1" $V_SUB
 
 case "${PART}" in
+	LIFCL-17)
+		PACKAGE="${DEV_PACKAGE:-CABGA256}"
+		DEVICE="LIFCL-17"
+		LSE_ARCH="lifcl"
+		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
+		;;
 	LIFCL-40)
 		PACKAGE="${DEV_PACKAGE:-CABGA400}"
 		DEVICE="LIFCL-40"
@@ -71,7 +77,7 @@ else
 	fi
 
 	if [ -n "$GEN_RBF" ]; then
-	"$fpgabindir"/bitgen -b -d -w par.udb
+	"$fpgabindir"/bitgen -b -d -w par.udb || test -e "par.rbt"
 	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
 	else
 	"$fpgabindir"/bitgen -d -w par.udb
