@@ -1,6 +1,6 @@
 #!/bin/bash
 
-radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.0}"
+radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.2}"
 export FOUNDRY="${radiantdir}/ispfpga"
 bindir="${radiantdir}/bin/lin64"
 LSC_DIAMOND=true
@@ -77,7 +77,7 @@ else
 	fi
 
 	if [ -n "$GEN_RBF" ]; then
-	"$fpgabindir"/bitgen -b -d -w par.udb || test -e "par.rbt"
+	"$fpgabindir"/bitgen -b -d -w par.udb
 	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
 	else
 	"$fpgabindir"/bitgen -d -w par.udb
