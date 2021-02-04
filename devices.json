@@ -37,8 +37,8 @@
                 "LIFCL-17": {
                     "packages": ["QFN72", "csfBGA121", "caBGA256"],
                     "idcode": 17760323,
-                    "frames": 4072,
-                    "bits_per_frame": 554,
+                    "frames": 7900,
+                    "bits_per_frame": 338,
                     "pad_bits_after_frame": 0,
                     "pad_bits_before_frame": 0,
                     "frame_ecc_bits": 14,

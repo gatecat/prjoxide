@@ -298,7 +298,7 @@ impl BitstreamParser {
         self.write_u16(count.try_into().unwrap());
         let bits_per_frame = c.data.bits_per_frame;
         let pad_bits = c.data.frame_ecc_bits + c.data.pad_bits_after_frame;
-        let mut frame_bytes = vec![0 as u8; (bits_per_frame + 7) / 8 + 2];
+        let mut frame_bytes = vec![0 as u8; (bits_per_frame + 14 + 7) / 8];
         let total_frame_bytes = frame_bytes.len();
         for f in 0..count {
             let frame_addr: u32 = start_addr + (f as u32);
@@ -505,7 +505,7 @@ impl BitstreamParser {
                         }
                     }
                     println!("write {} frames at 0x{:08x}", count, curr_frame);
-                    let mut frame_bytes = vec![0 as u8; (bits_per_frame + 7) / 8 + 2];
+                    let mut frame_bytes = vec![0 as u8; (bits_per_frame + 14 + 7) / 8];
                     assert_eq!(cfg, 0x91);
                     for _ in 0..count {
                         self.copy_bytes(&mut frame_bytes);
