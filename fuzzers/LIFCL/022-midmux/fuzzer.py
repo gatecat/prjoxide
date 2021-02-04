@@ -13,6 +13,12 @@ configs = [
     ("VPFS", (0, 49), 16, "T",
         FuzzConfig(job="TMIDROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R0C49:TMID_0", "CIB_R0C50:TMID_1"])),
 
+    ("HPFE", (10, 0), 12, "L",
+        FuzzConfig(job="LMIDROUTE", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R10C0:LMID_RBB_5_15K"])),
+    ("HPFW", (10, 74), 12, "R",
+        FuzzConfig(job="RMIDROUTE", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R10C75:RMID_PICB_DLY10"])),
+    ("VPFS", (0, 37), 16, "T",
+        FuzzConfig(job="TMIDROUTE", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R0C37:TMID_0", "CIB_R0C38:TMID_1_15K", "CIB_R0C39:CLKBUF_T_15K"])),
 ]
 
 def main():
