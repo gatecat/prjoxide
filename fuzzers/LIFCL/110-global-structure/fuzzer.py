@@ -7,12 +7,13 @@ from os import path
 
 # name max_row max_col
 configs = [
-    ("LIFCL-40", 56, 87)
+    ("LIFCL-40", 56, 87, "../shared/empty_40.v"),
+    ("LIFCL-17", 29, 75, "../shared/empty_17.v"),
 ]
 
 def main():
-    for name, max_row, max_col in configs:
-        cfg = FuzzConfig(job="GLOBAL_{}".format(name), device=name, sv="../shared/empty_40.v", tiles=[])
+    for name, max_row, max_col, sv in configs:
+        cfg = FuzzConfig(job="GLOBAL_{}".format(name), device=name, sv=sv, tiles=[])
         cfg.setup()
         db_path = path.join(database.get_db_root(), "LIFCL", name, "globals.json")
         def load_db():
@@ -45,6 +46,8 @@ def main():
         branches = []
 
         branch_wires = ["R{}C{}_HPBX0000".format(test_row, bc) for bc in sorted(branch_to_col.keys())]
+        if name == "LIFCL-17":
+            branch_wires.append("R{}C13_RHPBX0000".format(test_row))
         branch_wire_info = lapie.get_node_data(cfg.udb, branch_wires)
         branch_driver_col = {}
         # Branches directly driven by a VPSX

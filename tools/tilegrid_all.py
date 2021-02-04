@@ -17,7 +17,7 @@ def main():
         for device in sorted(devices["families"][family]["devices"].keys()):
             output_file = path.join(database.get_db_subdir(family, device), "tilegrid.json")
             subprocess.check_call(["./get_device_tilegrid.sh", device])
-            extract_tilegrid.main(["extract_tilegrid", "../minitests/simple/wire.dump", output_file])
+            extract_tilegrid.main(["extract_tilegrid", device, "../minitests/simple/wire.dump", output_file])
 
 
 if __name__ == "__main__":

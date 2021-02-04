@@ -23,27 +23,42 @@ end_digit_re = re.compile(
     r'(\d+)$')
 
 parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('device', type=str,
+                    help="device name")
 parser.add_argument('infile', type=argparse.FileType('r'),
                     help="input file from bstool")
 parser.add_argument('outfile', type=argparse.FileType('w'),
                     help="output JSON file")
-
 rc_re = re.compile(r'R(\d+)C(\d+)')
 
 # For some reason TAP tiles don't have a column in their name. Restore them,
 # using locations determined from Radiant physical view (for now)
-# TODO: are these correct for 17k too?
-tap_frame_to_col = {
+tap_frame_to_col_40 = {
     16: 14,
     22: 38,
     28: 62,
     34: 74
 }
+tap_frame_to_col_17 = {
+    16: 14,
+    22: 26,
+    28: 50,
+    34: 62
+}
+
+def get_tf2c(dev):
+    if dev == "LIFCL-40" or dev == "LFDN2X-40":
+        return tap_frame_to_col_40
+    elif dev == "LIFCL-17":
+        return tap_frame_to_col_17
+    else:
+        assert False
 
 def main(argv):
     args = parser.parse_args(argv[1:])
     tiles = {}
     current_tile = None
+    tap_frame_to_col = get_tf2c(args.device)
     for line in args.infile:
         tile_m = tile_re.match(line)
         if tile_m:
