@@ -4,6 +4,18 @@ import re
 
 configs = [
     {
+        "cfg": FuzzConfig(job="IOROUTE0_17K", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R0C59:SYSIO_B0_0_15K"]),
+        "rc": (0, 59),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE1_17K", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R5C75:SYSIO_B1_0_15K"]),
+        "rc": (5, 75),
+    },
+    {
+        "cfg": FuzzConfig(job="IOROUTE1D_17K", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R3C75:SYSIO_B1_DED_15K"]),
+        "rc": (3, 75),
+    },
+    {
         "cfg": FuzzConfig(job="IOROUTE5", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R56C8:SYSIO_B5_0", "CIB_R56C9:SYSIO_B5_1"]),
         "rc": (56, 8),
     },
@@ -91,6 +103,26 @@ ignore_tiles = set([
     "CIB_R50C1:CIB_LR",
 ])
 
+ignore_tiles_17k = set([
+    "CIB_R1C74:CIB_LR",
+    "CIB_R2C74:CIB_LR",
+    "CIB_R3C74:CIB_LR",
+    "CIB_R4C74:CIB_LR",
+    "CIB_R5C74:CIB_LR",
+    "CIB_R6C74:CIB_LR",
+    "CIB_R7C74:CIB_LR",
+    "CIB_R8C74:CIB_LR",
+    "CIB_R9C74:CIB_LR",
+    "CIB_R10C74:CIB_LR_A",
+    "CIB_R11C74:CIB_LR",
+    "CIB_R11C74:CIB_LR_B",
+    "CIB_R12C74:CIB_LR",
+    "CIB_R1C58:CIB_T",
+    "CIB_R1C59:CIB_T",
+    "CIB_R1C60:CIB_T",
+    "CIB_R1C61:CIB_T",
+])
+
 def main():
     for config in configs:
         cfg = config["cfg"]
@@ -104,7 +136,8 @@ def main():
             return not ("ADC_CORE" in to_wire or "ECLKBANK_CORE" in to_wire or "MID_CORE" in to_wire
                 or "REFMUX_CORE" in to_wire or "CONFIG_JTAG_CORE" in to_wire or "CONFIG_JTAG_CORE" in from_wire
                 or "REFCLOCK_MUX_CORE" in to_wire)
-        fuzz_interconnect(config=cfg, nodenames=nodes, nodename_predicate=nodename_filter, pip_predicate=pip_filter, regex=True, bidir=True, ignore_tiles=ignore_tiles)
+        fuzz_interconnect(config=cfg, nodenames=nodes, nodename_predicate=nodename_filter, pip_predicate=pip_filter, regex=True, bidir=True,
+            ignore_tiles=ignore_tiles_17k if cfg.device == "LIFCL-17" else ignore_tiles)
 
 if __name__ == "__main__":
     main()

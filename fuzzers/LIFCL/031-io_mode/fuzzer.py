@@ -4,6 +4,17 @@ import fuzzloops
 import re
 
 configs = [
+    ("B", "E11", # PR3A,
+        FuzzConfig(job="IO1D_17K", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R3C75:SYSIO_B1_DED_15K"])),
+    ("A","F16", # PR13A
+        FuzzConfig(job="IO1A_17K", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R13C75:SYSIO_B1_0_15K", "CIB_R14C75:SYSIO_B1_1_15K"])),
+    ("B","G15", # PR13B
+        FuzzConfig(job="IO1B_17K", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R13C75:SYSIO_B1_0_15K", "CIB_R14C75:SYSIO_B1_1_15K"])),
+    ("A","E15", # PT67A
+        FuzzConfig(job="IO0A_17K", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C67:SYSIO_B0_0_15K"])),
+    ("B","E16", # PT67B
+        FuzzConfig(job="IO0B_17K", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C67:SYSIO_B0_0_15K"])),
+
     ("A","F16", # PR8A
         FuzzConfig(job="IO1AO", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R8C87:SYSIO_B1_0_ODD"])),
     ("B","F17", # PR8B
@@ -69,7 +80,10 @@ def main():
         pio, site, cfg = config
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
-        cfg.sv = "iob_40.v"
+        if cfg.device == "LIFCL-17":
+            cfg.sv = "iob_17.v"
+        else:
+            cfg.sv = "iob_40.v"
         primtype = "SEIO33_CORE"
         def get_bank_vccio(iotype):
             if iotype == "":
