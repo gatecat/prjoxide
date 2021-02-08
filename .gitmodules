@@ -1,3 +1,3 @@
 [submodule "database"]
 	path = database
-	url = https://github.com/daveshah1/prjoxide-db
+	url = https://github.com/gatecat/prjoxide-db

@@ -29,7 +29,7 @@ prjoxide will also need to be updated to support the production silicon; includi
 
 Clone prjoxide recursively, so you get a copy of the database too:
 
-    git clone --recursive https://github.com/daveshah1/prjoxide
+    git clone --recursive https://github.com/gatecat/prjoxide
 
 A single command line tool `prjoxide` supports subcommands for bitstream packing and unpacking as well as BBA generation for the nextpnr build process. To build and install it, run:
 

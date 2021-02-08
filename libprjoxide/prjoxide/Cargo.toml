@@ -1,7 +1,7 @@
 [package]
 name = "prjoxide"
 version = "0.1.0"
-authors = ["David Shah <dave@ds0.me>"]
+authors = ["gatecat <gatecat@ds0.me>"]
 edition = "2018"
 
 [dependencies]
