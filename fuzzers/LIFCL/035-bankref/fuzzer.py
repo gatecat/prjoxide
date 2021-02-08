@@ -5,6 +5,17 @@ import re
 
 configs = [
     (1, "F16",
+        FuzzConfig(job="IO1A_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R2C75:BK1_15K"])),
+    (0, "E15",
+        FuzzConfig(job="IO0A_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C56:BK0_15K"])),
+    (5, "M3",
+        FuzzConfig(job="IO5A_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R29C13:V51_15K", "CIB_R29C31:SYSIO_B5_1_15K_ECLK_L_V52", "CIB_R29C32:IO_B4_0_15K_DLY52_BK5"])),
+    (4, "T3",
+        FuzzConfig(job="IO4A_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R29C52:SYSIO_B4_0_15K_BK4_V42", "CIB_R29C35:IO_B4_1_15K_V41"])),
+    (3, "T12",
+        FuzzConfig(job="IO3A_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R29C72:BK3_15K", "CIB_R29C54:SYSIO_B4_0_15K_V31", "CIB_R29C73:DDR_OSC_R_15K_V32"])),
+
+    (1, "F16",
         FuzzConfig(job="IO1A", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R9C87:BANKREF1"])),
     (2, "N14",
         FuzzConfig(job="IO2A", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R39C87:BANKREF2"])),
@@ -46,7 +57,10 @@ def main():
         bank, site, cfg = config
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
-        cfg.sv = "../031-io_mode/iob_40.v"
+        if cfg.device == "LIFCL-17":
+            cfg.sv = "../031-io_mode/iob_17.v"
+        else:
+            cfg.sv = "../031-io_mode/iob_40.v"
         def get_substs(iotype="LVCMOS18H", kv=None, vcc=None, diff=False, tmux="#SIG"):
             if kv is not None:
                 extra_config = ",{}={}".format(kv[0], kv[1])
