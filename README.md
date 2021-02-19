@@ -8,7 +8,7 @@ prjoxide will also need to be updated to support the production silicon; includi
 
 ## Links
 
-- [HTML documentation](https://daveshah1.github.io/prjoxide-html/)
+- [HTML documentation](https://gatecat.github.io/prjoxide-html/)
 
 ## Getting Started - Complete Flow
 
