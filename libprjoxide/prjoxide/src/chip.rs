@@ -467,6 +467,8 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             return "PLL_CORE";
         } else if ip.starts_with("TDPHY_") {
             return "DPHY_CORE";
+        } else if ip.starts_with("TPCIE_") {
+            return "PCIE_CORE";
         } else if ip.starts_with("LRAM_") {
             return "LRAM_INIT";
         } else {

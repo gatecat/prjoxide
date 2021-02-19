@@ -22,7 +22,7 @@ def get_params(f):
 				name = p_m.group(1)
 				val = p_m.group(2)
 				if val.startswith("0b"):
-					words.append((name, len(val) - 2))
+					words.append((name, len(val) - 2, val[2:]))
 				else:
 					assert len(other_vals) > 0
 					enums.append((name, [val] + other_vals))
@@ -30,8 +30,8 @@ def get_params(f):
 
 def main():
 	words, enums = get_params(sys.argv[1])
-	for n, l in words:
-		print("{}[{}]".format(n, l))
+	for n, l, d in words:
+		print("{}[{}] {}".format(n, l, d))
 	for n, v in enums:
 		print("{} {{{}}}".format(n, ", ".join(v)))
 

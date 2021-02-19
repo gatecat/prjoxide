@@ -19,7 +19,7 @@ def main():
     empty = cfg.build_design(cfg.sv, dict(k="GSR", v="ENABLED"))
     words, enums = get_params.get_params(os.path.join(os.environ['RADIANTDIR'], "cae_library", "simulation", "verilog", "lifcl", "DPHY.v"))
     def per_word(w):
-        name, width = w
+        name, width, default = w
         nonrouting.fuzz_ip_word_setting(cfg, name, width, lambda b: dict(k=name, v=str(bin2bin(b))), "")
     fuzzloops.parallel_foreach(words, per_word)
     def per_enum(e):
