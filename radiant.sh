@@ -92,3 +92,7 @@ cp "$2.tmp"/par.rbt "$2.rbt"
 else
 cp "$2.tmp"/par.bit "$2.bit"
 fi
+
+if [ -n "$DO_UNPACK" ]; then
+prjoxide unpack "$2.bit" "$2.fasm"
+fi

@@ -28,15 +28,17 @@ def main():
     words, enums = get_params.get_params(os.path.join(os.environ['RADIANTDIR'], "cae_library", "simulation", "verilog", "lifcl", "PCIE.v"))
     # force words with non-zero default to zero...
     for n, w, d in words:
-        defaults.append((n, "0b{}".format("0" * w)))
+        if int(d, 2) != 0:
+            defaults.append((n, "0b{}".format("0" * w)))
     def per_word(w):
         name, width, default = w
         nonrouting.fuzz_ip_word_setting(cfg, name, width, lambda b: get_substs(name, str(bin2bin(b))), "")
-    fuzzloops.parallel_foreach(words, per_word)
-    def per_enum(e):
-        name, options = e
-        nonrouting.fuzz_ip_enum_setting(cfg, empty, name, options, lambda x: get_substs(name, x), "")
-    fuzzloops.parallel_foreach(enums, per_enum)
+    #fuzzloops.parallel_foreach(words, per_word)
+    #def per_enum(e):
+    #    name, options = e
+    #    nonrouting.fuzz_ip_enum_setting(cfg, empty, name, options, lambda x: get_substs(name, x), "")
+    #fuzzloops.parallel_foreach(enums, per_enum)
+    per_word(("COEF5_PRE", 6, "0b000001"))
 
 if __name__ == "__main__":
     main()
