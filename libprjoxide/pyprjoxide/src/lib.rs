@@ -15,6 +15,7 @@ use prjoxide::ipfuzz;
 use prjoxide::nodecheck;
 use prjoxide::wires;
 use prjoxide::pip_classes;
+use prjoxide::sites;
 
 #[pyclass]
 struct Database {
@@ -312,6 +313,15 @@ fn check_nodes(d: &mut Database, device: &str, nodefile: &str) -> PyResult<()> {
 }
 
 #[pyfunction]
+fn build_sites(d: &mut Database, device: &str, tiletype: &str) -> PyResult<()> {
+    let c = chip::Chip::from_name(&mut d.db, device);
+    let t = c.tiles.iter().find(|t| t.tiletype == tiletype).unwrap();
+    let tdb = d.db.tile_bitdb(&c.family, tiletype);
+    sites::build_sites(&c, t, &tdb.db);
+    Ok(())
+}
+
+#[pyfunction]
 fn write_tilebits_html(
     d: &mut Database,
     docs_root: &str,
@@ -345,6 +355,7 @@ fn libpyprjoxide(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_wrapped(wrap_pyfunction!(copy_db))?;
     m.add_wrapped(wrap_pyfunction!(add_always_on_bits))?;
     m.add_wrapped(wrap_pyfunction!(classify_pip))?;
+    m.add_wrapped(wrap_pyfunction!(build_sites))?;
     m.add_class::<Database>()?;
     m.add_class::<Fuzzer>()?;
     m.add_class::<IPFuzzer>()?;
