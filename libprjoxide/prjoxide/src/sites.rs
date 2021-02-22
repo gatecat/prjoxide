@@ -4,7 +4,7 @@ use crate::wires::*;
 use crate::bels::*;
 
 use std::collections::{BTreeSet, BTreeMap};
-
+use std::fmt;
 
 pub struct SitePin {
     pub tile_wire: String,
@@ -12,9 +12,29 @@ pub struct SitePin {
     pub dir: PinDir,
 }
 
+impl fmt::Debug for SitePin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {} {}",
+            &self.tile_wire,
+            match self.dir {
+                PinDir::INPUT => "-->",
+                PinDir::OUTPUT => "<--",
+                PinDir::INOUT => "<->",
+            },
+            &self.site_wire
+        )
+    }
+}
+
+pub struct SitePip {
+    pub src_wire: String,
+    pub dst_wire: String,
+}
+
 pub struct Site {
     pub name: String,
     pub pins: Vec<SitePin>,
+    pub pips: Vec<SitePip>,
 }
 
 // To speed up site routing; where fixed connections connect multiple site wires together, merge them into one
@@ -71,7 +91,38 @@ fn flatten_wires(tile: &Tile, tiledata: &TileBitsDatabase) -> SiteWireMap {
 
 pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) {
     let flat_wires = flatten_wires(tile, tiledata);
-    for (w, r) in flat_wires.wire2root.iter() {
-        println!("{}: {}", w, r);
+    let mut pins = Vec::new();
+    let mut found_pins = BTreeSet::new();
+    for (dst_wire, conns) in tiledata.conns.iter() {
+        for conn in conns.iter() {
+            if is_site_wire(tile, dst_wire) && !is_site_wire(tile, &conn.from_wire) {
+                // from tile into site
+                let site_dst_wire = flat_wires.lookup_wire(dst_wire);
+                if found_pins.contains(&(conn.from_wire.to_string(), site_dst_wire.to_string())) {
+                    continue;
+                }
+                found_pins.insert((conn.from_wire.to_string(), site_dst_wire.to_string()));
+                pins.push(SitePin {
+                    tile_wire: conn.from_wire.clone(),
+                    site_wire: site_dst_wire,
+                    dir: PinDir::INPUT,
+                });
+            } else if !is_site_wire(tile, dst_wire) && is_site_wire(tile, &conn.from_wire) {
+                // from site into tile
+                let site_src_wire = flat_wires.lookup_wire(&conn.from_wire);
+                if found_pins.contains(&(site_src_wire.to_string(), dst_wire.to_string())) {
+                    continue;
+                }
+                found_pins.insert((site_src_wire.to_string(), dst_wire.to_string()));
+                pins.push(SitePin {
+                    tile_wire: dst_wire.to_string(),
+                    site_wire: site_src_wire,
+                    dir: PinDir::OUTPUT,
+                });
+            }
+        }
+    }
+    for pin in pins.iter() {
+        println!("{:?}", pin);
     }
 }

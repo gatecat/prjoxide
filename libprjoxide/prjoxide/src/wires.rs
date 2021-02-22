@@ -324,7 +324,7 @@ pub fn is_site_wire(tile: &Tile, wire: &str) -> bool {
     // Return true if a wire is part of a site; false if part of tile routing
     match &tile.tiletype[..] {
         "PLC" => {
-            wire.contains("_SLICE") || wire.ends_with("_DIMUX") || wire.ends_with("_DRMUX")
+            wire.contains("_SLICE") || wire.ends_with("_DIMUX") || wire.ends_with("_DRMUX") || wire.ends_with("_CDMUX")
         },
         _ => false,
     }
