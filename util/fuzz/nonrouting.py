@@ -51,7 +51,7 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
             fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
     fz.solve(fuzzconfig.db)
 
-def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", inverted_mode=False):
+def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=None):
     """
     Fuzz a multi-bit IP setting with an optimum number of bitstreams
 
@@ -61,6 +61,15 @@ def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", inverted_
     :param get_sv_substs: a callback function, that is called with an array of bits to create a design with that setting
     """
     prefix = "thread{}_".format(threading.get_ident())
+
+    inverted_mode = False
+    if default is not None:
+        for i in range(0, length.bit_length()):
+            bits = [(j >> i) & 0x1 == 0 for j in range(length)]
+            if default == bits:
+                inverted_mode = True
+                break
+
     baseline = config.build_design(config.sv, get_sv_substs([inverted_mode for _ in range(length)]), prefix)
     ipcore, iptype = config.tiles[0].split(":")
     fz = libpyprjoxide.IPFuzzer.word_fuzzer(fuzzconfig.db, baseline, ipcore, iptype, name, desc, length, inverted_mode)
