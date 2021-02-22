@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::iter::FromIterator;
 
 pub enum IPFuzzMode {
-    Word { name: String, width: usize },
+    Word { name: String, width: usize, inverted_mode: bool },
     Enum { name: String },
 }
 
@@ -33,11 +33,13 @@ impl IPFuzzer {
         name: &str,
         desc: &str,
         width: usize,
+        inverted_mode: bool,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Word {
                 name: name.to_string(),
                 width: width,
+                inverted_mode: inverted_mode,
             },
             ipcore: fuzz_ipcore.to_string(),
             iptype: fuzz_iptype.to_string(),
@@ -137,7 +139,7 @@ impl IPFuzzer {
                     None => {}
                 }
             }
-            IPFuzzMode::Word { name, width } => {
+            IPFuzzMode::Word { name, width, inverted_mode } => {
                 let mut cbits = Vec::new();
                 let mut used_bits = BTreeSet::new();
                 for i in 0..*width {
@@ -146,7 +148,7 @@ impl IPFuzzer {
                         .iter()
                         .filter(|(k, _v)| {
                             if let IPFuzzKey::WordKey { bits } = k {
-                                bits[i]
+                                bits[i] != *inverted_mode
                             } else {
                                 false
                             }
@@ -163,7 +165,7 @@ impl IPFuzzer {
                             .map(|(a, b, v)| ConfigBit {
                                 frame: *a as usize,
                                 bit: *b as usize,
-                                invert: !v,
+                                invert: *v == *inverted_mode,
                             })
                             .collect(),
                     );

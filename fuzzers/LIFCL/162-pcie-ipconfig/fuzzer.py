@@ -32,7 +32,7 @@ def main():
             defaults.append((n, "0b{}".format("0" * w)))
     def per_word(w):
         name, width, default = w
-        nonrouting.fuzz_ip_word_setting(cfg, name, width, lambda b: get_substs(name, str(bin2bin(b))), "")
+        nonrouting.fuzz_ip_word_setting(cfg, name, width, lambda b: get_substs(name, str(bin2bin(b))), "", inverted_mode=True)
     #fuzzloops.parallel_foreach(words, per_word)
     #def per_enum(e):
     #    name, options = e

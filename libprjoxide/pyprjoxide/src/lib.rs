@@ -159,6 +159,7 @@ impl IPFuzzer {
         name: &str,
         desc: &str,
         width: usize,
+        inverted_mode: bool,
     ) -> IPFuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -171,6 +172,7 @@ impl IPFuzzer {
                 name,
                 desc,
                 width,
+                inverted_mode,
             ),
         }
     }
