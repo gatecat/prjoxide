@@ -45,6 +45,31 @@ impl fmt::Debug for SiteRoutingBel {
     }
 }
 
+pub struct SiteBelPin {
+    pub pin_name: String,
+    pub site_wire: String,
+    pub dir: PinDir,
+}
+
+impl fmt::Debug for SiteBelPin {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} {} {}",
+            &self.site_wire,
+            match self.dir {
+                PinDir::INPUT => "-->",
+                PinDir::OUTPUT => "<--",
+                PinDir::INOUT => "<->",
+            },
+            &self.pin_name
+        )
+    }
+}
+
+pub struct SiteFunctionalBel {
+    pub name: String,
+    pub bel_type: String,
+    pub pins: Vec<SiteBelPin>,
+}
 
 pub struct Site {
     pub name: String,
@@ -162,8 +187,43 @@ pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) {
             src_wires: mapped_src_wires,
         });
     }
+    println!();
     println!("Routing bels: ");
     for rbel in rbels.iter() {
         println!("    {:?}", rbel);
+    }
+    // Import functional bels
+    let orig_bels = get_tile_bels(&tile.tiletype, tiledata);
+    let mut site_bels = Vec::new();
+    for orig_bel in orig_bels.iter() {
+        let mut site_bel_pins = Vec::new();
+
+        for pin in &orig_bel.pins {
+            // TODO: relative X and Y coordinates
+            let wire_name = pin.wire.rel_name(orig_bel.rel_x, orig_bel.rel_y);
+            assert!(is_site_wire(tile, &wire_name));
+            let site_wire = flat_wires.lookup_wire(&wire_name);
+            site_bel_pins.push(SiteBelPin {
+                pin_name: pin.name.clone(),
+                site_wire: site_wire,
+                dir: pin.dir.clone(),
+            });
+        }
+
+        site_bels.push(SiteFunctionalBel {
+            name: orig_bel.name.clone(),
+            bel_type: orig_bel.beltype.clone(),
+            pins: site_bel_pins,
+        });
+    }
+
+    println!();
+    println!("Functional bels: ");
+    for fbel in site_bels.iter() {
+        println!("    {}: {}", &fbel.name, &fbel.bel_type);
+        for bp in fbel.pins.iter() {
+            println!("        {:?}", bp);
+        }
+        println!();
     }
 }
