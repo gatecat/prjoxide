@@ -26,15 +26,30 @@ impl fmt::Debug for SitePin {
     }
 }
 
-pub struct SitePip {
-    pub src_wire: String,
+pub struct SiteRoutingBel {
+    pub src_wires: Vec<String>,
     pub dst_wire: String,
 }
+
+impl fmt::Debug for SiteRoutingBel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} <-- {{", &self.dst_wire)?;
+        let mut first = true;
+        for src in self.src_wires.iter() {
+            if !first { write!(f, ", ")?; }
+            write!(f, "{}", src)?;
+            first = false;
+        }
+        write!(f, "}}")?;
+        Ok(())
+    }
+}
+
 
 pub struct Site {
     pub name: String,
     pub pins: Vec<SitePin>,
-    pub pips: Vec<SitePip>,
+    pub rbels: Vec<SiteRoutingBel>,
 }
 
 // To speed up site routing; where fixed connections connect multiple site wires together, merge them into one
@@ -130,7 +145,25 @@ pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) {
                 dir: PinDir::OUTPUT,
             });
     }
+    println!("Pins: ");
     for pin in pins.iter() {
-        println!("{:?}", pin);
+        println!("    {:?}", pin);
+    }
+    let mut rbels = Vec::new();
+    // Convert pips to routing bels
+    for (dst_wire, pips) in tiledata.pips.iter() {
+        if !is_site_wire(tile, dst_wire) {
+            continue;
+        }
+        let site_dst_wire = flat_wires.lookup_wire(dst_wire);
+        let mapped_src_wires = pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tile, w)).map(|w| flat_wires.lookup_wire(w)).collect();
+        rbels.push(SiteRoutingBel {
+            dst_wire: site_dst_wire,
+            src_wires: mapped_src_wires,
+        });
+    }
+    println!("Routing bels: ");
+    for rbel in rbels.iter() {
+        println!("    {:?}", rbel);
     }
 }
