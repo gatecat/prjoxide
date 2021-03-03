@@ -151,7 +151,7 @@ impl DeviceGlobalsData {
             Some(hrow_col) => self
                 .spines
                 .iter()
-                .find(|s| ((y as i32) - (s.spine_row as i32)).abs() < 3)
+                .find(|s| ((y as i32) - (s.spine_row as i32)).abs() <= 3)
                 .map(|s| (hrow_col, s.spine_row)),
         }
     }

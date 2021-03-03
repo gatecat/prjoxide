@@ -420,46 +420,48 @@ pub struct LocationTypes {
 }
 
 impl LocationTypes {
-    pub fn from_locs(lg: &mut LocationGrid) -> LocationTypes {
+    pub fn from_locs(lgs: &mut Vec<LocationGrid>) -> LocationTypes {
         let mut lt = LocationTypes {
             types: IndexedMap::new(),
         };
-        for y in 0..lg.height {
-            for x in 0..lg.width {
-                let mut loc = lg.get_mut(x, y).unwrap();
+        for lg in lgs.iter_mut() {
+            for y in 0..lg.height {
+                for x in 0..lg.width {
+                    let mut loc = lg.get_mut(x, y).unwrap();
 
-                let loc_key = LocTypeKey {
-                    tiletypes: loc.tiletypes.iter().map(|tt| tt.to_string()).collect(),
-                };
-                let type_idx = lt.types.add(&loc_key, LocTypeData::new());
+                    let loc_key = LocTypeKey {
+                        tiletypes: loc.tiletypes.iter().map(|tt| tt.to_string()).collect(),
+                    };
+                    let type_idx = lt.types.add(&loc_key, LocTypeData::new());
 
-                loc.type_at_loc = Some(type_idx);
+                    loc.type_at_loc = Some(type_idx);
+                }
             }
-        }
-        for y in 0..lg.height {
-            for x in 0..lg.width {
-                let loc = lg.get(x, y).unwrap();
-                let neighbours_with_types = loc
-                    .neighbours
-                    .iter()
-                    .filter_map(|(n, invn)| {
-                        let (nx, ny) = lg.neighbour_tile(x, y, n)?;
-                        Some(NeighbourType {
-                            loc: n.clone(),
-                            loctype: lg.get(nx as usize, ny as usize)?.type_at_loc?,
-                            inv_wire_loc: invn.clone(),
+            for y in 0..lg.height {
+                for x in 0..lg.width {
+                    let loc = lg.get(x, y).unwrap();
+                    let neighbours_with_types = loc
+                        .neighbours
+                        .iter()
+                        .filter_map(|(n, invn)| {
+                            let (nx, ny) = lg.neighbour_tile(x, y, n)?;
+                            Some(NeighbourType {
+                                loc: n.clone(),
+                                loctype: lg.get(nx as usize, ny as usize)?.type_at_loc?,
+                                inv_wire_loc: invn.clone(),
+                            })
                         })
-                    })
-                    .collect();
-                let loctype = lt.types.value_mut(loc.type_at_loc.unwrap());
-                let nt = loctype.nhtypes.add(
-                    &NeighbourhoodType {
-                        neighbours: neighbours_with_types,
-                    },
-                    NeighbourhoodData::new(),
-                );
-                let mut loc = lg.get_mut(x, y).unwrap();
-                loc.neigh_type_at_loc = Some(nt);
+                        .collect();
+                    let loctype = lt.types.value_mut(loc.type_at_loc.unwrap());
+                    let nt = loctype.nhtypes.add(
+                        &NeighbourhoodType {
+                            neighbours: neighbours_with_types,
+                        },
+                        NeighbourhoodData::new(),
+                    );
+                    let mut loc = lg.get_mut(x, y).unwrap();
+                    loc.neigh_type_at_loc = Some(nt);
+                }
             }
         }
         return lt;

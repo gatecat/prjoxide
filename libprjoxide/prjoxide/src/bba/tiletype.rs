@@ -173,11 +173,15 @@ pub struct TileTypes {
 }
 
 impl TileTypes {
-    pub fn new(db: &mut Database, ids: &mut IdStringDB, fam: &str, dev: &str) -> TileTypes {
-        let tg = db.device_tilegrid(fam, dev);
-        let unique_tiletypes: BTreeSet<String> =
-            tg.tiles.iter().map(|t| t.1.tiletype.to_string()).collect();
+    pub fn new(db: &mut Database, ids: &mut IdStringDB, fam: &str, devs: &[&str]) -> TileTypes {
         let mut types: HashMap<String, TileType> = HashMap::new();
+        let mut unique_tiletypes: BTreeSet<String> = BTreeSet::new();
+        for dev in devs.iter() {
+            let tg = db.device_tilegrid(fam, dev);
+            for tile in tg.tiles.iter() {
+                unique_tiletypes.insert(tile.1.tiletype.to_string());
+            }
+        }
         for tt in unique_tiletypes.iter() {
             types.insert(tt.to_string(), TileType::new(db, ids, fam, tt));
         }

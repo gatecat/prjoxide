@@ -12,6 +12,7 @@ use prjoxide::chip::*;
 use prjoxide::database::*;
 use prjoxide::fasmparse::*;
 
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::*;
 
@@ -124,13 +125,22 @@ impl BBAExport {
         }
 
         let speed_grades = vec!["4", "5", "6", "10", "11", "12", "M"];
+        let devices = vec!["LIFCL-40", "LFD2NX-40", "LIFCL-17"];
         let mut db = Database::new_builtin(DATABASE_DIR);
 
-        let tts = TileTypes::new(&mut db, &mut ids, "LIFCL", "LIFCL-40");
-        let empty_chip = Chip::from_name(&mut db, "LIFCL-40");
-        let mut lgrid = LocationGrid::new(&empty_chip, &mut db, &tts);
-        lgrid.stamp_neighbours();
-        let mut lts = LocationTypes::from_locs(&mut lgrid);
+        let tts = TileTypes::new(&mut db, &mut ids, "LIFCL", &devices);
+
+        let mut lgrids = Vec::new();
+        let mut empty_chips = Vec::new();
+        for device in devices.iter() {
+            let empty_chip = Chip::from_name(&mut db, device);
+            let mut lgrid = LocationGrid::new(&empty_chip, &mut db, &tts);
+            lgrid.stamp_neighbours();
+            lgrids.push(lgrid);
+            empty_chips.push(empty_chip);
+        }
+        
+        let mut lts = LocationTypes::from_locs(&mut lgrids);
         lts.import_wires(&mut ids, &tts);
 
         let mut bba_str = BufWriter::new(outfile);
@@ -146,10 +156,15 @@ impl BBAExport {
         let mut bba_tmg = BBATiming::new(&speed_grades);
         let mut bba_s = BBAStructs::new(&mut bba);
         lts.write_locs_bba(&mut bba_s, &mut ids, &mut bba_tmg, &tts)?;
-        lgrid.write_grid_bba(&mut bba_s, 0, &mut ids, &empty_chip)?;
-        lgrid.write_chip_iodb(&mut bba_s, 0, &mut ids)?;
+        for (i, lgrid) in lgrids.iter().enumerate() {
+            lgrid.write_grid_bba(&mut bba_s, i.try_into().unwrap(), &mut ids, &empty_chips[i])?;
+            lgrid.write_chip_iodb(&mut bba_s, i.try_into().unwrap(), &mut ids)?;
+        }
+
         bba_s.list_begin("chips")?;
-        lgrid.write_chip_bba(&mut bba_s, 0, &empty_chip)?;
+        for (i, lgrid) in lgrids.iter().enumerate() {
+            lgrid.write_chip_bba(&mut bba_s, i.try_into().unwrap(), &empty_chips[i])?;
+        }
 
         bba_tmg.import(&self.family, &mut db, &mut ids);
 
@@ -157,7 +172,7 @@ impl BBAExport {
 
         ids.write_bba(&mut bba_s)?;
         bba_s.list_begin("db")?;
-        bba_s.database(1, "LIFCL", "chips", lts.types.len(), bba_tmg.speed_grades.len(), "chip_tts")?;
+        bba_s.database(devices.len(), "LIFCL", "chips", lts.types.len(), bba_tmg.speed_grades.len(), "chip_tts")?;
 
         bba_s.out.pop()?;
         Ok(())
