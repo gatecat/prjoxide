@@ -603,13 +603,17 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             .flatten()
             .collect(),
         "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
-        | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C" => {
+        | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C"
+        | "SYSIO_B0_0_15K" | "SYSIO_B1_0_15K" => {
             (0..2).map(Bel::make_seio33).collect()
         },
-        "SYSIO_B1_DED" => vec![Bel::make_seio33(1)],
+        "SYSIO_B1_DED" | "SYSIO_B1_DED_15K" => vec![Bel::make_seio33(1)],
         "SYSIO_B3_0" | "SYSIO_B3_0_DLY30_V18" | "SYSIO_B3_0_DQS1" | "SYSIO_B3_0_DQS3"
         | "SYSIO_B4_0" | "SYSIO_B4_0_DQS1" | "SYSIO_B4_0_DQS3" | "SYSIO_B4_0_DLY50" | "SYSIO_B4_0_DLY42"
-        |  "SYSIO_B5_0" => vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18()],
+        |  "SYSIO_B5_0" | "SYSIO_B5_1_15K_DQS50" | "SYSIO_B5_1_15K_DQS51" | "SYSIO_B5_0_15K_DQS52"
+        | "SYSIO_B5_1_15K_ECLK_L_V52" | "SYSIO_B4_1_15K_DQS41" | "SYSIO_B4_0_15K_DQS42"
+        | "SYSIO_B4_0_15K_BK4_V42" | "SYSIO_B4_0_15K_V31" | "SYSIO_B3_1_15K_DQS30" | "SYSIO_B3_1_15K_ECLK_R_DQS31"
+        | "SYSIO_B3_0_15K_DQS32" => vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18()],
         "EFB_1_OSC" => vec![Bel::make_osc_core()],
         "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
@@ -663,8 +667,8 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
 
         "CIB_T" => vec![Bel::make_vcc()],
 
-        "LMID" => (0..12).map(|x| Bel::make_dcc("L", x)).collect(),
-        "RMID_DLY20" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
+        "LMID" | "LMID_RBB_5_15K" => (0..12).map(|x| Bel::make_dcc("L", x)).collect(),
+        "RMID_DLY20" | "RMID_PICB_DLY10" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
         "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),
         "BMID_0_ECLK_1" => (0..18).map(|x| Bel::make_dcc("B", x)).collect(),
         "CMUX_0" => (0..4).map(|x| Bel::make_dcc("C", x)).collect(),
@@ -709,6 +713,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             "SYSIO_B2_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B2_0_REM")],
             "SYSIO_B6_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B6_0_REM")],
             "SYSIO_B7_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B7_0_REM")],
+            "SYSIO_B1_0_15K" => vec![tn, rel_tile(0, 1, "SYSIO_B1_1_15K")],
             _ => vec![tn]
         }
         "SEIO18_CORE" | "DIFF18_CORE" => vec![tn, rel_tile_prefix(1, 0, "SYSIO")],
