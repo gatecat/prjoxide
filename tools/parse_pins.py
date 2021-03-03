@@ -3,16 +3,6 @@ import json, sys
 # Parse a Lattice pinout CSV file to a JSON file for the database
 # Usage: parse_pins.py pinout.csv iodb.json
 
-COL_PADN = 0
-COL_FUNC = 1
-COL_CUST_NAME = 2
-COL_BANK = 3
-COL_DF = 4
-COL_LVDS = 5
-COL_HIGHSPEED = 6
-COL_DQS = 7
-COL_PKG_START = 8
-
 def main():
 	packages = []
 	pads = []
@@ -27,6 +17,38 @@ def main():
 				continue
 			if len(packages) == 0:
 				# Header line
+				COL_PADN = 0
+				COL_FUNC = 1
+				COL_CUST_NAME = 2
+				COL_BANK = 3
+				COL_DF = 4
+				COL_LVDS = 5
+				COL_HIGHSPEED = 6
+				COL_DQS = 7
+				COL_PKG_START = 8
+
+				if splitl[0] == "index":
+					# new style pinout
+					COL_PADN = 1
+					COL_FUNC = 2
+					COL_CUST_NAME = None
+					COL_BANK = 3
+					COL_DF = 5
+					COL_LVDS = 6
+					COL_HIGHSPEED = 7
+					COL_DQS = 4
+					COL_PKG_START = 8
+				elif splitl[2] == "BANK":
+					# LIFCL-17 style pinout
+					COL_PADN = 0
+					COL_FUNC = 1
+					COL_CUST_NAME = None
+					COL_BANK = 2
+					COL_DF = 4
+					COL_LVDS = 5
+					COL_HIGHSPEED = 6
+					COL_DQS = 3
+					COL_PKG_START = 7
 				assert splitl[COL_PADN] == "PADN"
 				packages = splitl[COL_PKG_START:]
 				continue
@@ -46,7 +68,7 @@ def main():
 				if io_spfunc == ['-']:
 					io_spfunc = []
 				io_dqs = splitl[COL_DQS]
-				if io_dqs == "":
+				if io_dqs == "" or io_dqs == "-":
 					io_dqs = []
 				elif io_dqs.find("DQSN") == 1:
 					io_dqs = [2, int(io_dqs[5:])]
