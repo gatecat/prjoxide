@@ -44,7 +44,7 @@ This executable contains all data embedded in it; so it can be freely moved to a
 
 Clone nextpnr:
 
-    git clone https://github.com/YosysHQ/nextpnr
+    git clone --recursive https://github.com/YosysHQ/nextpnr
     cd nextpnr
 
 Build nextpnr-nexus, making sure to point it to the correct path for the prjoxide tool:
