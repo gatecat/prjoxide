@@ -1,3 +1,6 @@
 [submodule "database"]
 	path = database
 	url = https://github.com/gatecat/prjoxide-db
+[submodule "3rdparty/fpga-interchange-schema"]
+	path = 3rdparty/fpga-interchange-schema
+	url = https://github.com/SymbiFlow/fpga-interchange-schema
