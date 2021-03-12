@@ -26,5 +26,7 @@ pub mod nodecheck;
 pub mod wires;
 pub mod pip_classes;
 pub mod sites;
-pub mod interchange_gen;
+pub mod interchange_gen {
+	mod routing_graph;
+}
 mod schema;
