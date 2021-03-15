@@ -3,6 +3,8 @@ use crate::database::Database;
 use std::collections::HashMap;
 
 use crate::bba::idstring::*;
+use crate::bba::idxset::*;
+use crate::bba::tiletype::TileTypes;
 
 
 // A tile type from the interchange format perspective
@@ -11,7 +13,7 @@ use crate::bba::idstring::*;
 // per location
 
 #[derive(Clone, Eq, PartialEq, Hash)]
-struct TileTypeKey {
+pub struct TileTypeKey {
     pub tile_types: Vec<String>,
 }
 impl TileTypeKey {
@@ -20,49 +22,62 @@ impl TileTypeKey {
     }
 }
 
-struct IcTileType {
+pub struct IcTileType {
     key: TileTypeKey,
-    type_idx: u32,
-    wires: Vec<IcWire>,
+    wires: IndexedMap<IdString, IcWire>,
     pips: Vec<IcPip>,
-    wires_by_name: HashMap<IdString, usize>,
     // TODO: constants, sites, etc
 }
 
 impl IcTileType {
-    pub fn new(key: TileTypeKey, idx: u32) -> IcTileType {
+    pub fn new(key: TileTypeKey) -> IcTileType {
         IcTileType {
             key: key,
-            type_idx: idx,
-            wires: Vec::new(),
+            wires: IndexedMap::new(),
             pips: Vec::new(),
-            wires_by_name: HashMap::new(),
+        }
+    }
+    pub fn wire(&mut self, name: IdString) -> usize {
+        self.wires.add(&name, IcWire::new(name))
+    }
+}
+
+pub struct IcWire {
+    name: IdString,
+    pips_uphill: Vec<usize>,
+    pips_downhill: Vec<usize>,
+}
+
+impl IcWire {
+    pub fn new(name: IdString) -> IcWire {
+        IcWire {
+            name: name,
+            pips_uphill: Vec::new(),
+            pips_downhill: Vec::new(),
         }
     }
 }
 
-struct IcWire {
+pub struct IcPip {
     name: IdString,
-    pips_uphill: Vec<u32>,
-    pips_downhill: Vec<u32>,
-}
-
-struct IcPip {
-    name: IdString,
-    from_wire: u32,
-    to_wire: u32,
+    from_wire: usize,
+    to_wire: usize,
 }
 
 // A tile instance
 struct IcTileInst {
-    type_idx: u32,
+    x: u32,
+    y: u32,
+    type_idx: usize,
     // mapping between wires and nodes
-    wire_to_node: Vec<u32>,
+    wire_to_node: Vec<usize>,
 }
 
 impl IcTileInst {
-    pub fn new() -> IcTileInst {
+    pub fn new(x: u32, y: u32) -> IcTileInst {
         IcTileInst {
+            x: x,
+            y: y,
             type_idx: 0,
             wire_to_node: Vec::new(),
         }
@@ -70,9 +85,9 @@ impl IcTileInst {
 }
 
 // A reference to a tile wire
-struct IcWireRef {
-    tile_idx: u32,
-    wire_idx: u32,
+pub struct IcWireRef {
+    tile_idx: usize,
+    wire_idx: usize,
 }
 
 // A node instance
@@ -90,8 +105,8 @@ impl IcNode {
 }
 
 // The overall routing resource graph
-struct IcGraph {
-    tile_types: Vec<IcTileType>,
+pub struct IcGraph {
+    tile_types: IndexedMap<TileTypeKey, IcTileType>,
     tiles: Vec<IcTileInst>,
     nodes: Vec<IcNode>,
     width: u32,
@@ -101,8 +116,8 @@ struct IcGraph {
 impl IcGraph {
     pub fn new(width: u32, height: u32) -> IcGraph {
         IcGraph {
-            tile_types: Vec::new(),
-            tiles: (0..width*height).map(|_| IcTileInst::new()).collect(),
+            tile_types: IndexedMap::new(),
+            tiles: (0..width).zip(0..height).map(|(x, y)| IcTileInst::new(x, y)).collect(),
             nodes: Vec::new(),
             width: width,
             height: height
@@ -110,17 +125,18 @@ impl IcGraph {
     }
 }
 
-struct GraphBuilder<'a> {
+pub struct GraphBuilder<'a> {
     g: IcGraph,
     ids: &'a mut IdStringDB,
     chip: &'a Chip,
     db: &'a mut Database,
     tiletypes_by_xy: HashMap<(u32, u32), TileTypeKey>,
+    orig_tts: TileTypes,
 }
 
 
 impl <'a> GraphBuilder<'a> {
-    pub fn new(ids: &'a mut IdStringDB, chip: &'a Chip, db: &'a mut Database) -> GraphBuilder<'a> {
+    fn new(ids: &'a mut IdStringDB, chip: &'a Chip, db: &'a mut Database) -> GraphBuilder<'a> {
         let mut width = 0;
         let mut height = 0;
         let mut tiletypes_by_xy = HashMap::new();
@@ -130,13 +146,38 @@ impl <'a> GraphBuilder<'a> {
             height = std::cmp::max(height, t.y + 1);
         }
 
+        let orig_tts = TileTypes::new(db, ids, &chip.family, &[&chip.device]);
+
         GraphBuilder {
             g: IcGraph::new(width, height),
             ids: ids,
             chip: chip,
             db: db,
             tiletypes_by_xy: tiletypes_by_xy,
+            // the original tiletypes from the database
+            orig_tts: orig_tts,
+        }
+    }
+    fn setup_tiletypes(&mut self) {
+        for t in self.g.tiles.iter_mut() {
+            let key = self.tiletypes_by_xy.get(&(t.x, t.y)).unwrap();
+            t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone()));
+        }
+        for (key, lt) in self.g.tile_types.iter_mut() {
+            // setup wires for all sub-tile-types
+            for tt in key.tile_types.iter() {
+                let tt_data = self.orig_tts.get(tt).unwrap();
+                for wire in tt_data.wire_ids.iter() {
+                    lt.wire(*wire);
+                }
+            }
+
         }
     }
 
+    pub fn run(ids: &'a mut IdStringDB, chip: &'a Chip, db: &'a mut Database) -> IcGraph {
+        let mut builder = GraphBuilder::new(ids, chip, db);
+        builder.setup_tiletypes();
+        builder.g
+    }
 }

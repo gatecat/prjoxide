@@ -35,6 +35,8 @@ enum SubCommand {
     Unpack(Unpack),
     #[clap(about = "export a BBA file for the nextpnr build")]
     BBAExport(BBAExport),
+    #[clap(about = "export a FPGA interchange file (not yet implemented)")]
+    InterchangeExport(InterchangeExport),
 }
 
 #[derive(Clap)]
@@ -179,6 +181,24 @@ impl BBAExport {
     }
 }
 
+#[derive(Clap)]
+struct InterchangeExport {
+    #[clap(about = "device name")]
+    device: String,
+    #[clap(about = "path to output interchange file")]
+    interchange: String,
+}
+
+impl InterchangeExport {
+    pub fn run(&self) -> Result<()> {
+        let mut ids = IdStringDB::new();
+        let mut db = Database::new_builtin(DATABASE_DIR);
+        let c = Chip::from_name(&mut db, &self.device);
+        let g = prjoxide::interchange_gen::routing_graph::GraphBuilder::run(&mut ids, &c, &mut db);
+        unimplemented!();
+    }
+}
+
 fn main() -> Result<()> {
     let opts: Opts = Opts::parse();
     match opts.subcmd {
@@ -189,6 +209,9 @@ fn main() -> Result<()> {
             t.run()
         }
         SubCommand::BBAExport(t) => {
+            t.run()
+        }
+        SubCommand::InterchangeExport(t) => {
             t.run()
         }
     }
