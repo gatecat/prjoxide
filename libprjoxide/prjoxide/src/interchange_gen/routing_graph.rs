@@ -1,10 +1,10 @@
 use crate::chip::Chip;
 use crate::database::Database;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 
 use crate::bba::idstring::*;
 use crate::bba::idxset::*;
-use crate::bba::tiletype::TileTypes;
+use crate::bba::tiletype::{Neighbour, TileTypes};
 
 
 // A tile type from the interchange format perspective
@@ -40,37 +40,40 @@ impl IcTileType {
     pub fn wire(&mut self, name: IdString) -> usize {
         self.wires.add(&name, IcWire::new(name))
     }
+    pub fn add_pip(&mut self, src: IdString, dst: IdString) {
+        let src_idx = self.wire(src);
+        let dst_idx = self.wire(dst);
+        self.pips.push(IcPip {
+            src_wire: src_idx,
+            dst_wire: dst_idx,
+        });
+    }
 }
 
 pub struct IcWire {
     name: IdString,
-    pips_uphill: Vec<usize>,
-    pips_downhill: Vec<usize>,
 }
 
 impl IcWire {
     pub fn new(name: IdString) -> IcWire {
         IcWire {
             name: name,
-            pips_uphill: Vec::new(),
-            pips_downhill: Vec::new(),
         }
     }
 }
 
 pub struct IcPip {
-    name: IdString,
-    from_wire: usize,
-    to_wire: usize,
+    src_wire: usize,
+    dst_wire: usize,
 }
 
 // A tile instance
-struct IcTileInst {
+pub struct IcTileInst {
     x: u32,
     y: u32,
     type_idx: usize,
     // mapping between wires and nodes
-    wire_to_node: Vec<usize>,
+    wire_to_node: HashMap<usize, usize>,
 }
 
 impl IcTileInst {
@@ -79,27 +82,30 @@ impl IcTileInst {
             x: x,
             y: y,
             type_idx: 0,
-            wire_to_node: Vec::new(),
+            wire_to_node: HashMap::new(),
         }
     }
 }
 
 // A reference to a tile wire
+#[derive(Clone, Hash, Eq, PartialEq)]
 pub struct IcWireRef {
     tile_idx: usize,
     wire_idx: usize,
 }
 
 // A node instance
-struct IcNode {
+pub struct IcNode {
     // list of tile wires in the node
-    wires: Vec<IcWireRef>,
+    wires: HashSet<IcWireRef>,
+    root_wire: IcWireRef,
 }
 
 impl IcNode {
-    pub fn new() -> IcNode {
+    pub fn new(root_wire: IcWireRef) -> IcNode {
         IcNode {
-            wires: Vec::new(),
+            wires: [root_wire.clone()].iter().cloned().collect(),
+            root_wire: root_wire,
         }
     }
 }
@@ -117,11 +123,40 @@ impl IcGraph {
     pub fn new(width: u32, height: u32) -> IcGraph {
         IcGraph {
             tile_types: IndexedMap::new(),
-            tiles: (0..width).zip(0..height).map(|(x, y)| IcTileInst::new(x, y)).collect(),
+            tiles: (0..width*height).map(|i| IcTileInst::new(i%width, i/width)).collect(),
             nodes: Vec::new(),
             width: width,
             height: height
         }
+    }
+    pub fn tile_idx(&self, x: u32, y: u32) -> usize {
+        assert!(x < self.width);
+        assert!(y < self.height);
+        ((y * self.width) + x) as usize
+    }
+    pub fn tile_at(&mut self, x: u32, y: u32) -> &mut IcTileInst {
+        let idx = self.tile_idx(x, y);
+        &mut self.tiles[idx]
+    }
+    pub fn type_at(&mut self, x: u32, y: u32) -> &mut IcTileType {
+        let idx = self.tile_at(x, y).type_idx;
+        self.tile_types.value_mut(idx)
+    }
+    pub fn map_node(&mut self, root_x: u32, root_y: u32, root_wire: IdString, wire_x: u32, wire_y: u32, wire: IdString) {
+        let root_idx = self.type_at(root_x, root_y).wire(root_wire);
+        let wire_idx = self.type_at(wire_x, wire_y).wire(wire);
+        let root_tile_idx = self.tile_idx(root_x, root_y);
+        let node_idx = match self.tiles[root_tile_idx].wire_to_node.get(&root_idx) {
+            Some(i) => *i,
+            None => {
+                let idx = self.nodes.len();
+                self.nodes.push(IcNode::new(IcWireRef { tile_idx: root_tile_idx, wire_idx: root_idx }));
+                self.tiles[root_tile_idx].wire_to_node.insert(root_idx, idx);
+                idx
+            }
+        };
+        let wire_tile_idx = self.tile_idx(wire_x, wire_y);
+        self.nodes[node_idx].wires.insert(IcWireRef {tile_idx: wire_tile_idx, wire_idx: wire_idx });
     }
 }
 
@@ -164,20 +199,68 @@ impl <'a> GraphBuilder<'a> {
             t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone()));
         }
         for (key, lt) in self.g.tile_types.iter_mut() {
-            // setup wires for all sub-tile-types
             for tt in key.tile_types.iter() {
+                // setup wires for all sub-tile-types
                 let tt_data = self.orig_tts.get(tt).unwrap();
                 for wire in tt_data.wire_ids.iter() {
                     lt.wire(*wire);
                 }
+                // setup pips, both fixed and not
+                // TODO: skip site wires and pips and deal with these later
+                let tdb = &self.db.tile_bitdb(&self.chip.family, tt).db;
+                for (to_wire, pips) in tdb.pips.iter() {
+                    for pip in pips.iter() {
+                        lt.add_pip(self.ids.id(&pip.from_wire), self.ids.id(to_wire));
+                    }
+                }
+                for (to_wire, conns) in tdb.conns.iter() {
+                    for conn in conns.iter() {
+                        lt.add_pip(self.ids.id(&conn.from_wire), self.ids.id(to_wire));
+                    }
+                }
             }
+        }
+    }
+    // Convert a neighbour to a coordinate
+    pub fn neighbour_tile(&self, x: u32, y: u32, n: &Neighbour) -> Option<(u32, u32)> {
+        match n {
+            Neighbour::RelXY { rel_x, rel_y } => {
+                let nx = (x as i32) + rel_x;
+                let ny = (y as i32) + rel_y;
+                if nx >= 0 && ny >= 0 && (nx as u32) < self.g.width && (ny as u32) < self.g.height {
+                    Some((nx as u32, ny as u32))
+                } else {
+                    None
+                }
+            }
+            // TODO: globals
+            _ => None
+        }
+    }
+    fn setup_wire2node(&mut self) {
+        for ((x, y), key) in self.tiletypes_by_xy.iter() {
+            for tt in key.tile_types.iter() {
+                for wire in self.orig_tts.get(tt).unwrap().wires.iter() {
+                    let (neigh, base_wire) = Neighbour::parse_wire(wire);
+                    if let Some(neigh) = neigh {
+                        // it's a neighbour wire, map to the base tile
+                        if let Some((root_x, root_y)) = self.neighbour_tile(*x, *y, &neigh) {
+                            self.g.map_node(root_x, root_y, self.ids.id(base_wire), *x, *y, self.ids.id(wire));
+                        }
 
+                    } else {
+                        // root node, map to itself
+                        self.g.map_node(*x, *y, self.ids.id(base_wire), *x, *y, self.ids.id(base_wire));
+                    }
+                }
+            }
         }
     }
 
     pub fn run(ids: &'a mut IdStringDB, chip: &'a Chip, db: &'a mut Database) -> IcGraph {
         let mut builder = GraphBuilder::new(ids, chip, db);
         builder.setup_tiletypes();
+        builder.setup_wire2node();
         builder.g
     }
 }
