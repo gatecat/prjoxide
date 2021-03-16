@@ -6,7 +6,10 @@ use crate::bba::idstring::*;
 
 use std::convert::TryInto;
 
-pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
+use flate2::Compression;
+use flate2::write::GzEncoder;
+
+pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
     let mut m = ::capnp::message::Builder::new_default();
     {
         let mut dev = m.init_root::<DeviceResources_capnp::device::Builder>();
@@ -76,6 +79,8 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
             }
         }
     }
-    ::capnp::serialize_packed::write_message(std::fs::File::create(filename)?, &m)?;
+    let mut e = GzEncoder::new(std::fs::File::create(filename)?, Compression::default());
+    ::capnp::serialize::write_message(&mut e, &m)?;
+    e.finish()?;
     Ok(())
 }
