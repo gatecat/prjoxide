@@ -195,7 +195,8 @@ impl InterchangeExport {
         let mut db = Database::new_builtin(DATABASE_DIR);
         let c = Chip::from_name(&mut db, &self.device);
         let g = prjoxide::interchange_gen::routing_graph::GraphBuilder::run(&mut ids, &c, &mut db);
-        unimplemented!();
+        prjoxide::interchange_gen::writer::write(&c, &mut db, &mut ids, &g, &self.interchange).unwrap();
+        Ok(())
     }
 }
 

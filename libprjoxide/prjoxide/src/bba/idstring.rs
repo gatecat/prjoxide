@@ -78,4 +78,11 @@ impl IdStringDB {
     pub fn str(&self, index: IdString) -> &str {
         &self.strings[index.0]
     }
+
+    pub fn len(&self) -> usize {
+        self.strings.len()
+    }
+    pub fn idx_str(&self, index: usize) -> &str {
+        &self.strings[index]
+    }
 }

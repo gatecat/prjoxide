@@ -28,5 +28,6 @@ pub mod pip_classes;
 pub mod sites;
 pub mod interchange_gen {
 	pub mod routing_graph;
+    pub mod writer;
 }
 mod schema;

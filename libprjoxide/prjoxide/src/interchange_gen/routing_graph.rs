@@ -23,9 +23,9 @@ impl TileTypeKey {
 }
 
 pub struct IcTileType {
-    key: TileTypeKey,
-    wires: IndexedMap<IdString, IcWire>,
-    pips: Vec<IcPip>,
+    pub key: TileTypeKey,
+    pub wires: IndexedMap<IdString, IcWire>,
+    pub pips: Vec<IcPip>,
     // TODO: constants, sites, etc
 }
 
@@ -51,7 +51,7 @@ impl IcTileType {
 }
 
 pub struct IcWire {
-    name: IdString,
+    pub name: IdString,
 }
 
 impl IcWire {
@@ -63,22 +63,24 @@ impl IcWire {
 }
 
 pub struct IcPip {
-    src_wire: usize,
-    dst_wire: usize,
+    pub src_wire: usize,
+    pub dst_wire: usize,
 }
 
 // A tile instance
 pub struct IcTileInst {
-    x: u32,
-    y: u32,
-    type_idx: usize,
+    pub name: IdString,
+    pub x: u32,
+    pub y: u32,
+    pub type_idx: usize,
     // mapping between wires and nodes
     wire_to_node: HashMap<usize, usize>,
 }
 
 impl IcTileInst {
-    pub fn new(x: u32, y: u32) -> IcTileInst {
+    pub fn new(ids: &mut IdStringDB, x: u32, y: u32) -> IcTileInst {
         IcTileInst {
+            name: ids.id(&format!("R{}C{}", y, x)),
             x: x,
             y: y,
             type_idx: 0,
@@ -90,15 +92,15 @@ impl IcTileInst {
 // A reference to a tile wire
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct IcWireRef {
-    tile_idx: usize,
-    wire_idx: usize,
+    pub tile_idx: usize,
+    pub wire_idx: usize,
 }
 
 // A node instance
 pub struct IcNode {
     // list of tile wires in the node
-    wires: HashSet<IcWireRef>,
-    root_wire: IcWireRef,
+    pub wires: HashSet<IcWireRef>,
+    pub root_wire: IcWireRef,
 }
 
 impl IcNode {
@@ -112,18 +114,18 @@ impl IcNode {
 
 // The overall routing resource graph
 pub struct IcGraph {
-    tile_types: IndexedMap<TileTypeKey, IcTileType>,
-    tiles: Vec<IcTileInst>,
-    nodes: Vec<IcNode>,
-    width: u32,
-    height: u32,
+    pub tile_types: IndexedMap<TileTypeKey, IcTileType>,
+    pub tiles: Vec<IcTileInst>,
+    pub nodes: Vec<IcNode>,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl IcGraph {
-    pub fn new(width: u32, height: u32) -> IcGraph {
+    pub fn new(ids: &mut IdStringDB, width: u32, height: u32) -> IcGraph {
         IcGraph {
             tile_types: IndexedMap::new(),
-            tiles: (0..width*height).map(|i| IcTileInst::new(i%width, i/width)).collect(),
+            tiles: (0..width*height).map(|i| IcTileInst::new(ids, i%width, i/width)).collect(),
             nodes: Vec::new(),
             width: width,
             height: height
@@ -184,7 +186,7 @@ impl <'a> GraphBuilder<'a> {
         let orig_tts = TileTypes::new(db, ids, &chip.family, &[&chip.device]);
 
         GraphBuilder {
-            g: IcGraph::new(width, height),
+            g: IcGraph::new(ids, width, height),
             ids: ids,
             chip: chip,
             db: db,
