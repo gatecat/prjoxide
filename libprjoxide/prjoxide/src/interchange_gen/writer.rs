@@ -100,6 +100,11 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             c2b.reborrow().get(1).set_cell(ids.id("VHI").val().try_into().unwrap());
         }
         {
+            let mut packages = dev.reborrow().init_packages(1);
+            packages.reborrow().get(0).set_name(ids.id("QFN72").val().try_into().unwrap());
+            // TODO: all packages and pin map
+        }
+        {
             let mut strs = dev.init_str_list(ids.len().try_into().unwrap());
             for i in 0..ids.len() {
                 strs.set(i.try_into().unwrap(), ids.idx_str(i));
