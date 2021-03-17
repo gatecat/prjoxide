@@ -19,7 +19,12 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             for (i, (_, data)) in graph.tile_types.iter().enumerate() {
                 let mut tt = tiletypes.reborrow().get(i.try_into().unwrap());
                 // TODO: form a nice name from the constituent tile types
-                tt.set_name(ids.id(&format!("tiletype_{}", i)).val().try_into().unwrap());
+                // TODO: remove the NULL hack
+                if i == graph.tiles[0].type_idx {
+                    tt.set_name(ids.id("NULL").val().try_into().unwrap());
+                } else {
+                    tt.set_name(ids.id(&format!("tiletype_{}", i)).val().try_into().unwrap());
+                }
                 {
                     let mut wires = tt.reborrow().init_wires(data.wires.len().try_into().unwrap());
                     for (j, (_, wire_data)) in data.wires.iter().enumerate() {
