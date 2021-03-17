@@ -35,6 +35,7 @@ enum SubCommand {
     Unpack(Unpack),
     #[clap(about = "export a BBA file for the nextpnr build")]
     BBAExport(BBAExport),
+    #[cfg(feature = "interchange")]
     #[clap(about = "export a FPGA interchange file (not yet implemented)")]
     InterchangeExport(InterchangeExport),
 }
@@ -182,6 +183,7 @@ impl BBAExport {
 }
 
 #[derive(Clap)]
+#[cfg(feature = "interchange")]
 struct InterchangeExport {
     #[clap(about = "device name")]
     device: String,
@@ -189,6 +191,7 @@ struct InterchangeExport {
     interchange: String,
 }
 
+#[cfg(feature = "interchange")]
 impl InterchangeExport {
     pub fn run(&self) -> Result<()> {
         let mut ids = IdStringDB::new();
@@ -212,6 +215,7 @@ fn main() -> Result<()> {
         SubCommand::BBAExport(t) => {
             t.run()
         }
+        #[cfg(feature = "interchange")]
         SubCommand::InterchangeExport(t) => {
             t.run()
         }

@@ -1,3 +1,5 @@
+#![cfg(feature = "interchange")]
+
 use crate::chip::Chip;
 use crate::database::Database;
 use std::collections::{HashSet, HashMap};

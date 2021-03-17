@@ -1,3 +1,5 @@
+#![cfg(feature = "interchange")]
+
 use crate::interchange_gen::routing_graph::*;
 use crate::schema::*;
 use crate::chip::Chip;

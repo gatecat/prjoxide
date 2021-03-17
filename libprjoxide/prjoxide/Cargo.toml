@@ -5,6 +5,10 @@ authors = ["gatecat <gatecat@ds0.me>"]
 edition = "2018"
 build = "build.rs"
 
+[features]
+default = []
+interchange = ["capnp", "flate2", "capnpc"]
+
 [dependencies]
 regex = "1"
 serde = { version = "1", features = ["derive"] }
@@ -18,11 +22,11 @@ rug = "1.6.0"
 log = "0.4.11"
 clap = "3.0.0-beta.2"
 include_dir = "0.6.0"
-capnp = "0.14"
-flate2 = "1.0"
+capnp = {version = "0.14", optional = true }
+flate2 = {version = "1.0", optional = true }
 
 [build-dependencies]
-capnpc = "0.14"
+capnpc = {version = "0.14", optional = true }
 
 [lib]
 name = "prjoxide"
