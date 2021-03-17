@@ -73,6 +73,28 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             }
         }
         {
+            let mut tiles = dev.reborrow().init_tile_list(graph.tiles.len().try_into().unwrap());
+            for (i, tile_data) in graph.tiles.iter().enumerate() {
+                let mut t = tiles.reborrow().get(i.try_into().unwrap());
+                t.set_name(tile_data.name.val().try_into().unwrap());
+                t.set_type(tile_data.type_idx.try_into().unwrap());
+                t.set_row(tile_data.y.try_into().unwrap());
+                t.set_col(tile_data.x.try_into().unwrap());
+            }
+        }
+        {
+            let mut constants = dev.reborrow().init_constants();
+            constants.set_gnd_cell_type(ids.id("VLO").val().try_into().unwrap());
+            constants.set_gnd_cell_pin(ids.id("Z").val().try_into().unwrap());
+            constants.set_vcc_cell_type(ids.id("VHI").val().try_into().unwrap());
+            constants.set_vcc_cell_pin(ids.id("Z").val().try_into().unwrap());
+        }
+        {
+            let mut c2b = dev.reborrow().init_cell_bel_map(2);
+            c2b.reborrow().get(0).set_cell(ids.id("VLO").val().try_into().unwrap());
+            c2b.reborrow().get(1).set_cell(ids.id("VHI").val().try_into().unwrap());
+        }
+        {
             let mut strs = dev.init_str_list(ids.len().try_into().unwrap());
             for i in 0..ids.len() {
                 strs.set(i.try_into().unwrap(), ids.idx_str(i));
