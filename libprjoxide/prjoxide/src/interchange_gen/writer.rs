@@ -7,6 +7,7 @@ use crate::schema::*;
 use crate::chip::Chip;
 use crate::database::Database;
 use crate::bba::idstring::*;
+use crate::bels::PinDir;
 
 use std::convert::TryInto;
 
@@ -69,7 +70,6 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 st.set_name(ids.id(&data.site_type).val().try_into().unwrap());
                 st.set_last_input(0);
                 {
-                    // BELs - TODO: routing and port bels
                     let mut bels = st.reborrow().init_bels(data.bels.len().try_into().unwrap());
                     for (j, bel_data) in data.bels.iter().enumerate() {
                         let mut bel = bels.reborrow().get(j.try_into().unwrap());
@@ -81,6 +81,38 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                             SiteBelClass::PORT => DeviceResources_capnp::device::BELCategory::SitePort,
                         });
                         bel.set_non_inverting(());
+                        {
+                            let mut bel_pins = bel.reborrow().init_pins(bel_data.pins.len().try_into().unwrap());
+                            for (k, pin) in bel_data.pins.iter().enumerate() {
+                                bel_pins.set(k.try_into().unwrap(), (*pin).try_into().unwrap());
+                            }
+                        }
+                    }
+                }
+                {
+                    let mut bel_pins = st.reborrow().init_bel_pins(data.bel_pins.len().try_into().unwrap());
+                    for (j, pin_data) in data.bel_pins.iter().enumerate() {
+                        let mut bp = bel_pins.reborrow().get(j.try_into().unwrap());
+                        bp.set_name(ids.id(&pin_data.pin_name).val().try_into().unwrap());
+                        bp.set_dir(match pin_data.dir {
+                            PinDir::INPUT => LogicalNetlist_capnp::netlist::Direction::Input,
+                            PinDir::OUTPUT => LogicalNetlist_capnp::netlist::Direction::Output,
+                            PinDir::INOUT => LogicalNetlist_capnp::netlist::Direction::Inout,
+                        });
+                        bp.set_bel(ids.id(&pin_data.bel_name).val().try_into().unwrap());
+                    }
+                }
+                {
+                    let mut wires = st.reborrow().init_site_wires(data.wires.len().try_into().unwrap());
+                    for (j, wire_data) in data.wires.iter().enumerate() {
+                        let mut w = wires.reborrow().get(j.try_into().unwrap());
+                        w.set_name(ids.id(&wire_data.name).val().try_into().unwrap());
+                        {
+                            let mut bel_pins = w.reborrow().init_pins(wire_data.bel_pins.len().try_into().unwrap());
+                            for (k, pin) in wire_data.bel_pins.iter().enumerate() {
+                                bel_pins.set(k.try_into().unwrap(), (*pin).try_into().unwrap());
+                            }
+                        }
                     }
                 }
                 // TODO: site pins, wires and pips

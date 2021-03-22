@@ -207,7 +207,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                 let wire_name = pin.wire.rel_name(orig_bel.rel_x, orig_bel.rel_y);
                 assert!(is_site_wire(tiletype, &wire_name));
                 let site_wire = flat_wires.lookup_wire(&wire_name);
-                bel_pins.push(bel_pins.len());
+                bel_pins.push(site_bel_pins.len());
                 site_bel_pins.push(SiteBelPin {
                     bel_name: orig_bel.name.clone(),
                     pin_name: pin.name.clone(),
@@ -231,7 +231,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             let mut bel_pins = Vec::new();
             let site_dst_wire = flat_wires.lookup_wire(dst_wire);
             let bel_name = format!("RBEL_{}", site_dst_wire);
-            bel_pins.push(bel_pins.len());
+            bel_pins.push(site_bel_pins.len());
             site_bel_pins.push(SiteBelPin {
                 bel_name: bel_name.clone(),
                 pin_name: site_dst_wire.clone(),
@@ -239,7 +239,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                 dir: PinDir::OUTPUT,
             });
             for src_wire in pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)).map(|w| flat_wires.lookup_wire(w)) {
-                bel_pins.push(bel_pins.len());
+                bel_pins.push(site_bel_pins.len());
                 site_bel_pins.push(SiteBelPin {
                     bel_name: bel_name.clone(),
                     pin_name: src_wire.clone(),
@@ -278,15 +278,18 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
         }
 
         let mut site_wire_to_pins = BTreeMap::new();
+        for wire in flat_wires.root2wires.keys() {
+            site_wire_to_pins.insert(wire, Vec::new());
+        }
         for (i, bel_pin) in site_bel_pins.iter().enumerate() {
             site_wire_to_pins.entry(&bel_pin.site_wire).or_insert(Vec::new()).push(i)
         }
 
         let mut site_wires = Vec::new();
-        for wire in flat_wires.root2wires.keys() {
+        for (wire, pins) in site_wire_to_pins.iter() {
             site_wires.push(SiteWire {
-                name: wire.clone(),
-                bel_pins: site_wire_to_pins.get(wire).cloned().unwrap_or(Vec::new()),
+                name: wire.to_string(),
+                bel_pins: pins.clone(),
             })
         }
 
