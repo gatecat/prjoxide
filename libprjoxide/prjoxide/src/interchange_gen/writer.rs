@@ -1,5 +1,7 @@
 #![cfg(feature = "interchange")]
 
+use crate::bba::idxset::IndexedMap;
+use crate::sites::*;
 use crate::interchange_gen::routing_graph::*;
 use crate::schema::*;
 use crate::chip::Chip;
@@ -15,6 +17,7 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
     let mut m = ::capnp::message::Builder::new_default();
     {
         let mut dev = m.init_root::<DeviceResources_capnp::device::Builder>();
+        let mut uniq_site_types = IndexedMap::<String, Site>::new();
         dev.set_name(&c.device);
         {
             let mut tiletypes = dev.reborrow().init_tile_type_list(graph.tile_types.len().try_into().unwrap());
@@ -26,6 +29,16 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                     tt.set_name(ids.id("NULL").val().try_into().unwrap());
                 } else {
                     tt.set_name(ids.id(&format!("tiletype_{}", i)).val().try_into().unwrap());
+                }
+                {
+                    let mut sites = tt.reborrow().init_site_types(data.site_types.len().try_into().unwrap());
+                    for (j, site_type) in data.site_types.iter().enumerate() {
+                        // TODO: shared site types across multiple tile types?
+                        let type_idx = uniq_site_types.add(&site_type.site_type, site_type.clone());
+                        let mut site = sites.reborrow().get(j.try_into().unwrap());
+                        site.set_primary_type(type_idx.try_into().unwrap());
+                        // TODO: site pins
+                    }
                 }
                 {
                     let mut wires = tt.reborrow().init_wires(data.wires.len().try_into().unwrap());
@@ -46,6 +59,27 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                     }
                 }
                 // TODO: constant sources
+            }
+        }
+        {
+            // Site types
+            let mut sitetypes = dev.reborrow().init_site_type_list(uniq_site_types.len().try_into().unwrap());
+            for (i, (_, data)) in uniq_site_types.iter().enumerate() {
+                let mut st = sitetypes.reborrow().get(i.try_into().unwrap());
+                st.set_name(ids.id(&data.site_type).val().try_into().unwrap());
+                st.set_last_input(0);
+                {
+                    // BELs - TODO: routing and port bels
+                    let mut bels = st.reborrow().init_bels(data.bels.len().try_into().unwrap());
+                    for (j, bel_data) in data.bels.iter().enumerate() {
+                        let mut bel = bels.reborrow().get(j.try_into().unwrap());
+                        bel.set_name(ids.id(&bel_data.name).val().try_into().unwrap());
+                        bel.set_type(ids.id(&bel_data.bel_type).val().try_into().unwrap());
+                        bel.set_category(DeviceResources_capnp::device::BELCategory::Logic);
+                        bel.set_non_inverting(());
+                    }
+                }
+                // TODO: site pins, wires and pips
             }
         }
         let mut wire_list = Vec::new();
@@ -85,6 +119,15 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 t.set_type(tile_data.type_idx.try_into().unwrap());
                 t.set_row(tile_data.y.try_into().unwrap());
                 t.set_col(tile_data.x.try_into().unwrap());
+                {
+                    let tt = graph.tile_types.value(tile_data.type_idx);
+                    let mut sites = t.reborrow().init_sites(tt.site_types.len().try_into().unwrap());
+                    for (j, site_data) in tt.site_types.iter().enumerate() {
+                        let mut s = sites.reborrow().get(j.try_into().unwrap());
+                        s.set_name(ids.id(&format!("R{}C{}_{}", tile_data.y, tile_data.x, &site_data.name)).val().try_into().unwrap());
+                        s.set_type(j.try_into().unwrap());
+                    }
+                }
             }
         }
         {

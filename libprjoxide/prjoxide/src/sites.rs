@@ -5,6 +5,7 @@ use crate::bels::*;
 use std::collections::{BTreeSet, BTreeMap};
 use std::fmt;
 
+#[derive(Clone)]
 pub struct SitePin {
     pub tile_wire: String,
     pub site_wire: String,
@@ -25,6 +26,7 @@ impl fmt::Debug for SitePin {
     }
 }
 
+#[derive(Clone)]
 pub struct SiteRoutingBel {
     pub src_wires: Vec<String>,
     pub dst_wire: String,
@@ -44,6 +46,7 @@ impl fmt::Debug for SiteRoutingBel {
     }
 }
 
+#[derive(Clone)]
 pub struct SiteBelPin {
     pub pin_name: String,
     pub site_wire: String,
@@ -64,14 +67,17 @@ impl fmt::Debug for SiteBelPin {
     }
 }
 
+#[derive(Clone)]
 pub struct SiteFunctionalBel {
     pub name: String,
     pub bel_type: String,
     pub pins: Vec<SiteBelPin>,
 }
 
+#[derive(Clone)]
 pub struct Site {
     pub name: String,
+    pub site_type: String,
     pub wires: Vec<String>,
     pub pins: Vec<SitePin>,
     pub bels: Vec<SiteFunctionalBel>,
@@ -213,6 +219,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
         }
         sites.push(Site {
             name: "PLC".to_string(),
+            site_type: "PLC".to_string(),
             pins: pins,
             wires: flat_wires.root2wires.keys().cloned().collect(),
             bels: site_bels,
