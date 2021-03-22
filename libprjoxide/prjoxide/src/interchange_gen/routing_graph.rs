@@ -76,7 +76,7 @@ pub struct IcTileInst {
     pub y: u32,
     pub type_idx: usize,
     // mapping between wires and nodes
-    wire_to_node: HashMap<usize, usize>,
+    wire_to_node: HashMap<IdString, usize>,
 }
 
 impl IcTileInst {
@@ -94,8 +94,8 @@ impl IcTileInst {
 // A reference to a tile wire
 #[derive(Clone, Hash, Eq, PartialEq)]
 pub struct IcWireRef {
-    pub tile_idx: usize,
-    pub wire_idx: usize,
+    pub tile_name: IdString,
+    pub wire_name: IdString,
 }
 
 // A node instance
@@ -147,20 +147,23 @@ impl IcGraph {
         self.tile_types.value_mut(idx)
     }
     pub fn map_node(&mut self, root_x: u32, root_y: u32, root_wire: IdString, wire_x: u32, wire_y: u32, wire: IdString) {
-        let root_idx = self.type_at(root_x, root_y).wire(root_wire);
-        let wire_idx = self.type_at(wire_x, wire_y).wire(wire);
+        // Make sure wire exists in both tiles
+        self.type_at(root_x, root_y).wire(root_wire);
+        self.type_at(wire_x, wire_y).wire(wire);
+        // Update wire-node mapping
         let root_tile_idx = self.tile_idx(root_x, root_y);
-        let node_idx = match self.tiles[root_tile_idx].wire_to_node.get(&root_idx) {
+        let node_idx = match self.tiles[root_tile_idx].wire_to_node.get(&root_wire) {
             Some(i) => *i,
             None => {
                 let idx = self.nodes.len();
-                self.nodes.push(IcNode::new(IcWireRef { tile_idx: root_tile_idx, wire_idx: root_idx }));
-                self.tiles[root_tile_idx].wire_to_node.insert(root_idx, idx);
+                self.nodes.push(IcNode::new(IcWireRef { tile_name: self.tiles[root_tile_idx].name, wire_name: root_wire }));
+                self.tiles[root_tile_idx].wire_to_node.insert(root_wire, idx);
                 idx
             }
         };
         let wire_tile_idx = self.tile_idx(wire_x, wire_y);
-        self.nodes[node_idx].wires.insert(IcWireRef {tile_idx: wire_tile_idx, wire_idx: wire_idx });
+        self.nodes[node_idx].wires.insert(IcWireRef {tile_name: self.tiles[wire_tile_idx].name, wire_name: wire });
+        self.tiles[wire_tile_idx].wire_to_node.insert(wire, node_idx);
     }
 }
 

@@ -58,25 +58,23 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 // write root wire
                 {
                     node_wires.set(0, wire_list.len().try_into().unwrap());
-                    wire_list.push((node_data.root_wire.tile_idx, node_data.root_wire.wire_idx));
+                    wire_list.push((node_data.root_wire.tile_name, node_data.root_wire.wire_name));
                 }
                 let mut node_wire_idx = 1;
                 // write non-root wires
                 for wire in node_data.wires.iter().filter(|w| **w != node_data.root_wire) {
                     node_wires.set(node_wire_idx, wire_list.len().try_into().unwrap());
-                    wire_list.push((wire.tile_idx, wire.wire_idx));
+                    wire_list.push((wire.tile_name, wire.wire_name));
                     node_wire_idx += 1;
                 }
             }
         }
         {
             let mut wires = dev.reborrow().init_wires(wire_list.len().try_into().unwrap());
-            for (i, (tile_idx, wire_idx)) in wire_list.iter().enumerate() {
+            for (i, (tile_name, wire_name)) in wire_list.iter().enumerate() {
                 let mut w = wires.reborrow().get(i.try_into().unwrap());
-                // TODO: should IcGraph use IdStrings to better match what we write out?
-                let tile = &graph.tiles[*tile_idx];
-                w.set_tile(tile.name.val().try_into().unwrap());
-                w.set_wire(graph.tile_types.value(tile.type_idx).wires.value(*wire_idx).name.val().try_into().unwrap());
+                w.set_tile(tile_name.val().try_into().unwrap());
+                w.set_wire(wire_name.val().try_into().unwrap());
             }
         }
         {
