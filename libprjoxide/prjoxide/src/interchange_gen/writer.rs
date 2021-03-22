@@ -75,7 +75,11 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                         let mut bel = bels.reborrow().get(j.try_into().unwrap());
                         bel.set_name(ids.id(&bel_data.name).val().try_into().unwrap());
                         bel.set_type(ids.id(&bel_data.bel_type).val().try_into().unwrap());
-                        bel.set_category(DeviceResources_capnp::device::BELCategory::Logic);
+                        bel.set_category(match bel_data.bel_class {
+                            SiteBelClass::BEL => DeviceResources_capnp::device::BELCategory::Logic,
+                            SiteBelClass::RBEL => DeviceResources_capnp::device::BELCategory::Routing,
+                            SiteBelClass::PORT => DeviceResources_capnp::device::BELCategory::SitePort,
+                        });
                         bel.set_non_inverting(());
                     }
                 }

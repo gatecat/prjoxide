@@ -48,6 +48,7 @@ impl fmt::Debug for SiteRoutingBel {
 
 #[derive(Clone)]
 pub struct SiteBelPin {
+    pub bel_name: String,
     pub pin_name: String,
     pub site_wire: String,
     pub dir: PinDir,
@@ -67,21 +68,35 @@ impl fmt::Debug for SiteBelPin {
     }
 }
 
+#[derive(Clone, Eq, PartialEq)]
+pub enum SiteBelClass {
+    BEL,
+    RBEL,
+    PORT,
+}
+
 #[derive(Clone)]
-pub struct SiteFunctionalBel {
+pub struct SiteBel {
     pub name: String,
     pub bel_type: String,
-    pub pins: Vec<SiteBelPin>,
+    pub bel_class: SiteBelClass,
+    pub pins: Vec<usize>,
+}
+
+#[derive(Clone)]
+pub struct SiteWire {
+    pub name: String,
+    pub bel_pins: Vec<usize>,
 }
 
 #[derive(Clone)]
 pub struct Site {
     pub name: String,
     pub site_type: String,
-    pub wires: Vec<String>,
+    pub wires: Vec<SiteWire>,
+    pub bel_pins: Vec<SiteBelPin>,
     pub pins: Vec<SitePin>,
-    pub bels: Vec<SiteFunctionalBel>,
-    pub rbels: Vec<SiteRoutingBel>,
+    pub bels: Vec<SiteBel>,
 }
 
 // To speed up site routing; where fixed connections connect multiple site wires together, merge them into one
@@ -180,50 +195,108 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                     dir: PinDir::OUTPUT,
                 });
         }
-        let mut rbels = Vec::new();
-        // Convert pips to routing bels
-        for (dst_wire, pips) in tiledata.pips.iter() {
-            if !is_site_wire(tiletype, dst_wire) {
-                continue;
-            }
-            let site_dst_wire = flat_wires.lookup_wire(dst_wire);
-            let mapped_src_wires = pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)).map(|w| flat_wires.lookup_wire(w)).collect();
-            rbels.push(SiteRoutingBel {
-                dst_wire: site_dst_wire,
-                src_wires: mapped_src_wires,
-            });
-        }
+        let mut site_bel_pins = Vec::new();
+        let mut site_bels = Vec::new();
         // Import functional bels
         let orig_bels = get_tile_bels(&tiletype, tiledata);
-        let mut site_bels = Vec::new();
         for orig_bel in orig_bels.iter() {
-            let mut site_bel_pins = Vec::new();
+            let mut bel_pins = Vec::new();
 
             for pin in &orig_bel.pins {
                 // TODO: relative X and Y coordinates
                 let wire_name = pin.wire.rel_name(orig_bel.rel_x, orig_bel.rel_y);
                 assert!(is_site_wire(tiletype, &wire_name));
                 let site_wire = flat_wires.lookup_wire(&wire_name);
+                bel_pins.push(bel_pins.len());
                 site_bel_pins.push(SiteBelPin {
+                    bel_name: orig_bel.name.clone(),
                     pin_name: pin.name.clone(),
                     site_wire: site_wire,
                     dir: pin.dir.clone(),
                 });
             }
 
-            site_bels.push(SiteFunctionalBel {
+            site_bels.push(SiteBel {
                 name: orig_bel.name.clone(),
+                bel_class: SiteBelClass::BEL,
                 bel_type: orig_bel.beltype.clone(),
-                pins: site_bel_pins,
+                pins: bel_pins,
             });
         }
+        // Convert pips to routing bels
+        for (dst_wire, pips) in tiledata.pips.iter() {
+            if !is_site_wire(tiletype, dst_wire) {
+                continue;
+            }
+            let mut bel_pins = Vec::new();
+            let site_dst_wire = flat_wires.lookup_wire(dst_wire);
+            let bel_name = format!("RBEL_{}", site_dst_wire);
+            bel_pins.push(bel_pins.len());
+            site_bel_pins.push(SiteBelPin {
+                bel_name: bel_name.clone(),
+                pin_name: site_dst_wire.clone(),
+                site_wire: site_dst_wire.clone(),
+                dir: PinDir::OUTPUT,
+            });
+            for src_wire in pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)).map(|w| flat_wires.lookup_wire(w)) {
+                bel_pins.push(bel_pins.len());
+                site_bel_pins.push(SiteBelPin {
+                    bel_name: bel_name.clone(),
+                    pin_name: src_wire.clone(),
+                    site_wire: src_wire.clone(),
+                    dir: PinDir::INPUT,
+                });
+            }
+            
+            site_bels.push(SiteBel {
+                name: bel_name.clone(),
+                bel_class: SiteBelClass::RBEL,
+                bel_type: bel_name.clone(),
+                pins: bel_pins,
+            });
+        }
+        // Create port bels
+        for pin in pins.iter() {
+            let bel_name = pin.site_wire.clone();
+            let bel_pins = vec![site_bel_pins.len()];
+            site_bel_pins.push(SiteBelPin {
+                bel_name: bel_name.clone(),
+                pin_name: pin.site_wire.clone(),
+                site_wire: pin.site_wire.clone(),
+                dir: match pin.dir {
+                    PinDir::INPUT => PinDir::OUTPUT,
+                    PinDir::OUTPUT => PinDir::INPUT,
+                    PinDir::INOUT => PinDir::INOUT,
+                }
+            });
+            site_bels.push(SiteBel {
+                name: bel_name.clone(),
+                bel_class: SiteBelClass::PORT,
+                bel_type: bel_name.clone(),
+                pins: bel_pins,
+            })
+        }
+
+        let mut site_wire_to_pins = BTreeMap::new();
+        for (i, bel_pin) in site_bel_pins.iter().enumerate() {
+            site_wire_to_pins.entry(&bel_pin.site_wire).or_insert(Vec::new()).push(i)
+        }
+
+        let mut site_wires = Vec::new();
+        for wire in flat_wires.root2wires.keys() {
+            site_wires.push(SiteWire {
+                name: wire.clone(),
+                bel_pins: site_wire_to_pins.get(wire).cloned().unwrap_or(Vec::new()),
+            })
+        }
+
         sites.push(Site {
             name: "PLC".to_string(),
             site_type: "PLC".to_string(),
             pins: pins,
-            wires: flat_wires.root2wires.keys().cloned().collect(),
+            wires: site_wires,
+            bel_pins: site_bel_pins,
             bels: site_bels,
-            rbels: rbels,
         });
     }
     return sites;
