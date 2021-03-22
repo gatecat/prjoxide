@@ -8,6 +8,7 @@ use crate::bba::idstring::*;
 use crate::bba::idxset::*;
 use crate::bba::tiletype::{Neighbour, TileTypes};
 
+use crate::sites::*;
 
 // A tile type from the interchange format perspective
 // this is not the same as a database tile type; because the Oxide graph can have
@@ -28,15 +29,21 @@ pub struct IcTileType {
     pub key: TileTypeKey,
     pub wires: IndexedMap<IdString, IcWire>,
     pub pips: Vec<IcPip>,
+    pub site_types: Vec<Site>,
     // TODO: constants, sites, etc
 }
 
 impl IcTileType {
-    pub fn new(key: TileTypeKey) -> IcTileType {
+    pub fn new(key: TileTypeKey, family: &str, db: &mut Database) -> IcTileType {
+        let mut site_types = Vec::new();
+        for tt in key.tile_types.iter() {
+            site_types.extend(build_sites(&tt, &db.tile_bitdb(family, &tt).db));
+        }
         IcTileType {
             key: key,
             wires: IndexedMap::new(),
             pips: Vec::new(),
+            site_types: site_types,
         }
     }
     pub fn wire(&mut self, name: IdString) -> usize {
@@ -203,7 +210,7 @@ impl <'a> GraphBuilder<'a> {
     fn setup_tiletypes(&mut self) {
         for t in self.g.tiles.iter_mut() {
             let key = self.tiletypes_by_xy.get(&(t.x, t.y)).unwrap();
-            t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone()));
+            t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone(), &self.chip.family, self.db));
         }
         for (key, lt) in self.g.tile_types.iter_mut() {
             for tt in key.tile_types.iter() {

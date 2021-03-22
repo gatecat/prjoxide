@@ -1,4 +1,3 @@
-use crate::chip::*;
 use crate::database::*;
 use crate::wires::*;
 use crate::bels::*;
@@ -109,19 +108,19 @@ fn compare_wire(a: &str, b: &str) -> bool {
     (a.len(), a) < (b.len(), b)
 }
 
-fn flatten_wires(tile: &Tile, tiledata: &TileBitsDatabase) -> SiteWireMap {
+fn flatten_wires(tiletype: &str, tiledata: &TileBitsDatabase) -> SiteWireMap {
     let mut m = SiteWireMap {
         wire2root: BTreeMap::new(),
         root2wires: BTreeMap::new(),
     };
     for (dst_wire, conns) in tiledata.conns.iter() {
-        if !is_site_wire(tile, dst_wire) {
+        if !is_site_wire(tiletype, dst_wire) {
             continue;
         }
         for c in conns {
             let looked_up_src = m.lookup_wire(&c.from_wire);
             let looked_up_dst = m.lookup_wire(dst_wire);
-            if compare_wire(&looked_up_src, &looked_up_dst) && is_site_wire(tile, &c.from_wire) {
+            if compare_wire(&looked_up_src, &looked_up_dst) && is_site_wire(tiletype, &c.from_wire) {
                 m.add_alias(&looked_up_src, &looked_up_dst);
             } else {
                 m.add_alias(&looked_up_dst, &looked_up_src);
@@ -131,16 +130,16 @@ fn flatten_wires(tile: &Tile, tiledata: &TileBitsDatabase) -> SiteWireMap {
     return m;
 }
 
-pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) -> Vec<Site> {
+pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
     // TODO: handle other tile types
     let mut sites = Vec::new();
-    if tile.tiletype == "PLC" {
-        let flat_wires = flatten_wires(tile, tiledata);
+    if tiletype == "PLC" {
+        let flat_wires = flatten_wires(tiletype, tiledata);
         let mut pins = Vec::new();
         let mut found_pins = BTreeSet::new();
         for (dst_wire, conns) in tiledata.conns.iter() {
             for conn in conns.iter() {
-                if is_site_wire(tile, dst_wire) && !is_site_wire(tile, &conn.from_wire) {
+                if is_site_wire(tiletype, dst_wire) && !is_site_wire(tiletype, &conn.from_wire) {
                     // from tile into site
                     let site_dst_wire = flat_wires.lookup_wire(dst_wire);
                     if found_pins.contains(&(conn.from_wire.to_string(), site_dst_wire.to_string())) {
@@ -152,7 +151,7 @@ pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) -> Ve
                         site_wire: site_dst_wire,
                         dir: PinDir::INPUT,
                     });
-                } else if !is_site_wire(tile, dst_wire) && is_site_wire(tile, &conn.from_wire) {
+                } else if !is_site_wire(tiletype, dst_wire) && is_site_wire(tiletype, &conn.from_wire) {
                     // from site into tile
                     let site_src_wire = flat_wires.lookup_wire(&conn.from_wire);
                     if found_pins.contains(&(site_src_wire.to_string(), dst_wire.to_string())) {
@@ -178,18 +177,18 @@ pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) -> Ve
         let mut rbels = Vec::new();
         // Convert pips to routing bels
         for (dst_wire, pips) in tiledata.pips.iter() {
-            if !is_site_wire(tile, dst_wire) {
+            if !is_site_wire(tiletype, dst_wire) {
                 continue;
             }
             let site_dst_wire = flat_wires.lookup_wire(dst_wire);
-            let mapped_src_wires = pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tile, w)).map(|w| flat_wires.lookup_wire(w)).collect();
+            let mapped_src_wires = pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)).map(|w| flat_wires.lookup_wire(w)).collect();
             rbels.push(SiteRoutingBel {
                 dst_wire: site_dst_wire,
                 src_wires: mapped_src_wires,
             });
         }
         // Import functional bels
-        let orig_bels = get_tile_bels(&tile.tiletype, tiledata);
+        let orig_bels = get_tile_bels(&tiletype, tiledata);
         let mut site_bels = Vec::new();
         for orig_bel in orig_bels.iter() {
             let mut site_bel_pins = Vec::new();
@@ -197,7 +196,7 @@ pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) -> Ve
             for pin in &orig_bel.pins {
                 // TODO: relative X and Y coordinates
                 let wire_name = pin.wire.rel_name(orig_bel.rel_x, orig_bel.rel_y);
-                assert!(is_site_wire(tile, &wire_name));
+                assert!(is_site_wire(tiletype, &wire_name));
                 let site_wire = flat_wires.lookup_wire(&wire_name);
                 site_bel_pins.push(SiteBelPin {
                     pin_name: pin.name.clone(),
