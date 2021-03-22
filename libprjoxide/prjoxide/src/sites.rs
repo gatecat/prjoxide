@@ -73,7 +73,9 @@ pub struct SiteFunctionalBel {
 
 pub struct Site {
     pub name: String,
+    pub wires: Vec<String>,
     pub pins: Vec<SitePin>,
+    pub bels: Vec<SiteFunctionalBel>,
     pub rbels: Vec<SiteRoutingBel>,
 }
 
@@ -129,101 +131,94 @@ fn flatten_wires(tile: &Tile, tiledata: &TileBitsDatabase) -> SiteWireMap {
     return m;
 }
 
-pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) {
-    let flat_wires = flatten_wires(tile, tiledata);
-    let mut pins = Vec::new();
-    let mut found_pins = BTreeSet::new();
-    for (dst_wire, conns) in tiledata.conns.iter() {
-        for conn in conns.iter() {
-            if is_site_wire(tile, dst_wire) && !is_site_wire(tile, &conn.from_wire) {
-                // from tile into site
-                let site_dst_wire = flat_wires.lookup_wire(dst_wire);
-                if found_pins.contains(&(conn.from_wire.to_string(), site_dst_wire.to_string())) {
-                    continue;
+pub fn build_sites(_chip: &Chip, tile: &Tile, tiledata: &TileBitsDatabase) -> Vec<Site> {
+    // TODO: handle other tile types
+    let mut sites = Vec::new();
+    if tile.tiletype == "PLC" {
+        let flat_wires = flatten_wires(tile, tiledata);
+        let mut pins = Vec::new();
+        let mut found_pins = BTreeSet::new();
+        for (dst_wire, conns) in tiledata.conns.iter() {
+            for conn in conns.iter() {
+                if is_site_wire(tile, dst_wire) && !is_site_wire(tile, &conn.from_wire) {
+                    // from tile into site
+                    let site_dst_wire = flat_wires.lookup_wire(dst_wire);
+                    if found_pins.contains(&(conn.from_wire.to_string(), site_dst_wire.to_string())) {
+                        continue;
+                    }
+                    found_pins.insert((conn.from_wire.to_string(), site_dst_wire.to_string()));
+                    pins.push(SitePin {
+                        tile_wire: conn.from_wire.clone(),
+                        site_wire: site_dst_wire,
+                        dir: PinDir::INPUT,
+                    });
+                } else if !is_site_wire(tile, dst_wire) && is_site_wire(tile, &conn.from_wire) {
+                    // from site into tile
+                    let site_src_wire = flat_wires.lookup_wire(&conn.from_wire);
+                    if found_pins.contains(&(site_src_wire.to_string(), dst_wire.to_string())) {
+                        continue;
+                    }
+                    found_pins.insert((site_src_wire.to_string(), dst_wire.to_string()));
+                    pins.push(SitePin {
+                        tile_wire: dst_wire.to_string(),
+                        site_wire: site_src_wire,
+                        dir: PinDir::OUTPUT,
+                    });
                 }
-                found_pins.insert((conn.from_wire.to_string(), site_dst_wire.to_string()));
-                pins.push(SitePin {
-                    tile_wire: conn.from_wire.clone(),
-                    site_wire: site_dst_wire,
-                    dir: PinDir::INPUT,
-                });
-            } else if !is_site_wire(tile, dst_wire) && is_site_wire(tile, &conn.from_wire) {
-                // from site into tile
-                let site_src_wire = flat_wires.lookup_wire(&conn.from_wire);
-                if found_pins.contains(&(site_src_wire.to_string(), dst_wire.to_string())) {
-                    continue;
-                }
-                found_pins.insert((site_src_wire.to_string(), dst_wire.to_string()));
-                pins.push(SitePin {
-                    tile_wire: dst_wire.to_string(),
-                    site_wire: site_src_wire,
-                    dir: PinDir::OUTPUT,
-                });
             }
         }
-    }
-    // For the F outputs where have a MUX/LUT choice; use the FF DI mux because it's not independently controllable from the FF mux
-    for i in 0..4 {
-            pins.push(SitePin {
-                tile_wire: format!("F{}", 2*i),
-                site_wire: flat_wires.lookup_wire(&format!("JDI0_SLICE{}", &"ABCD"[i..i+1])),
-                dir: PinDir::OUTPUT,
-            });
-    }
-    println!("Pins: ");
-    for pin in pins.iter() {
-        println!("    {:?}", pin);
-    }
-    let mut rbels = Vec::new();
-    // Convert pips to routing bels
-    for (dst_wire, pips) in tiledata.pips.iter() {
-        if !is_site_wire(tile, dst_wire) {
-            continue;
+        // For the F outputs where have a MUX/LUT choice; use the FF DI mux because it's not independently controllable from the FF mux
+        for i in 0..4 {
+                pins.push(SitePin {
+                    tile_wire: format!("F{}", 2*i),
+                    site_wire: flat_wires.lookup_wire(&format!("JDI0_SLICE{}", &"ABCD"[i..i+1])),
+                    dir: PinDir::OUTPUT,
+                });
         }
-        let site_dst_wire = flat_wires.lookup_wire(dst_wire);
-        let mapped_src_wires = pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tile, w)).map(|w| flat_wires.lookup_wire(w)).collect();
-        rbels.push(SiteRoutingBel {
-            dst_wire: site_dst_wire,
-            src_wires: mapped_src_wires,
-        });
-    }
-    println!();
-    println!("Routing bels: ");
-    for rbel in rbels.iter() {
-        println!("    {:?}", rbel);
-    }
-    // Import functional bels
-    let orig_bels = get_tile_bels(&tile.tiletype, tiledata);
-    let mut site_bels = Vec::new();
-    for orig_bel in orig_bels.iter() {
-        let mut site_bel_pins = Vec::new();
-
-        for pin in &orig_bel.pins {
-            // TODO: relative X and Y coordinates
-            let wire_name = pin.wire.rel_name(orig_bel.rel_x, orig_bel.rel_y);
-            assert!(is_site_wire(tile, &wire_name));
-            let site_wire = flat_wires.lookup_wire(&wire_name);
-            site_bel_pins.push(SiteBelPin {
-                pin_name: pin.name.clone(),
-                site_wire: site_wire,
-                dir: pin.dir.clone(),
+        let mut rbels = Vec::new();
+        // Convert pips to routing bels
+        for (dst_wire, pips) in tiledata.pips.iter() {
+            if !is_site_wire(tile, dst_wire) {
+                continue;
+            }
+            let site_dst_wire = flat_wires.lookup_wire(dst_wire);
+            let mapped_src_wires = pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tile, w)).map(|w| flat_wires.lookup_wire(w)).collect();
+            rbels.push(SiteRoutingBel {
+                dst_wire: site_dst_wire,
+                src_wires: mapped_src_wires,
             });
         }
+        // Import functional bels
+        let orig_bels = get_tile_bels(&tile.tiletype, tiledata);
+        let mut site_bels = Vec::new();
+        for orig_bel in orig_bels.iter() {
+            let mut site_bel_pins = Vec::new();
 
-        site_bels.push(SiteFunctionalBel {
-            name: orig_bel.name.clone(),
-            bel_type: orig_bel.beltype.clone(),
-            pins: site_bel_pins,
+            for pin in &orig_bel.pins {
+                // TODO: relative X and Y coordinates
+                let wire_name = pin.wire.rel_name(orig_bel.rel_x, orig_bel.rel_y);
+                assert!(is_site_wire(tile, &wire_name));
+                let site_wire = flat_wires.lookup_wire(&wire_name);
+                site_bel_pins.push(SiteBelPin {
+                    pin_name: pin.name.clone(),
+                    site_wire: site_wire,
+                    dir: pin.dir.clone(),
+                });
+            }
+
+            site_bels.push(SiteFunctionalBel {
+                name: orig_bel.name.clone(),
+                bel_type: orig_bel.beltype.clone(),
+                pins: site_bel_pins,
+            });
+        }
+        sites.push(Site {
+            name: "PLC".to_string(),
+            pins: pins,
+            wires: flat_wires.root2wires.keys().cloned().collect(),
+            bels: site_bels,
+            rbels: rbels,
         });
     }
-
-    println!();
-    println!("Functional bels: ");
-    for fbel in site_bels.iter() {
-        println!("    {}: {}", &fbel.name, &fbel.bel_type);
-        for bp in fbel.pins.iter() {
-            println!("        {:?}", bp);
-        }
-        println!();
-    }
+    return sites;
 }
