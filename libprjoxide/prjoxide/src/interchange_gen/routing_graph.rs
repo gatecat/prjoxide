@@ -9,6 +9,7 @@ use crate::bba::idxset::*;
 use crate::bba::tiletype::{Neighbour, TileTypes};
 
 use crate::sites::*;
+use crate::wires::*;
 
 // A tile type from the interchange format perspective
 // this is not the same as a database tile type; because the Oxide graph can have
@@ -229,11 +230,17 @@ impl <'a> GraphBuilder<'a> {
                 let tdb = &self.db.tile_bitdb(&self.chip.family, tt).db;
                 for (to_wire, pips) in tdb.pips.iter() {
                     for pip in pips.iter() {
+                        if is_site_wire(tt, &pip.from_wire) && is_site_wire(tt, to_wire) {
+                            continue;
+                        }
                         lt.add_pip(self.ids.id(&pip.from_wire), self.ids.id(to_wire));
                     }
                 }
                 for (to_wire, conns) in tdb.conns.iter() {
                     for conn in conns.iter() {
+                        if is_site_wire(tt, &conn.from_wire) && is_site_wire(tt, to_wire) {
+                            continue;
+                        }
                         lt.add_pip(self.ids.id(&conn.from_wire), self.ids.id(to_wire));
                     }
                 }
