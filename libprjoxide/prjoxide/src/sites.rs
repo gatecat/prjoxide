@@ -90,6 +90,12 @@ pub struct SiteWire {
 }
 
 #[derive(Clone)]
+pub struct SitePIP {
+    pub in_pin: usize,
+    pub out_pin: usize,
+}
+
+#[derive(Clone)]
 pub struct Site {
     pub name: String,
     pub site_type: String,
@@ -97,6 +103,7 @@ pub struct Site {
     pub bel_pins: Vec<SiteBelPin>,
     pub pins: Vec<SitePin>,
     pub bels: Vec<SiteBel>,
+    pub pips: Vec<SitePIP>,
 }
 
 // To speed up site routing; where fixed connections connect multiple site wires together, merge them into one
@@ -197,6 +204,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
         }
         let mut site_bel_pins = Vec::new();
         let mut site_bels = Vec::new();
+        let mut site_pips = Vec::new();
         // Import functional bels
         let orig_bels = get_tile_bels(&tiletype, tiledata);
         for orig_bel in orig_bels.iter() {
@@ -231,7 +239,8 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             let mut bel_pins = Vec::new();
             let site_dst_wire = flat_wires.lookup_wire(dst_wire);
             let bel_name = format!("RBEL_{}", site_dst_wire);
-            bel_pins.push(site_bel_pins.len());
+            let out_pin_idx = site_bel_pins.len();
+            bel_pins.push(out_pin_idx);
             site_bel_pins.push(SiteBelPin {
                 bel_name: bel_name.clone(),
                 pin_name: site_dst_wire.clone(),
@@ -239,6 +248,10 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                 dir: PinDir::OUTPUT,
             });
             for src_wire in pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)).map(|w| flat_wires.lookup_wire(w)) {
+                site_pips.push(SitePIP {
+                    in_pin: site_bel_pins.len(),
+                    out_pin: out_pin_idx,
+                });
                 bel_pins.push(site_bel_pins.len());
                 site_bel_pins.push(SiteBelPin {
                     bel_name: bel_name.clone(),
@@ -300,6 +313,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             wires: site_wires,
             bel_pins: site_bel_pins,
             bels: site_bels,
+            pips: site_pips,
         });
     }
     return sites;

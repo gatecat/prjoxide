@@ -115,7 +115,15 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                         }
                     }
                 }
-                // TODO: site pins, wires and pips
+                {
+                    let mut pips = st.reborrow().init_site_p_i_ps(data.pips.len().try_into().unwrap());
+                    for (j, pip_data) in data.pips.iter().enumerate() {
+                        let mut p = pips.reborrow().get(j.try_into().unwrap());
+                        p.set_inpin(pip_data.in_pin.try_into().unwrap());
+                        p.set_outpin(pip_data.out_pin.try_into().unwrap());
+                    }
+                }
+                // TODO: site pins
             }
         }
         let mut wire_list = Vec::new();
