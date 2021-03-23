@@ -199,9 +199,57 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             constants.set_vcc_cell_pin(ids.id("Z").val().try_into().unwrap());
         }
         {
-            let mut c2b = dev.reborrow().init_cell_bel_map(2);
+            let mut constraints = dev.reborrow().init_constraints();
+            {
+                let mut cc = constraints.reborrow().init_cell_constraints(1);
+                {
+                    let mut lut_constr = cc.reborrow().get(0);
+                    lut_constr.set_cell("LUT4");
+                    let mut lut_loc = lut_constr.init_locations(1).get(0);
+                    lut_loc.reborrow().init_site_types(1).set(0, "PLC");
+                    {
+                        let mut lut_bels = lut_loc.reborrow().init_bel().init_bels(8);
+                        for i in 0..8 {
+                            lut_bels.set(i,
+                                &format!("SLICE{}_LUT{}", "ABCD".chars().nth((i / 2) as usize).unwrap(), i % 2));
+                        }
+                    }
+                    lut_loc.reborrow().init_implies(0);
+                }
+            }
+        }
+        {
+            let mut c2b = dev.reborrow().init_cell_bel_map(3);
             c2b.reborrow().get(0).set_cell(ids.id("VLO").val().try_into().unwrap());
             c2b.reborrow().get(1).set_cell(ids.id("VHI").val().try_into().unwrap());
+            {
+                let mut lut = c2b.reborrow().get(2);
+                lut.set_cell(ids.id("LUT4").val().try_into().unwrap());
+                let mut pin_map = lut.init_common_pins(1).get(0);
+                {
+                    let mut st = pin_map.reborrow().init_site_types(1).get(0);
+                    st.set_site_type(ids.id("PLC").val().try_into().unwrap());
+                    let mut lut_bels = st.init_bels(8);
+                    for i in 0..8 {
+                        lut_bels.set(i,
+                            ids.id(&format!("SLICE{}_LUT{}", "ABCD".chars().nth((i / 2) as usize).unwrap(), i % 2)).val().try_into().unwrap());
+                    }
+                }
+                {
+                    let mut pins = pin_map.init_pins(5);
+                    pins.reborrow().get(0).set_cell_pin(ids.id("A").val().try_into().unwrap());
+                    pins.reborrow().get(0).set_bel_pin(ids.id("A").val().try_into().unwrap());
+                    pins.reborrow().get(1).set_cell_pin(ids.id("B").val().try_into().unwrap());
+                    pins.reborrow().get(1).set_bel_pin(ids.id("B").val().try_into().unwrap());
+                    pins.reborrow().get(2).set_cell_pin(ids.id("C").val().try_into().unwrap());
+                    pins.reborrow().get(2).set_bel_pin(ids.id("C").val().try_into().unwrap());
+                    pins.reborrow().get(3).set_cell_pin(ids.id("D").val().try_into().unwrap());
+                    pins.reborrow().get(3).set_bel_pin(ids.id("D").val().try_into().unwrap());                    pins.reborrow().get(0).set_cell_pin(ids.id("A").val().try_into().unwrap());
+                    pins.reborrow().get(4).set_cell_pin(ids.id("Z").val().try_into().unwrap());
+                    pins.reborrow().get(4).set_bel_pin(ids.id("F").val().try_into().unwrap());
+                }
+            }
+
         }
         {
             let mut packages = dev.reborrow().init_packages(1);
