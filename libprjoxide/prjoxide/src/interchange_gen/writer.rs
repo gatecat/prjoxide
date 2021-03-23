@@ -38,7 +38,12 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                         let type_idx = uniq_site_types.add(&site_type.site_type, site_type.clone());
                         let mut site = sites.reborrow().get(j.try_into().unwrap());
                         site.set_primary_type(type_idx.try_into().unwrap());
-                        // TODO: site pins
+                        {
+                            let mut pins = site.init_primary_pins_to_tile_wires(site_type.pins.len().try_into().unwrap());
+                            for (k, site_pin) in site_type.pins.iter().enumerate() {
+                                pins.set(k.try_into().unwrap(), ids.id(&site_pin.tile_wire).val().try_into().unwrap());
+                            }
+                        }
                     }
                 }
                 {
@@ -68,7 +73,7 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             for (i, (_, data)) in uniq_site_types.iter().enumerate() {
                 let mut st = sitetypes.reborrow().get(i.try_into().unwrap());
                 st.set_name(ids.id(&data.site_type).val().try_into().unwrap());
-                st.set_last_input(0);
+                st.set_last_input(data.last_input_pin.try_into().unwrap());
                 {
                     let mut bels = st.reborrow().init_bels(data.bels.len().try_into().unwrap());
                     for (j, bel_data) in data.bels.iter().enumerate() {
@@ -123,7 +128,19 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                         p.set_outpin(pip_data.out_pin.try_into().unwrap());
                     }
                 }
-                // TODO: site pins
+                {
+                    let mut pins = st.reborrow().init_pins(data.pins.len().try_into().unwrap());
+                    for (j, pin_data) in data.pins.iter().enumerate() {
+                        let mut p = pins.reborrow().get(j.try_into().unwrap());
+                        p.set_name(ids.id(&pin_data.site_wire).val().try_into().unwrap());
+                        p.set_dir(match pin_data.dir {
+                            PinDir::INPUT => LogicalNetlist_capnp::netlist::Direction::Input,
+                            PinDir::OUTPUT => LogicalNetlist_capnp::netlist::Direction::Output,
+                            PinDir::INOUT => LogicalNetlist_capnp::netlist::Direction::Inout,
+                        });
+                        p.set_belpin(pin_data.bel_pin.try_into().unwrap());
+                    }
+                }
             }
         }
         let mut wire_list = Vec::new();

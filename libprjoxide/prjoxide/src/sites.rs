@@ -10,6 +10,7 @@ pub struct SitePin {
     pub tile_wire: String,
     pub site_wire: String,
     pub dir: PinDir,
+    pub bel_pin: usize,
 }
 
 impl fmt::Debug for SitePin {
@@ -102,6 +103,7 @@ pub struct Site {
     pub wires: Vec<SiteWire>,
     pub bel_pins: Vec<SiteBelPin>,
     pub pins: Vec<SitePin>,
+    pub last_input_pin: usize,
     pub bels: Vec<SiteBel>,
     pub pips: Vec<SitePIP>,
 }
@@ -178,6 +180,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                         tile_wire: conn.from_wire.clone(),
                         site_wire: site_dst_wire,
                         dir: PinDir::INPUT,
+                        bel_pin: 0,
                     });
                 } else if !is_site_wire(tiletype, dst_wire) && is_site_wire(tiletype, &conn.from_wire) {
                     // from site into tile
@@ -190,6 +193,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                         tile_wire: dst_wire.to_string(),
                         site_wire: site_src_wire,
                         dir: PinDir::OUTPUT,
+                        bel_pin: 0,
                     });
                 }
             }
@@ -200,6 +204,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                     tile_wire: format!("F{}", 2*i),
                     site_wire: flat_wires.lookup_wire(&format!("JDI0_SLICE{}", &"ABCD"[i..i+1])),
                     dir: PinDir::OUTPUT,
+                    bel_pin: 0,
                 });
         }
         let mut site_bel_pins = Vec::new();
@@ -269,9 +274,10 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             });
         }
         // Create port bels
-        for pin in pins.iter() {
+        for pin in pins.iter_mut() {
             let bel_name = pin.site_wire.clone();
             let bel_pins = vec![site_bel_pins.len()];
+            pin.bel_pin = site_bel_pins.len();
             site_bel_pins.push(SiteBelPin {
                 bel_name: bel_name.clone(),
                 pin_name: pin.site_wire.clone(),
@@ -306,10 +312,15 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             })
         }
 
+        let mut shuffled_pins = Vec::new();
+        shuffled_pins.extend(pins.iter().filter(|p| p.dir == PinDir::INPUT).cloned());
+        let last_input_pin =  shuffled_pins.len() - 1;
+        shuffled_pins.extend(pins.iter().filter(|p| p.dir != PinDir::INPUT).cloned());
         sites.push(Site {
             name: "PLC".to_string(),
             site_type: "PLC".to_string(),
-            pins: pins,
+            pins: shuffled_pins,
+            last_input_pin: last_input_pin,
             wires: site_wires,
             bel_pins: site_bel_pins,
             bels: site_bels,

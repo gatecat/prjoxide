@@ -213,6 +213,11 @@ impl <'a> GraphBuilder<'a> {
             t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone(), &self.chip.family, self.db));
         }
         for (key, lt) in self.g.tile_types.iter_mut() {
+            // setup wires for site pins
+            let site_wires : Vec<String> = lt.site_types.iter().map(|s| s.pins.iter()).flatten().map(|p| p.tile_wire.clone()).collect();
+            for w in site_wires {
+                lt.wire(self.ids.id(&w));
+            }
             for tt in key.tile_types.iter() {
                 // setup wires for all sub-tile-types
                 let tt_data = self.orig_tts.get(tt).unwrap();
