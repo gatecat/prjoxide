@@ -201,7 +201,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
         // For the F outputs where have a MUX/LUT choice; use the FF DI mux because it's not independently controllable from the FF mux
         for i in 0..4 {
                 pins.push(SitePin {
-                    tile_wire: format!("F{}", 2*i),
+                    tile_wire: format!("JF{}", 2*i),
                     site_wire: flat_wires.lookup_wire(&format!("JDI0_SLICE{}", &"ABCD"[i..i+1])),
                     dir: PinDir::OUTPUT,
                     bel_pin: 0,
