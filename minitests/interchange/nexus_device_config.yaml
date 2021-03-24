@@ -1,0 +1,7 @@
+# Which BEL names are global buffers for nextpnr?
+global_buffers: []
+# How should nextpnr lump BELs during analytic placement?
+buckets:
+- bucket: LUTS
+  cells:
+    - LUT4
