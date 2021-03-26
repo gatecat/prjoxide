@@ -8,10 +8,15 @@ configs = [
         "rc": (0, 73),
         "keywords": ["CLKRST_CORE", "HSE_CORE", "MULTIBOOT_CORE", "LMMI_CORE", "CONFIG_IP_CORE"]
     },
+    {
+        "cfg": FuzzConfig(job="CLKRST", device="LIFCL-17", sv="../shared/route_17.v", tiles=["CIB_R0C66:EFB_15K", "CIB_R0C72:I2C_15K", "CIB_R0C71:OSC_15K", "CIB_R0C70:PMU_15K"]),
+        "rc": (0, 52),
+        "keywords": ["CLKRST_CORE", "CRE_CORE", "MULTIBOOT_CORE", "LMMI_CORE", "CONFIG_IP_CORE"]
+    },
 ]
 
 ignore_tiles = set([
-    "CIB_R1C{}:CIB_T".format(c) for c in range(60, 87)
+    "CIB_R1C{}:CIB_T".format(c) for c in range(40, 87)
 ])
 
 def main():
