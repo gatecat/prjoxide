@@ -686,6 +686,13 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "GPLL_LRC" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, -1, 0)],
         "LRAM_0" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, -5)],
         "LRAM_1" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, -1)],
+
+        "LRAM_0_15K" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, 0)],
+        "LRAM_1_15K" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, 0)],
+        "LRAM_2_15K" => vec![Bel::make_lram_core("LRAM2", &tiledata, 0, -1)],
+        "LRAM_3_15K" => vec![Bel::make_lram_core("LRAM3", &tiledata, 0, -1)],
+        "LRAM_4_15K" => vec![Bel::make_lram_core("LRAM4", &tiledata, 0, -1)],
+
         "MIPI_DPHY_0" => vec![Bel::make_dphy_core("TDPHY_CORE2", &tiledata, -2, 0)],
         "MIPI_DPHY_1" => vec![Bel::make_dphy_core("TDPHY_CORE26", &tiledata, -2, 0)],
         _ => vec![],

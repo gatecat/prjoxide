@@ -6,6 +6,12 @@ import re
 configs = [
     ("LRAM_CORE_R18C86", "LRAM0", FuzzConfig(job="LRAM0", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R23C87:LRAM_0" ])),
     ("LRAM_CORE_R40C86", "LRAM1", FuzzConfig(job="LRAM1", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R41C87:LRAM_1", ])),
+
+    ("LRAM_CORE_R15C74", "LRAM0", FuzzConfig(job="LRAM0_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R15C75:LRAM_0_15K"])),
+    ("LRAM_CORE_R16C74", "LRAM1", FuzzConfig(job="LRAM1_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R16C75:LRAM_1_15K"])),
+    ("LRAM_CORE_R2C1", "LRAM2", FuzzConfig(job="LRAM2_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R3C0:LRAM_2_15K"])),
+    ("LRAM_CORE_R11C1", "LRAM3", FuzzConfig(job="LRAM3_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R12C0:LRAM_3_15K"])),
+    ("LRAM_CORE_R20C1", "LRAM4", FuzzConfig(job="LRAM4_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R21C0:LRAM_4_15K"])),
 ]
 
 def main():
