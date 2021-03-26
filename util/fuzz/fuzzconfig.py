@@ -61,6 +61,8 @@ class FuzzConfig:
         subst = dict(substitutions)
         if "arcs_attr" not in subst:
             subst["arcs_attr"] = ""
+        if "device" not in subst:
+            subst["device"] = self.device
         desfile = path.join(self.workdir, prefix + "design.v")
         bitfile = path.join(self.workdir, prefix + "design.bit")
 

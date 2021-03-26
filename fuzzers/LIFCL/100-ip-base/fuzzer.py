@@ -6,7 +6,47 @@ from os import path
 import libpyprjoxide
 import json
 
-cfg = fuzzconfig.FuzzConfig(job="IPADDR", device="LIFCL-40", sv="ip.v", tiles=[])
+cfgs = [
+    # (fuzzconfig.FuzzConfig(job="IPADDR", device="LIFCL-40", sv="ip.v", tiles=[]),
+    #     [
+    #         ("TDPHY_CORE2", "DPHY_CORE"),
+    #         ("TDPHY_CORE26", "DPHY_CORE"),
+    #         ("PLL_LLC", "PLL_CORE"),
+    #         ("PLL_LRC", "PLL_CORE"),
+    #         ("PLL_ULC", "PLL_CORE"),
+    #         ("PMU_CORE_R1C85", "PMU_CORE"),
+    #         ("LSGMIICDR_CORE51", "SGMIICDR_CORE"),
+    #         ("LSGMIICDR_CORE52", "SGMIICDR_CORE"),
+    #         ("I2CFIFO_CORE_R1C81", "I2CFIFO_CORE"),
+    #         ("TPCIE_CORE57", "PCIE_CORE"),
+    #         ("EBR_CORE_R28C26", "EBR_CORE_WID0"),
+    #         ("EBR_CORE_R28C26", "EBR_CORE_WID1"),
+    #         ("EBR_CORE_R28C26", "EBR_CORE_WID2047"),
+    #         ("LRAM_CORE_R18C86", "LRAM_CORE"),
+    #         ("LRAM_CORE_R40C86", "LRAM_CORE"),
+    #     ]
+    # ),
+    (fuzzconfig.FuzzConfig(job="IPADDR17", device="LIFCL-17", sv="ip.v", tiles=[]),
+        [
+            ("DPHY0", "DPHY_CORE"),
+            ("DPHY1", "DPHY_CORE"),
+            ("PLL_LLC", "PLL_CORE"),
+            ("PLL_LRC", "PLL_CORE"),
+            ("PMU_CORE_R1C70", "PMU_CORE"),
+            ("SGMIICDR_CORE_R28C5", "SGMIICDR_CORE"),
+            ("SGMIICDR_CORE_R28C4", "SGMIICDR_CORE"),
+            ("I2CFIFO_CORE_R1C72", "I2CFIFO_CORE"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID0"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID1"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID2047"),
+            ("LRAM_CORE_R2C1", "LRAM_CORE"),
+            ("LRAM_CORE_R11C1", "LRAM_CORE"),
+            ("LRAM_CORE_R20C1", "LRAM_CORE"),
+            ("LRAM_CORE_R15C74", "LRAM_CORE"),
+            ("LRAM_CORE_R16C74", "LRAM_CORE"),
+        ]
+    )
+]
 
 # Config to make sure we get at least one IP bit set
 ip_settings = {
@@ -33,48 +73,31 @@ ip_abits = {
     "LRAM_CORE": 17,
 }
 
-ip_sites = [
-    ("TDPHY_CORE2", "DPHY_CORE"),
-    ("TDPHY_CORE26", "DPHY_CORE"),
-    ("PLL_LLC", "PLL_CORE"),
-    ("PLL_LRC", "PLL_CORE"),
-    ("PLL_ULC", "PLL_CORE"),
-    ("PMU_CORE_R1C85", "PMU_CORE"),
-    ("LSGMIICDR_CORE51", "SGMIICDR_CORE"),
-    ("LSGMIICDR_CORE52", "SGMIICDR_CORE"),
-    ("I2CFIFO_CORE_R1C81", "I2CFIFO_CORE"),
-    ("TPCIE_CORE57", "PCIE_CORE"),
-    ("EBR_CORE_R28C26", "EBR_CORE_WID0"),
-    ("EBR_CORE_R28C26", "EBR_CORE_WID1"),
-    ("EBR_CORE_R28C26", "EBR_CORE_WID2047"),
-    ("LRAM_CORE_R18C86", "LRAM_CORE"),
-    ("LRAM_CORE_R40C86", "LRAM_CORE"),
-]
-
 def main():
-    cfg.setup(skip_specimen=True)
-    ip_base = {}
-    for site, prim in ip_sites:
-        prim_type = prim
-        wid_idx = prim_type.find("_WID")
-        if wid_idx != -1:
-            prim_type = prim_type[0:wid_idx]
-        bit = cfg.build_design(cfg.sv, dict(cmt="", prim=prim_type, site=site, config=ip_settings[prim]))
-        chip = libpyprjoxide.Chip.from_bitstream(fuzzconfig.db, bit)
-        ipv = chip.get_ip_values()
-        assert len(ipv) > 0
-        addr = ipv[0][0]
-        ip_name = site
-        if "EBR_CORE" in ip_name:
-            ip_name = prim.replace("_CORE", "")
-        #if "LRAM_CORE" in ip_name:
-        #    ip_name = "LRAM"
-        ip_base[ip_name] = {
-            "addr": addr & ~((1 << ip_abits[prim_type]) - 1),
-            "abits": ip_abits[prim_type]
-        }
-    with open(path.join(database.get_db_root(), "LIFCL", "LIFCL-40", "baseaddr.json"), "w") as jf:
-        print(json.dumps(dict(regions=ip_base), sort_keys=True, indent=4), file=jf)
+    for cfg, ip_sites in cfgs:
+        cfg.setup(skip_specimen=True)
+        ip_base = {}
+        for site, prim in ip_sites:
+            prim_type = prim
+            wid_idx = prim_type.find("_WID")
+            if wid_idx != -1:
+                prim_type = prim_type[0:wid_idx]
+            bit = cfg.build_design(cfg.sv, dict(cmt="", prim=prim_type, site=site, config=ip_settings[prim]))
+            chip = libpyprjoxide.Chip.from_bitstream(fuzzconfig.db, bit)
+            ipv = chip.get_ip_values()
+            assert len(ipv) > 0
+            addr = ipv[0][0]
+            ip_name = site
+            if "EBR_CORE" in ip_name:
+                ip_name = prim.replace("_CORE", "")
+            #if "LRAM_CORE" in ip_name:
+            #    ip_name = "LRAM"
+            ip_base[ip_name] = {
+                "addr": addr & ~((1 << ip_abits[prim_type]) - 1),
+                "abits": ip_abits[prim_type]
+            }
+        with open(path.join(database.get_db_root(), "LIFCL", cfg.device, "baseaddr.json"), "w") as jf:
+            print(json.dumps(dict(regions=ip_base), sort_keys=True, indent=4), file=jf)
     
 if __name__ == "__main__":
     main()
