@@ -39,9 +39,11 @@ const FD1P3JX_PIN_MAP : &[(&str, &str)] = &[
     ("Q", "Q"),
 ];
 
+// TODO: add back DFFs once we have some constraints set up
+
 const BEL_CELL_TYPES : &[(&str, &[&str])] = &[
     ("OXIDE_COMB", &["LUT4"]),
-    ("OXIDE_FF", &["FD1P3BX", "FD1P3DX", "FD1P3IX", "FD1P3JX"]),
+//    ("OXIDE_FF", &["FD1P3BX", "FD1P3DX", "FD1P3IX", "FD1P3JX"]),
 ];
 
 fn conv_map(map: &[(&str, &str)]) -> Vec<(String, String)> {
@@ -65,7 +67,7 @@ pub struct PinMap {
     pub pin_map: Vec<(String, String)>,
 }
 
-pub fn get_pin_maps(site: Site) -> Vec<PinMap> {
+pub fn get_pin_maps(site: &Site) -> Vec<PinMap> {
     let mut map = Vec::new();
     let unique_bel_types : BTreeSet<String>
         = site.bels.iter().filter_map(|b| if b.bel_class == SiteBelClass::BEL { Some(b.bel_type.to_string()) } else { None }).collect();

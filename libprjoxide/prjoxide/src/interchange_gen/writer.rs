@@ -3,6 +3,8 @@
 use crate::bba::idxset::IndexedMap;
 use crate::sites::*;
 use crate::interchange_gen::routing_graph::*;
+use crate::interchange_gen::bel_pin_map::get_pin_maps;
+
 use crate::schema::*;
 use crate::chip::Chip;
 use crate::database::Database;
@@ -219,34 +221,31 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             }
         }
         {
-            let mut c2b = dev.reborrow().init_cell_bel_map(3);
+            let mut pin_maps = Vec::new();
+            for (site_type, site) in uniq_site_types.iter() {
+                pin_maps.extend(get_pin_maps(site).drain(..).map(|x| (site_type.to_string(), x)));
+            }
+            let mut c2b = dev.reborrow().init_cell_bel_map((2 + pin_maps.len()).try_into().unwrap());
             c2b.reborrow().get(0).set_cell(ids.id("VLO").val().try_into().unwrap());
             c2b.reborrow().get(1).set_cell(ids.id("VHI").val().try_into().unwrap());
-            {
-                let mut lut = c2b.reborrow().get(2);
-                lut.set_cell(ids.id("LUT4").val().try_into().unwrap());
-                let mut pin_map = lut.init_common_pins(1).get(0);
+            for (i, (site_type, pin_map_data)) in pin_maps.iter().enumerate() {
+                let mut m = c2b.reborrow().get((2 + i).try_into().unwrap());
+                m.set_cell(ids.id(&pin_map_data.cell_type).val().try_into().unwrap());
+                let mut pin_map = m.init_common_pins(1).get(0);
                 {
                     let mut st = pin_map.reborrow().init_site_types(1).get(0);
-                    st.set_site_type(ids.id("PLC").val().try_into().unwrap());
-                    let mut lut_bels = st.init_bels(8);
-                    for i in 0..8 {
-                        lut_bels.set(i,
-                            ids.id(&format!("SLICE{}_LUT{}", "ABCD".chars().nth((i / 2) as usize).unwrap(), i % 2)).val().try_into().unwrap());
+                    st.set_site_type(ids.id(&site_type).val().try_into().unwrap());
+                    let mut bels = st.init_bels(pin_map_data.bels.len().try_into().unwrap());
+                    for (j, bel) in pin_map_data.bels.iter().enumerate() {
+                        bels.set(j.try_into().unwrap(), ids.id(&bel).val().try_into().unwrap());
                     }
                 }
                 {
-                    let mut pins = pin_map.init_pins(5);
-                    pins.reborrow().get(0).set_cell_pin(ids.id("A").val().try_into().unwrap());
-                    pins.reborrow().get(0).set_bel_pin(ids.id("A").val().try_into().unwrap());
-                    pins.reborrow().get(1).set_cell_pin(ids.id("B").val().try_into().unwrap());
-                    pins.reborrow().get(1).set_bel_pin(ids.id("B").val().try_into().unwrap());
-                    pins.reborrow().get(2).set_cell_pin(ids.id("C").val().try_into().unwrap());
-                    pins.reborrow().get(2).set_bel_pin(ids.id("C").val().try_into().unwrap());
-                    pins.reborrow().get(3).set_cell_pin(ids.id("D").val().try_into().unwrap());
-                    pins.reborrow().get(3).set_bel_pin(ids.id("D").val().try_into().unwrap());
-                    pins.reborrow().get(4).set_cell_pin(ids.id("Z").val().try_into().unwrap());
-                    pins.reborrow().get(4).set_bel_pin(ids.id("F").val().try_into().unwrap());
+                    let mut pins = pin_map.init_pins(pin_map_data.pin_map.len().try_into().unwrap());
+                    for (j, (cell_pin, bel_pin)) in pin_map_data.pin_map.iter().enumerate() {
+                        pins.reborrow().get(j.try_into().unwrap()).set_cell_pin(ids.id(cell_pin).val().try_into().unwrap());
+                        pins.reborrow().get(j.try_into().unwrap()).set_bel_pin(ids.id(bel_pin).val().try_into().unwrap());
+                    }
                 }
             }
 
