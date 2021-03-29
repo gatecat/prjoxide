@@ -66,7 +66,16 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                         p.set_conventional(());
                     }
                 }
-                // TODO: constant sources
+                {
+                    let vcc_wire = ids.id("G:VCC");
+                    if let Some(vcc_idx) = data.wires.get_index(&vcc_wire) {
+                        // Mark the G:VCC wire in a tile, if it exists, as a source of Vcc
+                        // this doesn't cover all constants but gets us started
+                        let mut constant = tt.reborrow().init_constants(1).get(0);
+                        constant.reborrow().init_wires(1).set(0, vcc_idx.try_into().unwrap());
+                        constant.set_constant(DeviceResources_capnp::device::ConstantType::Vcc);
+                    }
+                }
             }
         }
         {
