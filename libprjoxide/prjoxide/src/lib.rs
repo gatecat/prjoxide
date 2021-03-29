@@ -29,5 +29,6 @@ pub mod sites;
 pub mod interchange_gen {
 	pub mod routing_graph;
     pub mod writer;
+    pub mod bel_pin_map;
 }
 mod schema;

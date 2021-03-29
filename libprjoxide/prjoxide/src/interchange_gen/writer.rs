@@ -244,7 +244,7 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                     pins.reborrow().get(2).set_cell_pin(ids.id("C").val().try_into().unwrap());
                     pins.reborrow().get(2).set_bel_pin(ids.id("C").val().try_into().unwrap());
                     pins.reborrow().get(3).set_cell_pin(ids.id("D").val().try_into().unwrap());
-                    pins.reborrow().get(3).set_bel_pin(ids.id("D").val().try_into().unwrap());                    pins.reborrow().get(0).set_cell_pin(ids.id("A").val().try_into().unwrap());
+                    pins.reborrow().get(3).set_bel_pin(ids.id("D").val().try_into().unwrap());
                     pins.reborrow().get(4).set_cell_pin(ids.id("Z").val().try_into().unwrap());
                     pins.reborrow().get(4).set_bel_pin(ids.id("F").val().try_into().unwrap());
                 }
