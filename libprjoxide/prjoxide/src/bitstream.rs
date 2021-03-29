@@ -144,7 +144,7 @@ impl BitstreamParser {
         b.write_byte(LSC_POWER_CTRL);
         b.write_zeros(2);
         b.write_byte(0x01);
-        b.write_padding(12);
+        b.write_padding(512);
         // Write IP config
         b.write_ip_config(ch);
         // Write usercode
@@ -153,7 +153,7 @@ impl BitstreamParser {
         b.write_zeros(2);
         b.write_u32(0x00000000);
         b.insert_crc();
-        b.write_padding(1015);
+        b.write_padding(15);
         // Program DONE
         b.write_byte(ISC_PROGRAM_DONE);
         b.write_zeros(3);
