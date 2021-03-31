@@ -1,5 +1,6 @@
 #![cfg(feature = "interchange")]
 
+use std::collections::BTreeMap;
 use crate::bba::idxset::IndexedMap;
 use crate::sites::*;
 use crate::interchange_gen::routing_graph::*;
@@ -209,56 +210,65 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             constants.set_vcc_cell_type(ids.id("VHI").val().try_into().unwrap());
             constants.set_vcc_cell_pin(ids.id("Z").val().try_into().unwrap());
         }
-        {
-            let mut constraints = dev.reborrow().init_constraints();
-            {
-                let mut cc = constraints.reborrow().init_cell_constraints(1);
-                {
-                    let mut lut_constr = cc.reborrow().get(0);
-                    lut_constr.set_cell("LUT4");
-                    let mut lut_loc = lut_constr.init_locations(1).get(0);
-                    lut_loc.reborrow().init_site_types(1).set(0, "PLC");
-                    {
-                        let mut lut_bels = lut_loc.reborrow().init_bel().init_bels(8);
-                        for i in 0..8 {
-                            lut_bels.set(i,
-                                &format!("SLICE{}_LUT{}", "ABCD".chars().nth((i / 2) as usize).unwrap(), i % 2));
-                        }
-                    }
-                    lut_loc.reborrow().init_implies(0);
-                }
+        // cell -> Vec<(site_type, pin_map)>
+        let mut cell2map = BTreeMap::new();
+        for (site_type, site) in uniq_site_types.iter() {
+            for pin_map in get_pin_maps(site) {
+                cell2map.entry(pin_map.cell_type.to_string()).or_insert(Vec::new()).push((site_type.to_string(), pin_map.clone()))
             }
         }
         {
-            let mut pin_maps = Vec::new();
-            for (site_type, site) in uniq_site_types.iter() {
-                pin_maps.extend(get_pin_maps(site).drain(..).map(|x| (site_type.to_string(), x)));
-            }
-            let mut c2b = dev.reborrow().init_cell_bel_map((2 + pin_maps.len()).try_into().unwrap());
+            let mut c2b = dev.reborrow().init_cell_bel_map((2 + cell2map.len()).try_into().unwrap());
             c2b.reborrow().get(0).set_cell(ids.id("VLO").val().try_into().unwrap());
             c2b.reborrow().get(1).set_cell(ids.id("VHI").val().try_into().unwrap());
-            for (i, (site_type, pin_map_data)) in pin_maps.iter().enumerate() {
+            for (i, (cell_type, cell_maps)) in cell2map.iter().enumerate() {
                 let mut m = c2b.reborrow().get((2 + i).try_into().unwrap());
-                m.set_cell(ids.id(&pin_map_data.cell_type).val().try_into().unwrap());
-                let mut pin_map = m.init_common_pins(1).get(0);
-                {
-                    let mut st = pin_map.reborrow().init_site_types(1).get(0);
-                    st.set_site_type(ids.id(&site_type).val().try_into().unwrap());
-                    let mut bels = st.init_bels(pin_map_data.bels.len().try_into().unwrap());
-                    for (j, bel) in pin_map_data.bels.iter().enumerate() {
-                        bels.set(j.try_into().unwrap(), ids.id(&bel).val().try_into().unwrap());
+                m.set_cell(ids.id(cell_type).val().try_into().unwrap());
+                let mut pin_maps = m.init_common_pins(cell_maps.len().try_into().unwrap());
+                for (j, (site_type, pin_map_data)) in cell_maps.iter().enumerate() {
+                    let mut pin_map = pin_maps.reborrow().get(j.try_into().unwrap());
+                    {
+                        let mut st = pin_map.reborrow().init_site_types(1).get(0);
+                        st.set_site_type(ids.id(&site_type).val().try_into().unwrap());
+                        let mut bels = st.init_bels(pin_map_data.bels.len().try_into().unwrap());
+                        for (j, bel) in pin_map_data.bels.iter().enumerate() {
+                            bels.set(j.try_into().unwrap(), ids.id(&bel).val().try_into().unwrap());
+                        }
                     }
-                }
-                {
-                    let mut pins = pin_map.init_pins(pin_map_data.pin_map.len().try_into().unwrap());
-                    for (j, (cell_pin, bel_pin)) in pin_map_data.pin_map.iter().enumerate() {
-                        pins.reborrow().get(j.try_into().unwrap()).set_cell_pin(ids.id(cell_pin).val().try_into().unwrap());
-                        pins.reborrow().get(j.try_into().unwrap()).set_bel_pin(ids.id(bel_pin).val().try_into().unwrap());
+                    {
+                        let mut pins = pin_map.init_pins(pin_map_data.pin_map.len().try_into().unwrap());
+                        for (j, (cell_pin, bel_pin)) in pin_map_data.pin_map.iter().enumerate() {
+                            pins.reborrow().get(j.try_into().unwrap()).set_cell_pin(ids.id(cell_pin).val().try_into().unwrap());
+                            pins.reborrow().get(j.try_into().unwrap()).set_bel_pin(ids.id(bel_pin).val().try_into().unwrap());
+                        }
                     }
                 }
             }
-
         }
+        /* {
+            let mut constraints = dev.reborrow().init_constraints();
+            {
+                let mut cc = constraints.reborrow().init_cell_constraints(cell2site_bel.len().try_into().unwrap());
+                for (i, (cell_type, (cell_sites, cell_bels))) in cell2site_bel.iter().enumerate() {
+                    let mut constr = cc.reborrow().get(i.try_into().unwrap());
+                    constr.set_cell(cell_type);
+                    let mut constr_locs = constr.init_locations(1).get(0);
+                    {
+                        let mut constr_sites = constr_locs.reborrow().init_site_types(cell_sites.len().try_into().unwrap());
+                        for (j, s) in cell_sites.iter().enumerate() {
+                            constr_sites.set(j.try_into().unwrap(), s);
+                        }
+                    }
+                    {
+                        let mut constr_bels = constr_locs.reborrow().init_bel().init_bels(cell_bels.len().try_into().unwrap());
+                        for (j, b) in cell_bels.iter().enumerate() {
+                            constr_bels.set(j.try_into().unwrap(), b);
+                        }
+                    }
+                    constr_locs.reborrow().init_implies(0);
+                }
+            }
+        } */
         {
             let mut packages = dev.reborrow().init_packages(1);
             packages.reborrow().get(0).set_name(ids.id("QFN72").val().try_into().unwrap());
