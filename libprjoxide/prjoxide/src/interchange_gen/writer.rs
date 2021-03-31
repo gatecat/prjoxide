@@ -245,30 +245,6 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 }
             }
         }
-        /* {
-            let mut constraints = dev.reborrow().init_constraints();
-            {
-                let mut cc = constraints.reborrow().init_cell_constraints(cell2site_bel.len().try_into().unwrap());
-                for (i, (cell_type, (cell_sites, cell_bels))) in cell2site_bel.iter().enumerate() {
-                    let mut constr = cc.reborrow().get(i.try_into().unwrap());
-                    constr.set_cell(cell_type);
-                    let mut constr_locs = constr.init_locations(1).get(0);
-                    {
-                        let mut constr_sites = constr_locs.reborrow().init_site_types(cell_sites.len().try_into().unwrap());
-                        for (j, s) in cell_sites.iter().enumerate() {
-                            constr_sites.set(j.try_into().unwrap(), s);
-                        }
-                    }
-                    {
-                        let mut constr_bels = constr_locs.reborrow().init_bel().init_bels(cell_bels.len().try_into().unwrap());
-                        for (j, b) in cell_bels.iter().enumerate() {
-                            constr_bels.set(j.try_into().unwrap(), b);
-                        }
-                    }
-                    constr_locs.reborrow().init_implies(0);
-                }
-            }
-        } */
         {
             let mut packages = dev.reborrow().init_packages(1);
             packages.reborrow().get(0).set_name(ids.id("QFN72").val().try_into().unwrap());
