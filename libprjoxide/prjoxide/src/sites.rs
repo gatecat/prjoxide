@@ -351,7 +351,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             {
                 let mut bel_pins = Vec::new();
 
-                for pin in tile_bel.pins.iter().filter(|p| p.dir != PinDir::INOUT) {
+                for pin in tile_bel.pins.iter() {
                     // TODO: relative X and Y coordinates
                     bel_pins.push(site_bel_pins.len());
                     site_bel_pins.push(SiteBelPin {
@@ -368,6 +368,24 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                     bel_type: tile_bel.beltype.clone(),
                     pins: bel_pins,
                 });
+            }
+
+            // Create notional pads for inout pins
+            for pin in tile_bel.pins.iter().filter(|p| p.dir == PinDir::INOUT) {
+                let bel_name = format!("PAD_{}", &pin.name);
+                let bel_pins = vec![site_bel_pins.len()];
+                site_bel_pins.push(SiteBelPin {
+                    bel_name: bel_name.clone(),
+                    pin_name: "PAD".to_string(),
+                    site_wire: pin.name.clone(),
+                    dir: PinDir::INOUT,
+                });
+                site_bels.push(SiteBel {
+                    name: bel_name.clone(),
+                    bel_class: SiteBelClass::BEL,
+                    bel_type: "PAD".to_string(),
+                    pins: bel_pins,
+                })
             }
 
             // Create port bels
