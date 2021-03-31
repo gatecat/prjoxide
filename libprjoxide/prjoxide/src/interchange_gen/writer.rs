@@ -84,7 +84,7 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             for (i, (_, data)) in uniq_site_types.iter().enumerate() {
                 let mut st = sitetypes.reborrow().get(i.try_into().unwrap());
                 st.set_name(ids.id(&data.site_type).val().try_into().unwrap());
-                st.set_last_input(data.last_input_pin.try_into().unwrap());
+                st.set_last_input(data.last_input_pin.try_into().unwrap_or_else(|_| panic!("site type {} has no inputs", &data.site_type)));
                 {
                     let mut bels = st.reborrow().init_bels(data.bels.len().try_into().unwrap());
                     for (j, bel_data) in data.bels.iter().enumerate() {

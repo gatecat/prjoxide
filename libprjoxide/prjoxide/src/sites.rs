@@ -161,9 +161,9 @@ fn flatten_wires(tiletype: &str, tiledata: &TileBitsDatabase) -> SiteWireMap {
 }
 
 pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
-    // TODO: handle other tile types
     let mut sites = Vec::new();
     if tiletype == "PLC" {
+        // Logic sites are complicated, and require the inference of complex site routing
         let flat_wires = flatten_wires(tiletype, tiledata);
         let mut pins = Vec::new();
         let mut found_pins = BTreeSet::new();
@@ -326,6 +326,103 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             bels: site_bels,
             pips: site_pips,
         });
+    } else {
+       for tile_bel in get_tile_bels(&tiletype, tiledata) {
+            if tile_bel.beltype == "VCC_DRV" {
+                continue;
+            }
+            // For everything else, just directly map bels onto sites
+            // TODO: creating bels/pips for inversion, and sharing more code with the above path
+            // TODO: inouts for top level ports?
+            let mut pins = Vec::new();
+            let mut site_bel_pins = Vec::new();
+            let mut site_bels = Vec::new();
+
+            for pin in tile_bel.pins.iter().filter(|p| p.dir != PinDir::INOUT) {
+                let tile_wire = pin.wire.rel_name(tile_bel.rel_x, tile_bel.rel_y);
+                pins.push(SitePin {
+                    tile_wire: tile_wire,
+                    site_wire: pin.name.clone(),
+                    dir: pin.dir.clone(),
+                    bel_pin: 0,
+                });
+            }
+            // Create the site bel
+            {
+                let mut bel_pins = Vec::new();
+
+                for pin in tile_bel.pins.iter().filter(|p| p.dir != PinDir::INOUT) {
+                    // TODO: relative X and Y coordinates
+                    bel_pins.push(site_bel_pins.len());
+                    site_bel_pins.push(SiteBelPin {
+                        bel_name: tile_bel.name.clone(),
+                        pin_name: pin.name.clone(),
+                        site_wire: pin.name.clone(),
+                        dir: pin.dir.clone(),
+                    });
+                }
+
+                site_bels.push(SiteBel {
+                    name: tile_bel.name.clone(),
+                    bel_class: SiteBelClass::BEL,
+                    bel_type: tile_bel.beltype.clone(),
+                    pins: bel_pins,
+                });
+            }
+
+            // Create port bels
+            for pin in pins.iter_mut() {
+                let bel_name = pin.site_wire.clone();
+                let bel_pins = vec![site_bel_pins.len()];
+                pin.bel_pin = site_bel_pins.len();
+                site_bel_pins.push(SiteBelPin {
+                    bel_name: bel_name.clone(),
+                    pin_name: pin.site_wire.clone(),
+                    site_wire: pin.site_wire.clone(),
+                    dir: match pin.dir {
+                        PinDir::INPUT => PinDir::OUTPUT,
+                        PinDir::OUTPUT => PinDir::INPUT,
+                        PinDir::INOUT => PinDir::INOUT,
+                    }
+                });
+                site_bels.push(SiteBel {
+                    name: bel_name.clone(),
+                    bel_class: SiteBelClass::PORT,
+                    bel_type: bel_name.clone(),
+                    pins: bel_pins,
+                })
+            }
+
+            let mut site_wire_to_pins = BTreeMap::new();
+            for (i, bel_pin) in site_bel_pins.iter().enumerate() {
+                site_wire_to_pins.entry(&bel_pin.site_wire).or_insert(Vec::new()).push(i)
+            }
+
+            let mut site_wires = Vec::new();
+            for (wire, pins) in site_wire_to_pins.iter() {
+                site_wires.push(SiteWire {
+                    name: wire.to_string(),
+                    bel_pins: pins.clone(),
+                })
+            }
+
+            let mut shuffled_pins = Vec::new();
+            shuffled_pins.extend(pins.iter().filter(|p| p.dir == PinDir::INPUT).cloned());
+            let last_input_pin =  shuffled_pins.len() - 1;
+            shuffled_pins.extend(pins.iter().filter(|p| p.dir != PinDir::INPUT).cloned());
+            sites.push(Site {
+                name: tile_bel.name.to_string(),
+                site_type: tile_bel.beltype.to_string(),
+                pins: shuffled_pins,
+                last_input_pin: last_input_pin,
+                wires: site_wires,
+                bel_pins: site_bel_pins,
+                bels: site_bels,
+                pips: Vec::new(),
+            });
+
+       }
+
     }
     return sites;
 }
