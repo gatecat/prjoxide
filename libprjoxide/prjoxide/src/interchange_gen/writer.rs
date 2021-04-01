@@ -1,6 +1,6 @@
 #![cfg(feature = "interchange")]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeSet, BTreeMap};
 use crate::bba::idxset::IndexedMap;
 use crate::sites::*;
 use crate::interchange_gen::routing_graph::*;
@@ -8,7 +8,7 @@ use crate::interchange_gen::bel_pin_map::get_pin_maps;
 
 use crate::schema::*;
 use crate::chip::Chip;
-use crate::database::Database;
+use crate::database::{Database, PadData};
 use crate::bba::idstring::*;
 use crate::bels::PinDir;
 
@@ -17,7 +17,7 @@ use std::convert::TryInto;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 
-pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
+pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
     let mut m = ::capnp::message::Builder::new_default();
     {
         let mut dev = m.init_root::<DeviceResources_capnp::device::Builder>();
@@ -184,6 +184,7 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 w.set_wire(wire_name.val().try_into().unwrap());
             }
         }
+        let mut site_names = BTreeSet::new();
         {
             let mut tiles = dev.reborrow().init_tile_list(graph.tiles.len().try_into().unwrap());
             for (i, tile_data) in graph.tiles.iter().enumerate() {
@@ -197,8 +198,10 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                     let mut sites = t.reborrow().init_sites(tt.site_types.len().try_into().unwrap());
                     for (j, site_data) in tt.site_types.iter().enumerate() {
                         let mut s = sites.reborrow().get(j.try_into().unwrap());
-                        s.set_name(ids.id(&format!("R{}C{}_{}", tile_data.y, tile_data.x, &site_data.name)).val().try_into().unwrap());
+                        let site_name = format!("R{}C{}_{}", tile_data.y, tile_data.x, &site_data.name);
+                        s.set_name(ids.id(&site_name).val().try_into().unwrap());
                         s.set_type(j.try_into().unwrap());
+                        site_names.insert(site_name);
                     }
                 }
             }
@@ -246,8 +249,35 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             }
         }
         {
-            let mut packages = dev.reborrow().init_packages(1);
-            packages.reborrow().get(0).set_name(ids.id("QFN72").val().try_into().unwrap());
+            let iodb = db.device_iodb(&c.family, &c.device);
+            let mut packages = dev.reborrow().init_packages(iodb.packages.len().try_into().unwrap());
+            for (i, pkg_name) in iodb.packages.iter().enumerate() {
+                let mut pkg = packages.reborrow().get(i.try_into().unwrap());
+                pkg.set_name(ids.id(pkg_name).val().try_into().unwrap());
+                let filtered_pads : Vec<&PadData> = iodb.pads.iter().filter(|p| p.pins[i] != "-").collect();
+                let mut pins = pkg.reborrow().init_package_pins(filtered_pads.len().try_into().unwrap());
+                for (j, pad_data) in filtered_pads.iter().enumerate() {
+                    let mut pin = pins.reborrow().get(j.try_into().unwrap());
+                    pin.set_package_pin(ids.id(&pad_data.pins[i]).val().try_into().unwrap());
+                    let pio_letters = &["A", "B"];
+                    let site_name = match &pad_data.side[..] {
+                        "T" => format!("R0C{}_PIO{}", pad_data.offset, pio_letters[pad_data.pio as usize]),
+                        "B" => format!("R{}C{}_PIO{}", graph.height - 1, pad_data.offset, pio_letters[pad_data.pio as usize]),
+                        "L" => format!("R{}C0_PIO{}", pad_data.offset, pio_letters[pad_data.pio as usize]),
+                        "R" => format!("R{}C{}_PIO{}", pad_data.offset, graph.width - 1, pio_letters[pad_data.pio as usize]),
+                        "" => "-".into(), // special IO have no site
+                        _ => unimplemented!(),
+                    };
+                    if site_names.contains(&site_name) {
+                        pin.reborrow().init_site().set_site(ids.id(&site_name).val().try_into().unwrap());
+                        pin.reborrow().init_bel().set_bel(ids.id("PAD_B").val().try_into().unwrap());
+                    } else {
+                        // No associated pad site/bel
+                        pin.reborrow().init_site().set_no_site(());
+                        pin.reborrow().init_bel().set_no_bel(());
+                    }
+                }
+            }
             // TODO: all packages and pin map
         }
         {
