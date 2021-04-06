@@ -278,7 +278,58 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                     }
                 }
             }
-            // TODO: all packages and pin map
+        }
+        {
+            // LUT definitions
+            let lut_bel_names: Vec<String> = uniq_site_types.value_by_key(&"PLC".into()).bels.iter().filter_map(|b| if b.bel_type == "OXIDE_COMB" { Some(b.name.to_string()) } else { None } ).collect();
+            let mut luts = dev.reborrow().init_lut_definitions();
+            {
+                // LUT cell
+                let mut lut_cell = luts.reborrow().init_lut_cells(1).get(0);
+                lut_cell.reborrow().set_cell("LUT4");
+                {
+                    let mut lut_inputs = lut_cell.reborrow().init_input_pins(4);
+                    lut_inputs.set(0, "A");
+                    lut_inputs.set(1, "B");
+                    lut_inputs.set(2, "C");
+                    lut_inputs.set(3, "D");
+                }
+                lut_cell.init_equation().set_init_param("INIT");
+            }
+            {
+                // LUT bels
+                let mut lut_site = luts.reborrow().init_lut_elements(1).get(0);
+                lut_site.set_site("PLC");
+                let mut lut_elems = lut_site.init_luts(lut_bel_names.len().try_into().unwrap());
+                for (i, bel_name) in lut_bel_names.iter().enumerate() {
+                    let mut elem = lut_elems.reborrow().get(i.try_into().unwrap());
+                    elem.set_width(16);
+                    let mut bel = elem.init_bels(1).get(0);
+                    bel.set_name(bel_name);
+                    {
+                        let mut lut_inputs = bel.reborrow().init_input_pins(4);
+                        lut_inputs.set(0, "A");
+                        lut_inputs.set(1, "B");
+                        lut_inputs.set(2, "C");
+                        lut_inputs.set(3, "D");
+                    }
+                    bel.set_output_pin("F");
+                    bel.set_low_bit(0);
+                    bel.set_high_bit(15);
+                }
+            }
+        }
+        {
+            // TODO: find a better way of specifying these
+            let params = dev.reborrow().init_parameter_defs();
+            let mut lut_params = params.init_cells(1).get(0);
+            lut_params.set_cell_type(ids.id("LUT4").val().try_into().unwrap());
+            let mut lut_init = lut_params.init_parameters(1).get(0);
+            lut_init.set_name(ids.id("INIT").val().try_into().unwrap());
+            lut_init.set_format(DeviceResources_capnp::device::ParameterFormat::CHex);
+            let mut lut_def = lut_init.init_default();
+            lut_def.set_key(ids.id("INIT").val().try_into().unwrap());
+            lut_def.set_text_value(ids.id("0x0000").val().try_into().unwrap());
         }
         {
             let mut strs = dev.init_str_list(ids.len().try_into().unwrap());
