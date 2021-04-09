@@ -245,6 +245,14 @@ impl <'a> GraphBuilder<'a> {
                     }
                 }
             }
+            // Create pseudo-ground drivers for LUT outputs
+            if lt.site_types.iter().find(|s| s.site_type == "PLC").is_some() {
+                let gnd_wire = self.ids.id("G:GND");
+                lt.wire(gnd_wire);
+                for i in 0..8 {
+                    lt.add_pip(gnd_wire, self.ids.id(&format!("JF{}", i)));
+                }
+            }
         }
     }
     // Convert a neighbour to a coordinate

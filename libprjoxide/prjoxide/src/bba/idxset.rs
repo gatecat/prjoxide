@@ -78,6 +78,9 @@ impl<Key: Eq + Hash + Clone, Value> IndexedMap<Key, Value> {
     pub fn value(&self, index: usize) -> &Value {
         &self.data[index].1
     }
+    pub fn value_by_key(&self, key: &Key) -> &Value {
+        &self.data[self.get_index(key).unwrap()].1
+    }
 
     pub fn value_mut(&mut self, index: usize) -> &mut Value {
         &mut self.data[index].1

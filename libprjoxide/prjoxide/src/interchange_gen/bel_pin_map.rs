@@ -39,11 +39,22 @@ const FD1P3JX_PIN_MAP : &[(&str, &str)] = &[
     ("Q", "Q"),
 ];
 
+const IB_PIN_MAP : &[(&str, &str)] = &[
+    ("I", "B"),
+    ("O", "O"),
+];
+
+const OB_PIN_MAP : &[(&str, &str)] = &[
+    ("I", "I"),
+    ("O", "B"),
+];
 // TODO: add back DFFs once we have some constraints set up
 
 const BEL_CELL_TYPES : &[(&str, &[&str])] = &[
     ("OXIDE_COMB", &["LUT4"]),
-//    ("OXIDE_FF", &["FD1P3BX", "FD1P3DX", "FD1P3IX", "FD1P3JX"]),
+    ("OXIDE_FF", &["FD1P3BX", "FD1P3DX", "FD1P3IX", "FD1P3JX"]),
+    ("SEIO33_CORE", &["IB", "OB"]),
+    ("SEIO18_CORE", &["IB", "OB"]),
 ];
 
 fn conv_map(map: &[(&str, &str)]) -> Vec<(String, String)> {
@@ -57,10 +68,13 @@ fn get_map_for_cell_bel(cell_type: &str, _bel: &SiteBel) -> Vec<(String, String)
         "FD1P3DX" => conv_map(FD1P3DX_PIN_MAP),
         "FD1P3IX" => conv_map(FD1P3IX_PIN_MAP),
         "FD1P3JX" => conv_map(FD1P3JX_PIN_MAP),
+        "IB" => conv_map(IB_PIN_MAP),
+        "OB" => conv_map(OB_PIN_MAP),
         _ => unimplemented!(),
     }
 }
 
+#[derive(Clone)]
 pub struct PinMap {
     pub cell_type: String,
     pub bels: Vec<String>,

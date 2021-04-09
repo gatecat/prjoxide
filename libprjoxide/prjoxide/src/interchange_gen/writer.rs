@@ -1,5 +1,6 @@
 #![cfg(feature = "interchange")]
 
+use std::collections::{BTreeSet, BTreeMap};
 use crate::bba::idxset::IndexedMap;
 use crate::sites::*;
 use crate::interchange_gen::routing_graph::*;
@@ -7,7 +8,7 @@ use crate::interchange_gen::bel_pin_map::get_pin_maps;
 
 use crate::schema::*;
 use crate::chip::Chip;
-use crate::database::Database;
+use crate::database::{Database, PadData};
 use crate::bba::idstring::*;
 use crate::bels::PinDir;
 
@@ -16,7 +17,7 @@ use std::convert::TryInto;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 
-pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
+pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
     let mut m = ::capnp::message::Builder::new_default();
     {
         let mut dev = m.init_root::<DeviceResources_capnp::device::Builder>();
@@ -68,12 +69,23 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 }
                 {
                     let vcc_wire = ids.id("G:VCC");
+                    let gnd_wire = ids.id("G:GND");
+                    let mut const_data = Vec::new();
                     if let Some(vcc_idx) = data.wires.get_index(&vcc_wire) {
                         // Mark the G:VCC wire in a tile, if it exists, as a source of Vcc
                         // this doesn't cover all constants but gets us started
-                        let mut constant = tt.reborrow().init_constants(1).get(0);
-                        constant.reborrow().init_wires(1).set(0, vcc_idx.try_into().unwrap());
-                        constant.set_constant(DeviceResources_capnp::device::ConstantType::Vcc);
+                        const_data.push((vcc_idx, DeviceResources_capnp::device::ConstantType::Vcc));
+                    }
+                    if let Some(gnd_idx) = data.wires.get_index(&gnd_wire) {
+                        // Mark the G:GND wire in a tile, if it exists, as a source of GND
+                        // it is driven by LUT outputs and we should really be setting up pseudo-pips too
+                        const_data.push((gnd_idx, DeviceResources_capnp::device::ConstantType::Gnd));
+                    }
+                    let mut consts = tt.reborrow().init_constants(const_data.len().try_into().unwrap());
+                    for (j, (idx, const_type)) in const_data.iter().enumerate() {
+                        let mut c = consts.reborrow().get(j.try_into().unwrap());
+                        c.reborrow().init_wires(1).set(0, (*idx).try_into().unwrap());
+                        c.set_constant(*const_type);
                     }
                 }
             }
@@ -183,6 +195,7 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                 w.set_wire(wire_name.val().try_into().unwrap());
             }
         }
+        let mut site_names = BTreeSet::new();
         {
             let mut tiles = dev.reborrow().init_tile_list(graph.tiles.len().try_into().unwrap());
             for (i, tile_data) in graph.tiles.iter().enumerate() {
@@ -196,8 +209,10 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
                     let mut sites = t.reborrow().init_sites(tt.site_types.len().try_into().unwrap());
                     for (j, site_data) in tt.site_types.iter().enumerate() {
                         let mut s = sites.reborrow().get(j.try_into().unwrap());
-                        s.set_name(ids.id(&format!("R{}C{}_{}", tile_data.y, tile_data.x, &site_data.name)).val().try_into().unwrap());
+                        let site_name = format!("R{}C{}_{}", tile_data.y, tile_data.x, &site_data.name);
+                        s.set_name(ids.id(&site_name).val().try_into().unwrap());
                         s.set_type(j.try_into().unwrap());
+                        site_names.insert(site_name);
                     }
                 }
             }
@@ -209,60 +224,123 @@ pub fn write(c: &Chip, _db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph
             constants.set_vcc_cell_type(ids.id("VHI").val().try_into().unwrap());
             constants.set_vcc_cell_pin(ids.id("Z").val().try_into().unwrap());
         }
-        {
-            let mut constraints = dev.reborrow().init_constraints();
-            {
-                let mut cc = constraints.reborrow().init_cell_constraints(1);
-                {
-                    let mut lut_constr = cc.reborrow().get(0);
-                    lut_constr.set_cell("LUT4");
-                    let mut lut_loc = lut_constr.init_locations(1).get(0);
-                    lut_loc.reborrow().init_site_types(1).set(0, "PLC");
-                    {
-                        let mut lut_bels = lut_loc.reborrow().init_bel().init_bels(8);
-                        for i in 0..8 {
-                            lut_bels.set(i,
-                                &format!("SLICE{}_LUT{}", "ABCD".chars().nth((i / 2) as usize).unwrap(), i % 2));
-                        }
-                    }
-                    lut_loc.reborrow().init_implies(0);
-                }
+        // cell -> Vec<(site_type, pin_map)>
+        let mut cell2map = BTreeMap::new();
+        for (site_type, site) in uniq_site_types.iter() {
+            for pin_map in get_pin_maps(site) {
+                cell2map.entry(pin_map.cell_type.to_string()).or_insert(Vec::new()).push((site_type.to_string(), pin_map.clone()))
             }
         }
         {
-            let mut pin_maps = Vec::new();
-            for (site_type, site) in uniq_site_types.iter() {
-                pin_maps.extend(get_pin_maps(site).drain(..).map(|x| (site_type.to_string(), x)));
-            }
-            let mut c2b = dev.reborrow().init_cell_bel_map((2 + pin_maps.len()).try_into().unwrap());
+            let mut c2b = dev.reborrow().init_cell_bel_map((2 + cell2map.len()).try_into().unwrap());
             c2b.reborrow().get(0).set_cell(ids.id("VLO").val().try_into().unwrap());
             c2b.reborrow().get(1).set_cell(ids.id("VHI").val().try_into().unwrap());
-            for (i, (site_type, pin_map_data)) in pin_maps.iter().enumerate() {
+            for (i, (cell_type, cell_maps)) in cell2map.iter().enumerate() {
                 let mut m = c2b.reborrow().get((2 + i).try_into().unwrap());
-                m.set_cell(ids.id(&pin_map_data.cell_type).val().try_into().unwrap());
-                let mut pin_map = m.init_common_pins(1).get(0);
-                {
-                    let mut st = pin_map.reborrow().init_site_types(1).get(0);
-                    st.set_site_type(ids.id(&site_type).val().try_into().unwrap());
-                    let mut bels = st.init_bels(pin_map_data.bels.len().try_into().unwrap());
-                    for (j, bel) in pin_map_data.bels.iter().enumerate() {
-                        bels.set(j.try_into().unwrap(), ids.id(&bel).val().try_into().unwrap());
+                m.set_cell(ids.id(cell_type).val().try_into().unwrap());
+                let mut pin_maps = m.init_common_pins(cell_maps.len().try_into().unwrap());
+                for (j, (site_type, pin_map_data)) in cell_maps.iter().enumerate() {
+                    let mut pin_map = pin_maps.reborrow().get(j.try_into().unwrap());
+                    {
+                        let mut st = pin_map.reborrow().init_site_types(1).get(0);
+                        st.set_site_type(ids.id(&site_type).val().try_into().unwrap());
+                        let mut bels = st.init_bels(pin_map_data.bels.len().try_into().unwrap());
+                        for (j, bel) in pin_map_data.bels.iter().enumerate() {
+                            bels.set(j.try_into().unwrap(), ids.id(&bel).val().try_into().unwrap());
+                        }
                     }
-                }
-                {
-                    let mut pins = pin_map.init_pins(pin_map_data.pin_map.len().try_into().unwrap());
-                    for (j, (cell_pin, bel_pin)) in pin_map_data.pin_map.iter().enumerate() {
-                        pins.reborrow().get(j.try_into().unwrap()).set_cell_pin(ids.id(cell_pin).val().try_into().unwrap());
-                        pins.reborrow().get(j.try_into().unwrap()).set_bel_pin(ids.id(bel_pin).val().try_into().unwrap());
+                    {
+                        let mut pins = pin_map.init_pins(pin_map_data.pin_map.len().try_into().unwrap());
+                        for (j, (cell_pin, bel_pin)) in pin_map_data.pin_map.iter().enumerate() {
+                            pins.reborrow().get(j.try_into().unwrap()).set_cell_pin(ids.id(cell_pin).val().try_into().unwrap());
+                            pins.reborrow().get(j.try_into().unwrap()).set_bel_pin(ids.id(bel_pin).val().try_into().unwrap());
+                        }
                     }
                 }
             }
-
         }
         {
-            let mut packages = dev.reborrow().init_packages(1);
-            packages.reborrow().get(0).set_name(ids.id("QFN72").val().try_into().unwrap());
-            // TODO: all packages and pin map
+            let iodb = db.device_iodb(&c.family, &c.device);
+            let mut packages = dev.reborrow().init_packages(iodb.packages.len().try_into().unwrap());
+            for (i, pkg_name) in iodb.packages.iter().enumerate() {
+                let mut pkg = packages.reborrow().get(i.try_into().unwrap());
+                pkg.set_name(ids.id(pkg_name).val().try_into().unwrap());
+                let filtered_pads : Vec<&PadData> = iodb.pads.iter().filter(|p| p.pins[i] != "-").collect();
+                let mut pins = pkg.reborrow().init_package_pins(filtered_pads.len().try_into().unwrap());
+                for (j, pad_data) in filtered_pads.iter().enumerate() {
+                    let mut pin = pins.reborrow().get(j.try_into().unwrap());
+                    pin.set_package_pin(ids.id(&pad_data.pins[i]).val().try_into().unwrap());
+                    let pio_letters = &["A", "B"];
+                    let site_name = match &pad_data.side[..] {
+                        "T" => format!("R0C{}_PIO{}", pad_data.offset, pio_letters[pad_data.pio as usize]),
+                        "B" => format!("R{}C{}_PIO{}", graph.height - 1, pad_data.offset, pio_letters[pad_data.pio as usize]),
+                        "L" => format!("R{}C0_PIO{}", pad_data.offset, pio_letters[pad_data.pio as usize]),
+                        "R" => format!("R{}C{}_PIO{}", pad_data.offset, graph.width - 1, pio_letters[pad_data.pio as usize]),
+                        "" => "-".into(), // special IO have no site
+                        _ => unimplemented!(),
+                    };
+                    if site_names.contains(&site_name) {
+                        pin.reborrow().init_site().set_site(ids.id(&site_name).val().try_into().unwrap());
+                        pin.reborrow().init_bel().set_bel(ids.id("PAD_B").val().try_into().unwrap());
+                    } else {
+                        // No associated pad site/bel
+                        pin.reborrow().init_site().set_no_site(());
+                        pin.reborrow().init_bel().set_no_bel(());
+                    }
+                }
+            }
+        }
+        {
+            // LUT definitions
+            let lut_bel_names: Vec<String> = uniq_site_types.value_by_key(&"PLC".into()).bels.iter().filter_map(|b| if b.bel_type == "OXIDE_COMB" { Some(b.name.to_string()) } else { None } ).collect();
+            let mut luts = dev.reborrow().init_lut_definitions();
+            {
+                // LUT cell
+                let mut lut_cell = luts.reborrow().init_lut_cells(1).get(0);
+                lut_cell.reborrow().set_cell("LUT4");
+                {
+                    let mut lut_inputs = lut_cell.reborrow().init_input_pins(4);
+                    lut_inputs.set(0, "A");
+                    lut_inputs.set(1, "B");
+                    lut_inputs.set(2, "C");
+                    lut_inputs.set(3, "D");
+                }
+                lut_cell.init_equation().set_init_param("INIT");
+            }
+            {
+                // LUT bels
+                let mut lut_site = luts.reborrow().init_lut_elements(1).get(0);
+                lut_site.set_site("PLC");
+                let mut lut_elems = lut_site.init_luts(lut_bel_names.len().try_into().unwrap());
+                for (i, bel_name) in lut_bel_names.iter().enumerate() {
+                    let mut elem = lut_elems.reborrow().get(i.try_into().unwrap());
+                    elem.set_width(16);
+                    let mut bel = elem.init_bels(1).get(0);
+                    bel.set_name(bel_name);
+                    {
+                        let mut lut_inputs = bel.reborrow().init_input_pins(4);
+                        lut_inputs.set(0, "A");
+                        lut_inputs.set(1, "B");
+                        lut_inputs.set(2, "C");
+                        lut_inputs.set(3, "D");
+                    }
+                    bel.set_output_pin("F");
+                    bel.set_low_bit(0);
+                    bel.set_high_bit(15);
+                }
+            }
+        }
+        {
+            // TODO: find a better way of specifying these
+            let params = dev.reborrow().init_parameter_defs();
+            let mut lut_params = params.init_cells(1).get(0);
+            lut_params.set_cell_type(ids.id("LUT4").val().try_into().unwrap());
+            let mut lut_init = lut_params.init_parameters(1).get(0);
+            lut_init.set_name(ids.id("INIT").val().try_into().unwrap());
+            lut_init.set_format(DeviceResources_capnp::device::ParameterFormat::CHex);
+            let mut lut_def = lut_init.init_default();
+            lut_def.set_key(ids.id("INIT").val().try_into().unwrap());
+            lut_def.set_text_value(ids.id("0x0000").val().try_into().unwrap());
         }
         {
             let mut strs = dev.init_str_list(ids.len().try_into().unwrap());
