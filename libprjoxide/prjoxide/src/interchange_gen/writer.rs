@@ -69,12 +69,23 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                 }
                 {
                     let vcc_wire = ids.id("G:VCC");
+                    let gnd_wire = ids.id("G:GND");
+                    let mut const_data = Vec::new();
                     if let Some(vcc_idx) = data.wires.get_index(&vcc_wire) {
                         // Mark the G:VCC wire in a tile, if it exists, as a source of Vcc
                         // this doesn't cover all constants but gets us started
-                        let mut constant = tt.reborrow().init_constants(1).get(0);
-                        constant.reborrow().init_wires(1).set(0, vcc_idx.try_into().unwrap());
-                        constant.set_constant(DeviceResources_capnp::device::ConstantType::Vcc);
+                        const_data.push((vcc_idx, DeviceResources_capnp::device::ConstantType::Vcc));
+                    }
+                    if let Some(gnd_idx) = data.wires.get_index(&gnd_wire) {
+                        // Mark the G:GND wire in a tile, if it exists, as a source of GND
+                        // it is driven by LUT outputs and we should really be setting up pseudo-pips too
+                        const_data.push((gnd_idx, DeviceResources_capnp::device::ConstantType::Gnd));
+                    }
+                    let mut consts = tt.reborrow().init_constants(const_data.len().try_into().unwrap());
+                    for (j, (idx, const_type)) in const_data.iter().enumerate() {
+                        let mut c = consts.reborrow().get(j.try_into().unwrap());
+                        c.reborrow().init_wires(1).set(0, (*idx).try_into().unwrap());
+                        c.set_constant(*const_type);
                     }
                 }
             }
