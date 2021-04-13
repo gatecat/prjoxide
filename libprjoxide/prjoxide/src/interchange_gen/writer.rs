@@ -64,7 +64,19 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                         p.set_directional(true);
                         p.set_buffered20(true);
                         p.set_buffered21(false);
-                        p.set_conventional(());
+                        if pip_data.pseudo_cells.is_empty() {
+                            p.set_conventional(());
+                        } else {
+                            let mut pcells = p.init_pseudo_cells(pip_data.pseudo_cells.len().try_into().unwrap());
+                            for (k, pc_data) in pip_data.pseudo_cells.iter().enumerate() {
+                                let mut pc = pcells.reborrow().get(k.try_into().unwrap());
+                                pc.set_bel(pc_data.bel.val().try_into().unwrap());
+                                let mut pc_pins = pc.init_pins(pc_data.pins.len().try_into().unwrap());
+                                for (m, pin_name) in pc_data.pins.iter().enumerate() {
+                                    pc_pins.set(m.try_into().unwrap(), pin_name.val().try_into().unwrap());
+                                }
+                            }
+                        }
                     }
                 }
                 {
