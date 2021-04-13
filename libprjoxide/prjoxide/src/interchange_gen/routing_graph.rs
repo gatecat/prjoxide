@@ -56,6 +56,16 @@ impl IcTileType {
         self.pips.push(IcPip {
             src_wire: src_idx,
             dst_wire: dst_idx,
+            pseudo_cells: Vec::new(),
+        });
+    }
+    pub fn add_ppip(&mut self, src: IdString, dst: IdString, pseudo_cells: Vec<IcPseudoCell>) {
+        let src_idx = self.wire(src);
+        let dst_idx = self.wire(dst);
+        self.pips.push(IcPip {
+            src_wire: src_idx,
+            dst_wire: dst_idx,
+            pseudo_cells: pseudo_cells,
         });
     }
 }
@@ -72,9 +82,15 @@ impl IcWire {
     }
 }
 
+pub struct IcPseudoCell {
+    pub bel: IdString,
+    pub pins: Vec<IdString>,
+}
+
 pub struct IcPip {
     pub src_wire: usize,
     pub dst_wire: usize,
+    pub pseudo_cells: Vec<IcPseudoCell>,
 }
 
 // A tile instance
@@ -250,7 +266,13 @@ impl <'a> GraphBuilder<'a> {
                 let gnd_wire = self.ids.id("G:GND");
                 lt.wire(gnd_wire);
                 for i in 0..8 {
-                    lt.add_pip(gnd_wire, self.ids.id(&format!("JF{}", i)));
+                    lt.add_ppip(gnd_wire, self.ids.id(&format!("JF{}", i)),
+                        vec![
+                            IcPseudoCell {
+                                bel: self.ids.id(&format!("SLICE{}_LUT{}", &"ABCD"[(i/2)..(i/2)+1], i%2)),
+                                pins: vec![self.ids.id("F")],
+                            }
+                        ]);
                 }
             }
         }
