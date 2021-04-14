@@ -261,11 +261,11 @@ impl <'a> GraphBuilder<'a> {
                     }
                 }
             }
-            // Create pseudo-ground drivers for LUT outputs
             if lt.site_types.iter().find(|s| s.site_type == "PLC").is_some() {
                 let gnd_wire = self.ids.id("G:GND");
                 lt.wire(gnd_wire);
                 for i in 0..8 {
+                    // Create pseudo-ground drivers for LUT outputs
                     lt.add_ppip(gnd_wire, self.ids.id(&format!("JF{}", i)),
                         vec![
                             IcPseudoCell {
@@ -273,6 +273,16 @@ impl <'a> GraphBuilder<'a> {
                                 pins: vec![self.ids.id("F")],
                             }
                         ]);
+                    // Create LUT route-through PIPs
+                    for j in &["A", "B", "C", "D"] {
+                        lt.add_ppip(self.ids.id(&format!("J{}{}", j, i)), self.ids.id(&format!("JF{}", i)),
+                        vec![
+                            IcPseudoCell {
+                                bel: self.ids.id(&format!("SLICE{}_LUT{}", &"ABCD"[(i/2)..(i/2)+1], i%2)),
+                                pins: vec![self.ids.id(j), self.ids.id("F")],
+                            }
+                        ]);
+                    }
                 }
             }
         }
