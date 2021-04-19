@@ -235,6 +235,15 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
             constants.set_gnd_cell_pin(ids.id("Z").val().try_into().unwrap());
             constants.set_vcc_cell_type(ids.id("VHI").val().try_into().unwrap());
             constants.set_vcc_cell_pin(ids.id("Z").val().try_into().unwrap());
+            // TODO: other cell types
+            let mut conns = constants.init_default_cell_conns(1).get(0);
+            conns.reborrow().set_cell_type(ids.id("LUT4").val().try_into().unwrap());
+            let mut pins = conns.reborrow().init_pins(4);
+            for (i, pin_name) in ["A", "B", "C", "D"].iter().enumerate() {
+                let mut pin = pins.reborrow().get(i.try_into().unwrap());
+                pin.set_name(ids.id(pin_name).val().try_into().unwrap());
+                pin.set_value(DeviceResources_capnp::device::constants::CellPinValue::Gnd);
+            }
         }
         // cell -> Vec<(site_type, pin_map)>
         let mut cell2map = BTreeMap::new();
