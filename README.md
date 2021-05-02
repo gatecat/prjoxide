@@ -2,9 +2,11 @@
 
 ## Current Status
 
-A framework is in place to parse bitstreams and fuzz bitstream changes. Currently the logic tile (PLC) config and interconnect; basic IO and IOLOGIC config; EBR config; global routing ; DSP and PLL config have been fuzzed. Remaining work includes finishing IO fuzzing; and fuzzing the hard IP like PCIe, and DPHY.
+A framework is in place to parse bitstreams and fuzz bitstream changes. Currently the logic tile (PLC) config and interconnect; basic IO and IOLOGIC config; EBR config; global routing ; DSP and PLL config have been fuzzed. Remaining work includes finishing IO, PCIe and SGMII fuzzing.
 
-prjoxide will also need to be updated to support the production silicon; including the LIFCL-17 device.
+prjoxide may also need to be updated to support the production silicon. Most of the current testing has been done with LIFCL-40 devices, with limited testing on the LIFCL-17.
+
+prjoxide is also aiming to support the [SymbiFlow FPGA interchange format](https://github.com/SymbiFlow/fpga-interchange-schema) and includes support for generating (currently incomplete) device resource data. This is not yet a working end to end flow and currently the direct nextpnr based flow described below should be used.
 
 ## Links
 
@@ -49,7 +51,7 @@ Clone nextpnr:
 
 Build nextpnr-nexus, making sure to point it to the correct path for the prjoxide tool:
 
-    cmake -DARCH=nexus -DOXIDE_INSTALL_PREFIX=/home/david/.cargo .
+    cmake -DARCH=nexus -DOXIDE_INSTALL_PREFIX=$HOME/.cargo .
     make -j8
 
 ### Running the example designs
