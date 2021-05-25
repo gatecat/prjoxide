@@ -306,7 +306,8 @@ impl <'a> GraphBuilder<'a> {
                 }
             }
             Neighbour::Global => {
-                Some((0, 0))
+                // FIXME: current interchange format assumption that (0, 0) is empty
+                Some((1, 1))
             }
             Neighbour::Branch => {
                 let branch_col = self.glb.branch_sink_to_origin(x as usize).unwrap();
