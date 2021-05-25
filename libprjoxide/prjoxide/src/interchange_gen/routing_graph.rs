@@ -1,12 +1,13 @@
 #![cfg(feature = "interchange")]
 
 use crate::chip::Chip;
-use crate::database::Database;
+use crate::database::{Database, DeviceGlobalsData,};
 use std::collections::{HashSet, HashMap};
+use std::convert::TryInto;
 
 use crate::bba::idstring::*;
 use crate::bba::idxset::*;
-use crate::bba::tiletype::{Neighbour, TileTypes};
+use crate::bba::tiletype::{Neighbour, BranchSide, TileTypes};
 
 use crate::sites::*;
 use crate::wires::*;
@@ -195,6 +196,7 @@ pub struct GraphBuilder<'a> {
     g: IcGraph,
     ids: &'a mut IdStringDB,
     chip: &'a Chip,
+    glb: DeviceGlobalsData,
     db: &'a mut Database,
     tiletypes_by_xy: HashMap<(u32, u32), TileTypeKey>,
     orig_tts: TileTypes,
@@ -214,10 +216,13 @@ impl <'a> GraphBuilder<'a> {
 
         let orig_tts = TileTypes::new(db, ids, &chip.family, &[&chip.device]);
 
+        let globals = db.device_globals(&chip.family, &chip.device);
+
         GraphBuilder {
             g: IcGraph::new(ids, width, height),
             ids: ids,
             chip: chip,
+            glb: globals.clone(),
             db: db,
             tiletypes_by_xy: tiletypes_by_xy,
             // the original tiletypes from the database
@@ -289,6 +294,7 @@ impl <'a> GraphBuilder<'a> {
     }
     // Convert a neighbour to a coordinate
     pub fn neighbour_tile(&self, x: u32, y: u32, n: &Neighbour) -> Option<(u32, u32)> {
+        let conv_tuple = |(x, y)| (x as u32, y as u32);
         match n {
             Neighbour::RelXY { rel_x, rel_y } => {
                 let nx = (x as i32) + rel_x;
@@ -299,7 +305,26 @@ impl <'a> GraphBuilder<'a> {
                     None
                 }
             }
-            // TODO: globals
+            Neighbour::Global => {
+                Some((0, 0))
+            }
+            Neighbour::Branch => {
+                let branch_col = self.glb.branch_sink_to_origin(x as usize).unwrap();
+                Some((branch_col.try_into().unwrap(), y))
+            }
+            Neighbour::BranchDriver { side } => {
+                let offset: i32 = match side {
+                    BranchSide::Right => 2,
+                    BranchSide::Left => -2,
+                };
+                let branch_col = self
+                    .glb
+                    .branch_sink_to_origin((x as i32 + offset) as usize)
+                    .unwrap();
+                Some((branch_col.try_into().unwrap(), y))
+            }
+            Neighbour::Spine => Some(conv_tuple(self.glb.spine_sink_to_origin(x as usize, y as usize).unwrap())),
+            Neighbour::HRow => Some(conv_tuple(self.glb.hrow_sink_to_origin(x as usize, y as usize).unwrap())),
             _ => None
         }
     }
