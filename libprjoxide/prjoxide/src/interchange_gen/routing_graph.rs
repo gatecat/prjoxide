@@ -51,21 +51,23 @@ impl IcTileType {
     pub fn wire(&mut self, name: IdString) -> usize {
         self.wires.add(&name, IcWire::new(name))
     }
-    pub fn add_pip(&mut self, src: IdString, dst: IdString) {
+    pub fn add_pip(&mut self, sub_tile: usize, src: IdString, dst: IdString) {
         let src_idx = self.wire(src);
         let dst_idx = self.wire(dst);
         self.pips.push(IcPip {
             src_wire: src_idx,
             dst_wire: dst_idx,
+            sub_tile: sub_tile,
             pseudo_cells: Vec::new(),
         });
     }
-    pub fn add_ppip(&mut self, src: IdString, dst: IdString, pseudo_cells: Vec<IcPseudoCell>) {
+    pub fn add_ppip(&mut self, sub_tile: usize, src: IdString, dst: IdString, pseudo_cells: Vec<IcPseudoCell>) {
         let src_idx = self.wire(src);
         let dst_idx = self.wire(dst);
         self.pips.push(IcPip {
             src_wire: src_idx,
             dst_wire: dst_idx,
+            sub_tile: sub_tile,
             pseudo_cells: pseudo_cells,
         });
     }
@@ -91,6 +93,7 @@ pub struct IcPseudoCell {
 pub struct IcPip {
     pub src_wire: usize,
     pub dst_wire: usize,
+    pub sub_tile: usize,
     pub pseudo_cells: Vec<IcPseudoCell>,
 }
 
@@ -100,6 +103,7 @@ pub struct IcTileInst {
     pub x: u32,
     pub y: u32,
     pub type_idx: usize,
+    pub key: TileTypeKey,
     // mapping between wires and nodes
     wire_to_node: HashMap<IdString, usize>,
 }
@@ -111,6 +115,7 @@ impl IcTileInst {
             x: x,
             y: y,
             type_idx: 0,
+            key: TileTypeKey::new(),
             wire_to_node: HashMap::new(),
         }
     }
@@ -213,6 +218,9 @@ impl <'a> GraphBuilder<'a> {
             width = std::cmp::max(width, t.x + 1);
             height = std::cmp::max(height, t.y + 1);
         }
+        for v in tiletypes_by_xy.values_mut() {
+            v.tile_types.sort();
+        }
 
         let orig_tts = TileTypes::new(db, ids, &chip.family, &[&chip.device]);
 
@@ -232,6 +240,7 @@ impl <'a> GraphBuilder<'a> {
     fn setup_tiletypes(&mut self) {
         for t in self.g.tiles.iter_mut() {
             let key = self.tiletypes_by_xy.get(&(t.x, t.y)).unwrap();
+            t.key = key.clone();
             t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone(), &self.chip.family, self.db));
         }
         for (key, lt) in self.g.tile_types.iter_mut() {
@@ -240,7 +249,7 @@ impl <'a> GraphBuilder<'a> {
             for w in site_wires {
                 lt.wire(self.ids.id(&w));
             }
-            for tt in key.tile_types.iter() {
+            for (sub_tile, tt) in key.tile_types.iter().enumerate() {
                 // setup wires for all sub-tile-types
                 let tt_data = self.orig_tts.get(tt).unwrap();
                 for wire in tt_data.wire_ids.iter() {
@@ -254,7 +263,7 @@ impl <'a> GraphBuilder<'a> {
                         if is_site_wire(tt, &pip.from_wire) && is_site_wire(tt, to_wire) {
                             continue;
                         }
-                        lt.add_pip(self.ids.id(&pip.from_wire), self.ids.id(to_wire));
+                        lt.add_pip(sub_tile, self.ids.id(&pip.from_wire), self.ids.id(to_wire));
                     }
                 }
                 for (to_wire, conns) in tdb.conns.iter() {
@@ -262,16 +271,17 @@ impl <'a> GraphBuilder<'a> {
                         if is_site_wire(tt, &conn.from_wire) && is_site_wire(tt, to_wire) {
                             continue;
                         }
-                        lt.add_pip(self.ids.id(&conn.from_wire), self.ids.id(to_wire));
+                        lt.add_pip(sub_tile, self.ids.id(&conn.from_wire), self.ids.id(to_wire));
                     }
                 }
             }
             if lt.site_types.iter().find(|s| s.site_type == "PLC").is_some() {
                 let gnd_wire = self.ids.id("G:GND");
                 lt.wire(gnd_wire);
+                let sub_tile = key.tile_types.iter().position(|x| &x[..] == "PLC").unwrap();
                 for i in 0..8 {
                     // Create pseudo-ground drivers for LUT outputs
-                    lt.add_ppip(gnd_wire, self.ids.id(&format!("JF{}", i)),
+                    lt.add_ppip(sub_tile, gnd_wire, self.ids.id(&format!("JF{}", i)),
                         vec![
                             IcPseudoCell {
                                 bel: self.ids.id(&format!("SLICE{}_LUT{}", &"ABCD"[(i/2)..(i/2)+1], i%2)),
@@ -280,7 +290,7 @@ impl <'a> GraphBuilder<'a> {
                         ]);
                     // Create LUT route-through PIPs
                     for j in &["A", "B", "C", "D"] {
-                        lt.add_ppip(self.ids.id(&format!("J{}{}", j, i)), self.ids.id(&format!("JF{}", i)),
+                        lt.add_ppip(sub_tile, self.ids.id(&format!("J{}{}", j, i)), self.ids.id(&format!("JF{}", i)),
                         vec![
                             IcPseudoCell {
                                 bel: self.ids.id(&format!("SLICE{}_LUT{}", &"ABCD"[(i/2)..(i/2)+1], i%2)),

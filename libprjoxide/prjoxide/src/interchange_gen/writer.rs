@@ -64,6 +64,7 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                         p.set_directional(true);
                         p.set_buffered20(true);
                         p.set_buffered21(false);
+                        p.set_sub_tile(pip_data.sub_tile.try_into().unwrap());
                         if pip_data.pseudo_cells.is_empty() {
                             p.set_conventional(());
                         } else {
@@ -225,6 +226,14 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                         s.set_name(ids.id(&site_name).val().try_into().unwrap());
                         s.set_type(j.try_into().unwrap());
                         site_names.insert(site_name);
+                    }
+                }
+                {
+                    let mut subtiles = t.reborrow().init_sub_tiles_prefices(tile_data.key.tile_types.len().try_into().unwrap());
+                    for (j, subtile) in tile_data.key.tile_types.iter().enumerate() {
+                        let chip_tile = c.tile_by_xy_type(tile_data.x, tile_data.y, subtile).unwrap();
+                        let prefix = chip_tile.name.replace(":", "__");
+                        subtiles.set(j.try_into().unwrap(), ids.id(&prefix).val().try_into().unwrap());
                     }
                 }
             }
