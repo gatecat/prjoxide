@@ -328,7 +328,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
         });
     } else {
        for tile_bel in get_tile_bels(&tiletype, tiledata) {
-            if tile_bel.beltype == "VCC_DRV" {
+            if tile_bel.beltype == "VCC_DRV" || tile_bel.beltype == "DPHY_CORE" {
                 continue;
             }
             // For everything else, just directly map bels onto sites
