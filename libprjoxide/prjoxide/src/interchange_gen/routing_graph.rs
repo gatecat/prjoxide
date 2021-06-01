@@ -263,6 +263,13 @@ impl <'a> GraphBuilder<'a> {
                         if is_site_wire(tt, &pip.from_wire) && is_site_wire(tt, to_wire) {
                             continue;
                         }
+                        if to_wire.contains("CIBMUX") && pip.from_wire.contains("CIBMUX")
+                            && to_wire.chars().rev().nth(1).unwrap() != pip.from_wire.chars().rev().nth(1).unwrap() {
+                            // Don't use CIBMUX other than straight-through
+                            // This avoids issues with having to carefully set CIBMUX for unused pins so they float high correctly, see 
+                            // https://github.com/YosysHQ/nextpnr/blob/24ae205f20f0e1a0326e48002ab14d5bacfca1ef/nexus/fasm.cc#L272-L286
+                            continue;
+                        }
                         lt.add_pip(sub_tile, self.ids.id(&pip.from_wire), self.ids.id(to_wire));
                     }
                 }
