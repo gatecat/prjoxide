@@ -430,7 +430,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             shuffled_pins.extend(pins.iter().filter(|p| p.dir != PinDir::INPUT).cloned());
             sites.push(Site {
                 name: tile_bel.name.to_string(),
-                site_type: tile_bel.beltype.to_string(),
+                site_type: tile_bel.name.to_string(),
                 pins: shuffled_pins,
                 last_input_pin: last_input_pin,
                 wires: site_wires,
