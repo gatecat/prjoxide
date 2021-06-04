@@ -243,7 +243,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             }
             let mut bel_pins = Vec::new();
             let site_dst_wire = flat_wires.lookup_wire(dst_wire);
-            let bel_name = format!("RBEL_{}", site_dst_wire);
+            let bel_name = format!("RBEL_{}", dst_wire);
             let out_pin_idx = site_bel_pins.len();
             bel_pins.push(out_pin_idx);
             site_bel_pins.push(SiteBelPin {
@@ -252,7 +252,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                 site_wire: site_dst_wire.clone(),
                 dir: PinDir::OUTPUT,
             });
-            for src_wire in pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)).map(|w| flat_wires.lookup_wire(w)) {
+            for src_wire in pips.iter().map(|p| &p.from_wire).filter(|w| is_site_wire(tiletype, w)) {
                 site_pips.push(SitePIP {
                     in_pin: site_bel_pins.len(),
                     out_pin: out_pin_idx,
@@ -261,7 +261,7 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                 site_bel_pins.push(SiteBelPin {
                     bel_name: bel_name.clone(),
                     pin_name: src_wire.clone(),
-                    site_wire: src_wire.clone(),
+                    site_wire: flat_wires.lookup_wire(src_wire),
                     dir: PinDir::INPUT,
                 });
             }
