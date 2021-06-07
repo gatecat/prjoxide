@@ -48,6 +48,7 @@ const OB_PIN_MAP : &[(&str, &str)] = &[
     ("I", "I"),
     ("O", "B"),
 ];
+
 // TODO: add back DFFs once we have some constraints set up
 
 const BEL_CELL_TYPES : &[(&str, &[&str])] = &[
@@ -55,13 +56,18 @@ const BEL_CELL_TYPES : &[(&str, &[&str])] = &[
     ("OXIDE_FF", &["FD1P3BX", "FD1P3DX", "FD1P3IX", "FD1P3JX"]),
     ("SEIO33_CORE", &["IB", "OB"]),
     ("SEIO18_CORE", &["IB", "OB"]),
+    ("DCC", &["DCC"]),
 ];
 
 fn conv_map(map: &[(&str, &str)]) -> Vec<(String, String)> {
     map.iter().map(|(c, b)| (c.to_string(), b.to_string())).collect()
 }
 
-fn get_map_for_cell_bel(cell_type: &str, _bel: &SiteBel) -> Vec<(String, String)> {
+fn auto_map(site: &Site, bel: &SiteBel) -> Vec<(String, String)> {
+    bel.pins.iter().map(|p| &site.bel_pins[*p]).map(|p| (p.pin_name.to_string(), p.pin_name.to_string())).collect()
+}
+
+fn get_map_for_cell_bel(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)> {
     match cell_type {
         "LUT4" => conv_map(LUT4_PIN_MAP),
         "FD1P3BX" => conv_map(FD1P3BX_PIN_MAP),
@@ -70,6 +76,7 @@ fn get_map_for_cell_bel(cell_type: &str, _bel: &SiteBel) -> Vec<(String, String)
         "FD1P3JX" => conv_map(FD1P3JX_PIN_MAP),
         "IB" => conv_map(IB_PIN_MAP),
         "OB" => conv_map(OB_PIN_MAP),
+        "DCC" => auto_map(site, bel),
         _ => unimplemented!(),
     }
 }
@@ -91,7 +98,7 @@ pub fn get_pin_maps(site: &Site) -> Vec<PinMap> {
                 map.push(PinMap {
                     cell_type: cell_type.to_string(),
                     bels: site.bels.iter().filter_map(|b| if &b.bel_type == bel_type { Some(b.name.to_string()) } else { None }).collect(),
-                    pin_map: get_map_for_cell_bel(cell_type, site.bels.iter().find(|b| &b.bel_type == bel_type).unwrap()),
+                    pin_map: get_map_for_cell_bel(cell_type, site, site.bels.iter().find(|b| &b.bel_type == bel_type).unwrap()),
                 });
             }
         }
