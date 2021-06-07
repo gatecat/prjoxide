@@ -128,18 +128,25 @@ pub struct IcWireRef {
     pub wire_name: IdString,
 }
 
+pub const WIRE_TYPE_GENERAL: u32 = 0;
+pub const WIRE_TYPE_SPECIAL: u32 = 1;
+pub const WIRE_TYPE_GLOBAL: u32 = 2;
+
+
 // A node instance
 pub struct IcNode {
     // list of tile wires in the node
     pub wires: HashSet<IcWireRef>,
     pub root_wire: IcWireRef,
+    pub wire_type: u32,
 }
 
 impl IcNode {
-    pub fn new(root_wire: IcWireRef) -> IcNode {
+    pub fn new(root_wire: IcWireRef, wire_type: u32) -> IcNode {
         IcNode {
             wires: [root_wire.clone()].iter().cloned().collect(),
             root_wire: root_wire,
+            wire_type: wire_type,
         }
     }
 }
@@ -176,7 +183,7 @@ impl IcGraph {
         let idx = self.tile_at(x, y).type_idx;
         self.tile_types.value_mut(idx)
     }
-    pub fn map_node(&mut self, root_x: u32, root_y: u32, root_wire: IdString, wire_x: u32, wire_y: u32, wire: IdString) {
+    pub fn map_node(&mut self, ids: &IdStringDB, root_x: u32, root_y: u32, root_wire: IdString, wire_x: u32, wire_y: u32, wire: IdString) {
         // Make sure wire exists in both tiles
         self.type_at(root_x, root_y).wire(root_wire);
         self.type_at(wire_x, wire_y).wire(wire);
@@ -186,7 +193,15 @@ impl IcGraph {
             Some(i) => *i,
             None => {
                 let idx = self.nodes.len();
-                self.nodes.push(IcNode::new(IcWireRef { tile_name: self.tiles[root_tile_idx].name, wire_name: root_wire }));
+                let wire_name_str = ids.str(root_wire);
+                let wire_type = if wire_name_str.starts_with("H0") || wire_name_str.starts_with("V0") {
+                    WIRE_TYPE_GENERAL
+                } else if wire_name_str.starts_with("HPBX") || wire_name_str.starts_with("VPSX0") || wire_name_str.starts_with("HPRX0") {
+                    WIRE_TYPE_GLOBAL
+                } else {
+                    WIRE_TYPE_SPECIAL
+                };
+                self.nodes.push(IcNode::new(IcWireRef { tile_name: self.tiles[root_tile_idx].name, wire_name: root_wire }, wire_type));
                 self.tiles[root_tile_idx].wire_to_node.insert(root_wire, idx);
                 idx
             }
@@ -354,12 +369,15 @@ impl <'a> GraphBuilder<'a> {
                     if let Some(neigh) = neigh {
                         // it's a neighbour wire, map to the base tile
                         if let Some((root_x, root_y)) = self.neighbour_tile(*x, *y, &neigh) {
-                            self.g.map_node(root_x, root_y, self.ids.id(base_wire), *x, *y, self.ids.id(wire));
+                            let base_wire_id = self.ids.id(base_wire);
+                            let wire_id = self.ids.id(wire);
+                            self.g.map_node(self.ids, root_x, root_y, base_wire_id, *x, *y, wire_id);
                         }
 
                     } else {
                         // root node, map to itself
-                        self.g.map_node(*x, *y, self.ids.id(base_wire), *x, *y, self.ids.id(base_wire));
+                        let base_wire_id = self.ids.id(base_wire);
+                        self.g.map_node(self.ids, *x, *y, base_wire_id, *x, *y, base_wire_id);
                     }
                 }
             }
