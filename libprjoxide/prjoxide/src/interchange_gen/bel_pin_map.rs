@@ -57,6 +57,8 @@ const BEL_CELL_TYPES : &[(&str, &[&str])] = &[
     ("SEIO33_CORE", &["IB", "OB"]),
     ("SEIO18_CORE", &["IB", "OB"]),
     ("DCC", &["DCC"]),
+    ("OSC_CORE", &["OSC_CORE"]),
+    ("OXIDE_EBR", &["DP16K_MODE", "PDP16K_MODE", "PDPSC16K_MODE"]),
 ];
 
 fn conv_map(map: &[(&str, &str)]) -> Vec<(String, String)> {
@@ -65,6 +67,40 @@ fn conv_map(map: &[(&str, &str)]) -> Vec<(String, String)> {
 
 fn auto_map(site: &Site, bel: &SiteBel) -> Vec<(String, String)> {
     bel.pins.iter().map(|p| &site.bel_pins[*p]).map(|p| (p.pin_name.to_string(), p.pin_name.to_string())).collect()
+}
+
+fn offset_bus(pin: &str, prefix: &str, rep: &str, offset: i32) -> String {
+    let idx = pin[prefix.len()..].parse::<i32>().unwrap();
+    format!("{}{}", rep, idx + offset)
+}
+
+fn bram_map(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+    // PDP16K is a 1:1 map
+    for bel_pin in bel.pins.iter().map(|p| &site.bel_pins[*p].pin_name) {
+        let mut cell_pin = bel_pin.into();
+        match cell_type {
+            "DP16K_MODE" => { /* all pins pass through */ }
+            "PDPSC16K_MODE" | "PDP16K_MODE" => {
+                if bel_pin.starts_with("ADA") { cell_pin = bel_pin.replace("ADA", "ADW") }
+                else if bel_pin.starts_with("ADB") { cell_pin = bel_pin.replace("ADB", "ADR") }
+                else if bel_pin.starts_with("CSA") { cell_pin = bel_pin.replace("CSA", "CSW") }
+                else if bel_pin.starts_with("CSB") { cell_pin = bel_pin.replace("CSB", "CSR") }
+                else if bel_pin == "CLKA" { cell_pin = if cell_type == "PDPSC16K_MODE" { "CLK" } else { "CLKW" }.into() }
+                else if bel_pin == "CLKB" { cell_pin = if cell_type == "PDPSC16K_MODE" { "CLK" } else { "CLKR" }.into() }
+                else if bel_pin == "CEA" { cell_pin = "CEW".into() }
+                else if bel_pin == "CEB" { cell_pin = "CER".into() }
+                else if bel_pin == "RSTA" || bel_pin == "RSTB" { cell_pin = "RST".into() }
+                else if bel_pin.starts_with("DIA") { cell_pin = bel_pin.replace("DIA", "DI") }
+                else if bel_pin.starts_with("DIB") { cell_pin = offset_bus(bel_pin, "DIA", "DI", 18) }
+                else if bel_pin.starts_with("DOA") { cell_pin = offset_bus(bel_pin, "DOA", "DO", 18) }
+                else if bel_pin.starts_with("DOB") { cell_pin = bel_pin.replace("DOB", "DO") }
+            },
+            _ => unimplemented!(),
+        }
+        result.push((cell_pin, bel_pin.to_string()))
+    }
+    result
 }
 
 fn get_map_for_cell_bel(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)> {
@@ -77,6 +113,8 @@ fn get_map_for_cell_bel(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(Str
         "IB" => conv_map(IB_PIN_MAP),
         "OB" => conv_map(OB_PIN_MAP),
         "DCC" => auto_map(site, bel),
+        "OSC_CORE" => auto_map(site, bel),
+        "PDPSC16K_MODE" | "PDP16K_MODE" | "DP16K_MODE" => bram_map(cell_type, site, bel),
         _ => unimplemented!(),
     }
 }
