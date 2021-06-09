@@ -100,6 +100,13 @@ fn bram_map(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)
         }
         result.push((cell_pin, bel_pin.to_string()))
     }
+    result.extend(conv_map(&[
+        ("VCC", "DWS0"),
+        ("VCC", "DWS1"),
+        ("VCC", "DWS2"),
+        ("VCC", "DWS3"),
+        ("VCC", "DWS4"),
+    ]));
     result
 }
 
