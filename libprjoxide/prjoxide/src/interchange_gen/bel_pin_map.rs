@@ -79,6 +79,11 @@ fn bram_map(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)
     // PDP16K is a 1:1 map
     for bel_pin in bel.pins.iter().map(|p| &site.bel_pins[*p].pin_name) {
         let mut cell_pin = bel_pin.into();
+        match &bel_pin[..] {
+            "ONEERR" => { cell_pin = "ONEBITERR".into() },
+            "TWOERR" => { cell_pin = "TWOBITERR".into() },
+            _ => {},
+        }
         match cell_type {
             "DP16K_MODE" => { /* all pins pass through */ }
             "PDPSC16K_MODE" | "PDP16K_MODE" => {
