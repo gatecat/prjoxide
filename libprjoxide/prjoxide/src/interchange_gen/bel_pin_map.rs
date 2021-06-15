@@ -100,6 +100,8 @@ fn bram_map(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)
                 else if bel_pin.starts_with("DIB") { cell_pin = offset_bus(bel_pin, "DIA", "DI", 18) }
                 else if bel_pin.starts_with("DOA") { cell_pin = offset_bus(bel_pin, "DOA", "DO", 18) }
                 else if bel_pin.starts_with("DOB") { cell_pin = bel_pin.replace("DOB", "DO") }
+                else if bel_pin == "WEA" { cell_pin = "VCC".into(); }
+                else if bel_pin == "WEB" { cell_pin = "GND".into(); }
             },
             _ => unimplemented!(),
         }
