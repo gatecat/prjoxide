@@ -233,7 +233,7 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                     let mut sites = t.reborrow().init_sites(tt.site_types.len().try_into().unwrap());
                     for (j, site_data) in tt.site_types.iter().enumerate() {
                         let mut s = sites.reborrow().get(j.try_into().unwrap());
-                        let site_name = format!("R{}C{}_{}", tile_data.y, tile_data.x, &site_data.name);
+                        let site_name = format!("R{}C{}_{}", tile_data.y as i32 + site_data.rel_y, tile_data.x as i32 + site_data.rel_x, &site_data.name);
                         s.set_name(ids.id(&site_name).val().try_into().unwrap());
                         s.set_type(j.try_into().unwrap());
                         site_names.insert(site_name);
