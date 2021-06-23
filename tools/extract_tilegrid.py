@@ -33,6 +33,20 @@ rc_re = re.compile(r'R(\d+)C(\d+)')
 
 # For some reason TAP tiles don't have a column in their name. Restore them,
 # using locations determined from Radiant physical view (for now)
+tap_frame_to_col_100 = {
+    16: 14,
+    # mid: 26
+    22: 38,
+    # mid: 50
+    28: 62,
+    # mid: 74
+    34: 86,
+    # mid: 98
+    40: 110,
+    # mid: 122
+    46: 134,
+    52: 146,
+}
 tap_frame_to_col_40 = {
     16: 14,
     22: 38,
@@ -47,7 +61,9 @@ tap_frame_to_col_17 = {
 }
 
 def get_tf2c(dev):
-    if dev == "LIFCL-40" or dev == "LFDN2X-40":
+    if dev == "LFCPNX-100":
+        return tap_frame_to_col_100
+    elif dev == "LIFCL-40" or dev == "LFDN2X-40":
         return tap_frame_to_col_40
     elif dev == "LIFCL-17":
         return tap_frame_to_col_17

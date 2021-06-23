@@ -10,7 +10,7 @@ locations have slightly different routing - swapped output tristate and data
 This script fixes this by patching tile names
 """
 
-for f, d in [("LIFCL", "LIFCL-40"), ("LIFCL", "LFD2NX-40")]:
+for f, d in [("LIFCL", "LIFCL-40"), ("LIFCL", "LFD2NX-40"), ("LFCPNX", "LFCPNX-100")]:
     tgp = path.join(database.get_db_root(), f, d, "tilegrid.json")
     with open(tgp, "r") as infile:
         tg = json.load(infile)["tiles"]
