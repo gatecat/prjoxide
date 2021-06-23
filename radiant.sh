@@ -18,6 +18,8 @@ V_SUB=${2%.v}
 PART=$1
 set -- "$1" $V_SUB
 
+EXTRA_BIT_ARGS=
+
 case "${PART}" in
 	LIFCL-17)
 		PACKAGE="${DEV_PACKAGE:-CABGA256}"
@@ -41,6 +43,7 @@ case "${PART}" in
 		PACKAGE="${DEV_PACKAGE:-LFG672}"
 		DEVICE="LFCPNX-100"
 		LSE_ARCH="lfcpnx"
+		EXTRA_BIT_ARGS="-ipeval"
 		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
 		;;
 esac
@@ -83,10 +86,10 @@ else
 	fi
 
 	if [ -n "$GEN_RBF" ]; then
-	"$fpgabindir"/bitgen -b -d -w par.udb
+	"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -b -d -w par.udb
 	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
 	else
-	"$fpgabindir"/bitgen -d -w par.udb
+	"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w par.udb
 	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.bit"
 	fi
 	export LD_LIBRARY_PATH=""
