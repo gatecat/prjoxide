@@ -1,12 +1,12 @@
 #!/bin/bash
 
-radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/2.2}"
+radiantdir="${RADIANTDIR:-$HOME/lscc/radiant/3.0}"
 export FOUNDRY="${radiantdir}/ispfpga"
 bindir="${radiantdir}/bin/lin64"
 LSC_DIAMOND=true
 export LSC_DIAMOND
 export NEOCAD_MAXLINEWIDTH=32767
-export TCL_LIBRARY="${radiantdir}/tcltk/linux/lib/tcl8.5"
+export TCL_LIBRARY="${radiantdir}/tcltk/linux/lib/tcl8.6"
 export fpgabindir=${FOUNDRY}/bin/lin64
 ld_lib_path_orig=$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH="${bindir}:${fpgabindir}"
@@ -35,6 +35,12 @@ case "${PART}" in
 		PACKAGE="${DEV_PACKAGE:-CABGA256}"
 		DEVICE="LFD2NX-40"
 		LSE_ARCH="lfd2nx"
+		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
+		;;
+	LFCPNX-100)
+		PACKAGE="${DEV_PACKAGE:-LFG672}"
+		DEVICE="LFCPNX-100"
+		LSE_ARCH="lfcpnx"
 		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
 		;;
 esac
