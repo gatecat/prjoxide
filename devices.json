@@ -49,6 +49,26 @@
                     "variants": {
                         "": {"idcode": 17760323}
                     }
+                },
+            },
+        },
+        "LFCPNX": {
+            "devices": {
+                "LFCPNX-100": {
+                    "packages": ["ASG256", "CBG256", "BBG484", "BFG484", "LFG672"],
+                    "idcode": 17776707,
+                    "frames": 16822,
+                    "bits_per_frame": 882,
+                    "pad_bits_after_frame": 0,
+                    "pad_bits_before_frame": 0,
+                    "frame_ecc_bits": 14,
+                    "max_row" : 74,
+                    "max_col" : 159,
+                    "col_bias" : 0,
+                    "fuzz": true,
+                    "variants": {
+                        "": {"idcode": 17776707}
+                    }
                 }
             }
         }
