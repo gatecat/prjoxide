@@ -106,6 +106,8 @@ pub struct Site {
     pub last_input_pin: usize,
     pub bels: Vec<SiteBel>,
     pub pips: Vec<SitePIP>,
+    pub rel_x: i32,
+    pub rel_y: i32,
 }
 
 // To speed up site routing; where fixed connections connect multiple site wires together, merge them into one
@@ -325,6 +327,8 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
             bel_pins: site_bel_pins,
             bels: site_bels,
             pips: site_pips,
+            rel_x: 0,
+            rel_y: 0,
         });
     } else {
        for tile_bel in get_tile_bels(&tiletype, tiledata) {
@@ -437,6 +441,8 @@ pub fn build_sites(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Site> {
                 bel_pins: site_bel_pins,
                 bels: site_bels,
                 pips: Vec::new(),
+                rel_x: tile_bel.rel_x,
+                rel_y: tile_bel.rel_y,
             });
 
        }

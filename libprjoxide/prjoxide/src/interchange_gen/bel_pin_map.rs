@@ -97,9 +97,10 @@ fn bram_map(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)
                 else if bel_pin == "CEB" { cell_pin = "CER".into() }
                 else if bel_pin == "RSTA" || bel_pin == "RSTB" { cell_pin = "RST".into() }
                 else if bel_pin.starts_with("DIA") { cell_pin = bel_pin.replace("DIA", "DI") }
-                else if bel_pin.starts_with("DIB") { cell_pin = offset_bus(bel_pin, "DIA", "DI", 18) }
+                else if bel_pin.starts_with("DIB") { cell_pin = offset_bus(bel_pin, "DIB", "DI", 18) }
                 else if bel_pin.starts_with("DOA") { cell_pin = offset_bus(bel_pin, "DOA", "DO", 18) }
                 else if bel_pin.starts_with("DOB") { cell_pin = bel_pin.replace("DOB", "DO") }
+                else if bel_pin == "WEA" || bel_pin == "WEB" { cell_pin = "VCC".into(); }
             },
             _ => unimplemented!(),
         }
