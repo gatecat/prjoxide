@@ -17,6 +17,7 @@ pub struct BitstreamParser {
 // Magic sequences
 const COMMENT_START: [u8; 2] = [0xFF, 0x00];
 const COMMENT_END: [u8; 2] = [0x00, 0xFF];
+const COMMENT_END_RDBK: [u8; 2] = [0x00, 0xFE];
 const PREAMBLE: [u8; 4] = [0xFF, 0xFF, 0xBD, 0xB3];
 
 // Commands
@@ -59,6 +60,11 @@ const CRC16_INIT: u16 = 0x0000;
 // ECC constants
 const ECC_POLY: u16 = 0x202D;
 const ECC_INIT: u16 = 0x0000;
+
+enum BitstreamType {
+    NORMAL,
+    READBACK
+}
 
 impl BitstreamParser {
     pub fn new(bitstream: &[u8]) -> BitstreamParser {
@@ -414,13 +420,13 @@ impl BitstreamParser {
 
     // Process bitstream container
     // Consumes metadata up to and including preamble
-    fn parse_container(&mut self) -> Result<(), &'static str> {
+    fn parse_container(&mut self) -> Result<BitstreamType, &'static str> {
         let mut in_metadata = false;
         let mut curr_meta = String::new();
         while !self.done() {
             if self.check_preamble(&PREAMBLE) {
                 println!("bitstream start at {}", self.index);
-                return Ok(());
+                return Ok(BitstreamType::NORMAL);
             }
             if !in_metadata && self.check_preamble(&COMMENT_START) {
                 in_metadata = true;
@@ -433,6 +439,13 @@ impl BitstreamParser {
                 }
                 in_metadata = false;
                 continue;
+            }
+            if in_metadata && self.check_preamble(&COMMENT_END_RDBK) {
+                if curr_meta.len() > 0 {
+                    self.metadata.push(curr_meta.to_string());
+                    curr_meta.clear();
+                }
+                return Ok(BitstreamType::READBACK);
             }
             if in_metadata {
                 let ch = self.get_byte();
@@ -597,9 +610,48 @@ impl BitstreamParser {
         }
     }
 
+    fn parse_readback_bistream(&mut self, db: &mut Database) -> Result<Chip, &'static str> {
+        // 4 byte IDCODE
+        let idcode = self.get_u32();
+        let mut chip = Chip::from_idcode(db, idcode);
+        // 4 bytes 00 padding
+        self.skip_bytes(4);
+        // 20 bytes FF padding
+        self.skip_bytes(20);
+        
+        let mut frame_bytes = vec![0 as u8; (chip.data.bits_per_frame + 14 + 7) / 8];
+        let mut padding = [0 as u8; 4];
+
+        for i in 0..chip.data.frames {
+            // 4 bytes dummy
+            self.copy_bytes(&mut padding);
+            assert_eq!(padding, [0xFF, 0xFF, 0xFF, 0xFF]);
+            // frame data
+            self.copy_bytes(&mut frame_bytes);
+            for j in 0..(chip.data.bits_per_frame + chip.data.pad_bits_after_frame) {
+                // TODO: bit ordering inside frames
+                let ofs = (14 + j) as usize;
+                let val = ((frame_bytes[(frame_bytes.len() - 1) - (ofs / 8)] >> (ofs % 8)) & 0x01) == 0x01;
+                if j < chip.data.bits_per_frame {
+                    // TODO: frame addressing
+                    if val {
+                        chip.cram.set((chip.data.frames - 1) - i, j, true);
+                    }
+                } else {
+                    // padding bit, should be one
+                    assert!(val);
+                }
+            }
+        }
+        Ok(chip)
+    }
+
     pub fn parse(&mut self, db: &mut Database) -> Result<Chip, &'static str> {
-        self.parse_container()?;
-        let c = self.parse_bitstream(db)?;
+        let typ = self.parse_container()?;
+        let c = match typ {
+            BitstreamType::NORMAL => self.parse_bitstream(db)?,
+            BitstreamType::READBACK => self.parse_readback_bistream(db)?,
+        };
         Ok(c)
     }
 }
