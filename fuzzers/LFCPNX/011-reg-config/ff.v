@@ -1,0 +1,11 @@
+
+(* \db:architecture ="LFCPNX", \db:device ="LFCPNX-100", \db:package ="LFG672", \db:speed ="7_High-Performance_1.0V", \db:timestamp =1576073342, \db:view ="physical" *)
+module top (
+
+);
+	(* \xref:LOG ="q_c@0@9", \dm:arcs ="${arc}" *)
+	wire q;
+
+	(* \dm:cellmodel_primitives ="REG${k}=i48_3_lut", \dm:primitive ="SLICE", \dm:programming ="MODE:LOGIC ${mux} REG${k}:::REGSET=${regset},SEL=${sel},LSRMODE=${lsrmode} GSR:${gsr} SRMODE:${srmode} Q0:Q0 Q1:Q1 ", \dm:site ="R2C2${z}" *) 
+	SLICE SLICE_I ( .A0(q)${used} );
+endmodule

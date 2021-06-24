@@ -22,6 +22,7 @@ class FuzzConfig:
         self.job = job
         self.tiles = tiles
         self.sv = sv
+        self.rbk_mode = True if self.device == "LFCPNX-100" else False
         self.struct_mode = True
         self.udb_specimen = None
 
@@ -79,7 +80,7 @@ class FuzzConfig:
                     ouf.write(Template(inf.read()).substitute(**subst))
                 else:
                     ouf.write(inf.read())
-        radiant.run(self.device, desfile, struct_ver=self.struct_mode, raw_bit=False,)
+        radiant.run(self.device, desfile, struct_ver=self.struct_mode, raw_bit=False, rbk_mode=self.rbk_mode)
         if self.struct_mode and self.udb_specimen is None:
             self.udb_specimen = path.join(self.workdir, prefix + "design.tmp", "par.udb")
         return bitfile
