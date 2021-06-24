@@ -140,11 +140,11 @@ impl BitstreamParser {
         // Write main frames
         b.write_byte(LSC_INIT_ADDRESS);
         b.write_zeros(3);
-        b.write_frames(ch, 0x0000, ch.data.frames - 56);
+        b.write_frames(ch, 0x0000, ch.data.frames - (32 + ch.tap_frame_count));
         b.write_padding(17);
         // Write tap frames
         b.write_frame_addr(0x8020);
-        b.write_frames(ch, 0x8020, 24);
+        b.write_frames(ch, 0x8020, ch.tap_frame_count);
         b.write_padding(17);
         // Write power control
         b.write_byte(LSC_POWER_CTRL);

@@ -115,6 +115,8 @@ pub struct Chip {
     pub metadata: Vec<String>,
     // Extra bitstream settings
     pub settings: BTreeMap<String, String>,
+    // number of TAP frames
+    pub tap_frame_count: usize,
 }
 
 pub type ChipDelta = BTreeMap<String, Vec<(usize, usize, bool)>>;
@@ -140,6 +142,10 @@ impl Chip {
             tilegroups: HashMap::new(),
             metadata: Vec::new(),
             settings: BTreeMap::new(),
+            tap_frame_count: match device {
+                "LFCPNX-100" => 42,
+                _ => 24,
+            }
         };
         c.tiles_by_name = c
             .tiles
@@ -318,9 +324,9 @@ impl Chip {
     pub fn frame_addr_to_idx(&self, addr: u32) -> usize {
         match addr {
             0x0000..=0x7FFF => (self.cram.frames - 1) - (addr as usize),
-            0x8000..=0x800F => (15 - ((addr - 0x8000) as usize)) + 40, // right side IO
+            0x8000..=0x800F => (15 - ((addr - 0x8000) as usize)) + (16 + self.tap_frame_count), // right side IO
             0x8010..=0x801F => (15 - ((addr - 0x8010) as usize)) + 0,  // left side IO
-            0x8020..=0x8037 => (23 - ((addr - 0x8020) as usize)) + 16, // TAPs (row-segment clocking)
+            0x8020..=0x81FF => ((self.tap_frame_count - 1) - ((addr - 0x8020) as usize)) + 16, // TAPs (row-segment clocking)
             _ => panic!("unable to process frame address 0x{:08x}", addr),
         }
     }
