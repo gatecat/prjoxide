@@ -623,6 +623,19 @@ impl BitstreamParser {
         let mut padding = [0 as u8; 4];
 
         for i in 0..chip.data.frames {
+            let frame_index = if i < 16 {
+                // right side IO
+                (15 - i) + (16 + chip.tap_frame_count)
+            } else if i >= 16 && i < 32 {
+                // left side IO
+                15 - (i - 16)
+            } else if i >= 32 && i < (chip.data.frames - chip.tap_frame_count) {
+                // main bitstream
+                (chip.data.frames - 1) - (i - 32)
+            } else {
+                // tap bits
+                ((chip.tap_frame_count - 1) - (i - (chip.data.frames - chip.tap_frame_count))) + 16
+            };
             // 4 bytes dummy
             self.copy_bytes(&mut padding);
             assert_eq!(padding, [0xFF, 0xFF, 0xFF, 0xFF]);
@@ -633,9 +646,8 @@ impl BitstreamParser {
                 let ofs = (14 + j) as usize;
                 let val = ((frame_bytes[(frame_bytes.len() - 1) - (ofs / 8)] >> (ofs % 8)) & 0x01) == 0x01;
                 if j < chip.data.bits_per_frame {
-                    // TODO: frame addressing
                     if val {
-                        chip.cram.set((chip.data.frames - 1) - i, j, true);
+                        chip.cram.set(frame_index, j, true);
                     }
                 } else {
                     // padding bit, should be one
