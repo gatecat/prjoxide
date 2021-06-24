@@ -30,7 +30,7 @@ def get_hash(device, input_files):
     hasher = hashlib.sha1()
     hasher.update(b"DEVICE")
     hasher.update(device.encode('utf-8'))
-    for envkey in ("GEN_RBF", "DEV_PACKAGE", "SPEED_GRADE", "STRUCT_VER"):
+    for envkey in ("GEN_RBF", "DEV_PACKAGE", "SPEED_GRADE", "STRUCT_VER", "RBK_MODE"):
         if envkey in os.environ:
             hasher.update(envkey.encode('utf-8'))
             hasher.update(os.environ[envkey].encode('utf-8'))

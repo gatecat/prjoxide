@@ -86,11 +86,16 @@ else
 	fi
 
 	if [ -n "$GEN_RBF" ]; then
-	"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -b -d -w par.udb
-	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
+		"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -b -d -w par.udb
+		LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
 	else
-	"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w par.udb
-	LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.bit"
+		if [ -n "$RBK_MODE" ]; then
+			"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w -m 1 par.udb
+			mv par.rbk par.bit
+		else	
+			"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w par.udb
+		fi
+		LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.bit"
 	fi
 	export LD_LIBRARY_PATH=""
 fi
