@@ -4,7 +4,7 @@
 
 A framework is in place to parse bitstreams and fuzz bitstream changes. Currently the logic tile (PLC) config and interconnect; basic IO and IOLOGIC config; EBR config; global routing ; DSP and PLL config have been fuzzed. Remaining work includes finishing IO, PCIe and SGMII fuzzing.
 
-prjoxide may also need to be updated to support the production silicon. Most of the current testing has been done with LIFCL-40 devices, with limited testing on the LIFCL-17.
+prjoxide may also need to be updated to support the production silicon. Most of the current testing has been done with LIFCL-40 devices, with limited testing on the LIFCL-17. There has also been some early investigations into Certus-Pro NX support.
 
 prjoxide is also aiming to support the [SymbiFlow FPGA interchange format](https://github.com/SymbiFlow/fpga-interchange-schema) and includes support for generating (currently incomplete) device resource data. This is not yet a working end to end flow and currently the direct nextpnr based flow described below should be used.
 
