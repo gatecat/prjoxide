@@ -9,6 +9,32 @@ pub const LUT4_PIN_MAP : &[(&str, &str)] = &[
     ("Z", "F"),
 ];
 
+pub const CARRY_LUT_PIN_MAP : &[(&str, &str)] = &[
+    ("A", "A"),
+    ("B", "B"),
+    ("C", "C"),
+    ("D", "D"),
+    ("S", "F"),
+    ("CIN", "FCI"),
+    ("COUT", "FCO"),
+];
+
+pub const DPRAM_LUT_PIN_MAP : &[(&str, &str)] = &[
+    ("A", "A"),
+    ("B", "B"),
+    ("C", "C"),
+    ("D", "D"),
+    ("Z", "F"),
+    ("WAD0", "WAD0"),
+    ("WAD1", "WAD1"),
+    ("WAD2", "WAD2"),
+    ("WAD3", "WAD3"),
+    ("WDI", "WDI"),
+    ("WCK", "WCK"),
+    ("WRE", "WRE"),
+];
+
+
 // TODO: need to add an extra pip to use LUT->DI path
 const FD1P3BX_PIN_MAP : &[(&str, &str)] = &[
     ("D", "M"),
@@ -52,7 +78,7 @@ const OB_PIN_MAP : &[(&str, &str)] = &[
 // TODO: add back DFFs once we have some constraints set up
 
 const BEL_CELL_TYPES : &[(&str, &[&str])] = &[
-    ("OXIDE_COMB", &["LUT4"]),
+    ("OXIDE_COMB", &["LUT4", "CARRY_LUT", "DPRAM_LUT"]),
     ("OXIDE_FF", &["FD1P3BX", "FD1P3DX", "FD1P3IX", "FD1P3JX"]),
     ("SEIO33_CORE", &["IB", "OB"]),
     ("SEIO18_CORE", &["IB", "OB"]),
@@ -119,6 +145,9 @@ fn bram_map(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)
 fn get_map_for_cell_bel(cell_type: &str, site: &Site, bel: &SiteBel) -> Vec<(String, String)> {
     match cell_type {
         "LUT4" => conv_map(LUT4_PIN_MAP),
+        "CARRY_LUT" => conv_map(CARRY_LUT_PIN_MAP),
+        "DPRAM_LUT" => conv_map(DPRAM_LUT_PIN_MAP),
+        "RAMW" => auto_map(site, bel),
         "FD1P3BX" => conv_map(FD1P3BX_PIN_MAP),
         "FD1P3DX" => conv_map(FD1P3DX_PIN_MAP),
         "FD1P3IX" => conv_map(FD1P3IX_PIN_MAP),
