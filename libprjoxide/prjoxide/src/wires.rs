@@ -29,7 +29,9 @@ lazy_static! {
     // DDR delay code signals
     static ref DLL_CODE_RE: Regex = Regex::new(r"^J(CODEI(\d+)_I_DQS_TOP_DLL_CODE_ROUTING_MUX|D[01]_I4_\d)$").unwrap();
     // DQS group shared signals
-    static ref DQS_GROUP_RE: Regex = Regex::new(r"^J(WRPNTR\d|RDPNTR\d|DQSR90|DQSW270|DQSW)_DQSBUF_CORE_I_DQS_TOP$").unwrap();
+    static ref DQS_GROUP_RE: Regex = Regex::new(r"^J(WRPNTR\d|RDPNTR\d|DQSR90|DQSW270|DQSW)_DQSBUF(A?)_CORE_I_DQS_TOP$").unwrap();
+    // Bank shared signals
+    static ref BANK_VREF_RE: Regex = Regex::new(r"^JIVREFO_IVREF_CORE$").unwrap();
 
     // - CIB (general routing) regex
     static ref GENERAL_ROUTE_RE: Regex = Regex::new(r"R\d+C\d+_[VH]\d{2}[NESWTLBR]\d{4}").unwrap();
@@ -287,6 +289,8 @@ pub fn normalize_wire(chip: &Chip, tile: &Tile, wire: &str) -> String {
         return format!("G:{}", wn);
     } else if DQS_GROUP_RE.is_match(wn) {
         return format!("DQSG:{:}", wn);
+    } else if BANK_VREF_RE.is_match(wn) {
+        return format!("BANK:{:}", wn);
     }
     let en = handle_edge_name(
         chip.data.max_col as i32,
