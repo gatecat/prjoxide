@@ -13,7 +13,7 @@ lazy_static! {
     // Horizontal rows
     static ref GLB_HROW_RE: Regex = Regex::new(r"^HPRX(\d{2})00$").unwrap();
     // Horizontal row drivers
-    static ref GLB_HROWD_RE: Regex = Regex::new(r"^([LR])HPRX(\d+)$").unwrap();
+    static ref GLB_HROWD_RE: Regex = Regex::new(r"^([BT]?)([LR])HPRX(\d+)$").unwrap();
     // Central clock signals
     static ref GLB_CMUXI_RE: Regex = Regex::new(r"^J([HV])PF([NESW])(\d+)_(DCSMUX|CMUX)_CORE_(DCSMUX|CMUX)(\d)$").unwrap();
     // Perimeter clock signals
