@@ -438,18 +438,18 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             for (tile, tdb) in tg.iter().zip(tdbs.iter()) {
                 match tdb.words.get(k) {
                     Some(w) => {
-                        if (v.significant_bits() as usize) > w.bits.len() {
+                        if (v.bits() as usize) > w.bits.len() {
                             panic!(
                                 "Word {} in tile {} has value width {} exceeding database width of {}",
                                 k,
                                 &tile,
-                                v.significant_bits(),
+                                v.bits(),
                                 w.bits.len()
                             );
                         }
                         let tiledata = self.tile_by_name_mut(&tile).unwrap();
                         for (i, wb) in w.bits.iter().enumerate() {
-                            let bit_val = v.get_bit(i as u32);
+                            let bit_val = v.bit(i as u64);
                             for bit in wb {
                                 tiledata.cram.set(bit.frame, bit.bit, bit.invert != bit_val);
                             }
@@ -489,8 +489,8 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
                 assert!(&k[0..2] == "0x");
                 let addr = u32::from_str_radix(&k[2..], 16).unwrap();
                 for i in 0..8 {
-                    let bit_val = v.get_bit(i);
-                    self.set_ip_bit(0x0,  addr, i, bit_val);
+                    let bit_val = v.bit(i as u64);
+                    self.set_ip_bit(0x0, addr, i, bit_val);
                 }
             }
         } else {
@@ -513,7 +513,7 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
                     let offset = 0x280 * init_word;
                     let  w = tdb.words.get("INITVAL_00").unwrap();
                     for (i, wb) in w.bits.iter().enumerate() {
-                        let bit_val = v.get_bit(i as u32);
+                        let bit_val = v.bit(i as u64);
                         for bit in wb {
                             self.set_ip_bit(baseaddr + offset, bit.frame as u32, bit.bit as u32, bit.invert != bit_val);
                         }
@@ -541,17 +541,17 @@ Please make sure Oxide and nextpnr are up to date. If they are, consider reporti
             for (k, v) in ft.words.iter() {
                 let w = tdb.words.get(k).unwrap_or_else(|| panic!("No word named {} in IP {}.\n\
     Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, ip));
-                if (v.significant_bits() as usize) > w.bits.len() {
+                if (v.bits() as usize) > w.bits.len() {
                     panic!(
                         "Word {} in IP {} has value width {} exceeding database width of {}",
                         k,
                         ip,
-                        v.significant_bits(),
+                        v.bits(),
                         w.bits.len()
                     );
                 }
                 for (i, wb) in w.bits.iter().enumerate() {
-                    let bit_val = v.get_bit(i as u32);
+                    let bit_val = v.bit(i as u64);
                     for bit in wb {
                         self.set_ip_bit(baseaddr, bit.frame as u32, bit.bit as u32, bit.invert != bit_val);
                     }
@@ -623,17 +623,17 @@ Please make sure Oxide and nextpnr are up to date and input source code is meani
         for (k, v) in ft.words.iter() {
             let w = tdb.db.words.get(k).unwrap_or_else(|| panic!("No word named {} in tile {}.\n\
 Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, self.name));
-            if (v.significant_bits() as usize) > w.bits.len() {
+            if (v.bits() as usize) > w.bits.len() {
                 panic!(
                     "Word {} in tile {} has value width {} exceeding database width of {}",
                     k,
                     self.name,
-                    v.significant_bits(),
+                    v.bits(),
                     w.bits.len()
                 );
             }
             for (i, wb) in w.bits.iter().enumerate() {
-                let bit_val = v.get_bit(i as u32);
+                let bit_val = v.bit(i as u64);
                 for bit in wb {
                     self.cram.set(bit.frame, bit.bit, bit.invert != bit_val);
                 }
