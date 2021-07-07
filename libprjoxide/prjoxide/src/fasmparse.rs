@@ -3,7 +3,7 @@ use std::convert::TryInto;
 use std::fs::File;
 use std::io::*;
 
-use rug::Integer;
+use num_bigint::BigInt as Integer;
 
 /*
 Parser for the subset of FASM that Oxide cares about
@@ -123,13 +123,13 @@ impl ParsedFasm {
                 }
                 skip_whitespace(parsebuf);
                 let base = get_char(parsebuf);
-                let digits = get_ident(parsebuf);
+                let digits = get_ident(parsebuf).into_bytes();
                 Integer::from(
                     match base {
-                        'b' => Integer::parse_radix(&digits, 2),
-                        'o' => Integer::parse_radix(&digits, 8),
-                        'd' => Integer::parse_radix(&digits, 10),
-                        'h' => Integer::parse_radix(&digits, 16),
+                        'b' => Integer::parse_bytes(&digits, 2),
+                        'o' => Integer::parse_bytes(&digits, 8),
+                        'd' => Integer::parse_bytes(&digits, 10),
+                        'h' => Integer::parse_bytes(&digits, 16),
                         _ => panic!("unsupported base '{} on line {}", base, lineno + 1),
                     }
                     .unwrap(),
@@ -189,7 +189,7 @@ impl ParsedFasm {
                         skip_whitespace(&mut buf);
                         // Word style setting
                         let key = feature_split.join(".");
-                        let end_bit: u32 = get_integer(&mut buf).try_into().unwrap();
+                        let end_bit: u64 = get_integer(&mut buf).try_into().unwrap();
                         skip_whitespace(&mut buf);
                         let mut start_bit = end_bit;
                         skip_whitespace(&mut buf);
@@ -211,9 +211,9 @@ impl ParsedFasm {
                             .words
                             .entry(key)
                             .or_insert_with(|| Integer::from(0));
-                        let count: u32 = (end_bit - start_bit) + 1;
+                        let count: u64 = (end_bit - start_bit) + 1;
                         for i in 0..count {
-                            dest.set_bit(start_bit + i, value.get_bit(i));
+                            dest.set_bit(start_bit + i, value.bit(i));
                         }
                     } else {
                         // Enum style setting
@@ -239,14 +239,14 @@ impl ParsedFasm {
                 writeln!(out, "{}.{}.{}", tile, name, opt)?;
             }
             for (name, val) in tdata.words.iter() {
-                if val.significant_bits() > 0 {
+                if val.bits() > 0 {
                     writeln!(
                         out,
                         "{}.{}[{}:0] = {}'b{:b}",
                         tile,
                         name,
-                        val.significant_bits() - 1,
-                        val.significant_bits(),
+                        val.bits() - 1,
+                        val.bits(),
                         val
                     )?;
                 }
