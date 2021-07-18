@@ -17,6 +17,8 @@ use std::convert::TryInto;
 use flate2::Compression;
 use flate2::write::GzEncoder;
 
+const DELAY_SCALE : f32 = 1e-12;
+
 pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph, filename: &str) -> ::capnp::Result<()> {
     let mut m = ::capnp::message::Builder::new_default();
     {
@@ -65,6 +67,7 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                         p.set_buffered20(true);
                         p.set_buffered21(false);
                         p.set_sub_tile(pip_data.sub_tile.try_into().unwrap());
+                        p.set_timing(pip_data.tmg_idx.try_into().unwrap());
                         if pip_data.pseudo_cells.is_empty() {
                             p.set_conventional(());
                         } else {
@@ -368,6 +371,38 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                     bel.set_output_pin("F");
                     bel.set_low_bit(0);
                     bel.set_high_bit(15);
+                }
+            }
+        }
+        {
+            // PIP timings
+            let mut pt = dev.reborrow().init_pip_timings(graph.pip_timings.len().try_into().unwrap());
+            let timing_f = db.interconn_timing_db(&c.family, "M").clone(); // 'M' grade is the equivalent of fast corner
+            let timing_s = db.interconn_timing_db(&c.family, "12"); // hardcode to 12 (-9 HP) for now
+            for (i, cls) in graph.pip_timings.iter().enumerate() {
+                let tmg = pt.reborrow().get(i.try_into().unwrap());
+                let corners  = if !timing_f.pip_classes.contains_key(cls) { // (f_min, f_max, s_min, s_max)
+                    (50, 50, 50, 50) // default
+                } else {
+                    let f = timing_f.pip_classes.get(cls).unwrap().base;
+                    let s = timing_s.pip_classes.get(cls).unwrap().base;
+                    let pos = |d| std::cmp::max(d, 0);
+                    (pos(f.0), pos(f.1), pos(s.0), pos(s.1))
+                };
+                {
+                    let mut delay = tmg.init_internal_delay();
+                    {
+                        let mut delay_fast = delay.reborrow().init_slow().init_slow();
+                        delay_fast.reborrow().init_min().set_min((corners.0 as f32) * DELAY_SCALE);
+                        delay_fast.reborrow().init_typ().set_typ((corners.1 as f32) * DELAY_SCALE);
+                        delay_fast.reborrow().init_max().set_max((corners.1 as f32) * DELAY_SCALE);
+                    }
+                    {
+                        let mut delay_slow = delay.reborrow().init_slow().init_slow();
+                        delay_slow.reborrow().init_min().set_min((corners.2 as f32) * DELAY_SCALE);
+                        delay_slow.reborrow().init_typ().set_typ((corners.3 as f32) * DELAY_SCALE);
+                        delay_slow.reborrow().init_max().set_max((corners.3 as f32) * DELAY_SCALE);
+                    }
                 }
             }
         }

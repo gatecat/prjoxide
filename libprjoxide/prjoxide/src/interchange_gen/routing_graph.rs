@@ -11,6 +11,7 @@ use crate::bba::tiletype::{Neighbour, BranchSide, TileTypes};
 
 use crate::sites::*;
 use crate::wires::*;
+use crate::pip_classes::classify_pip;
 
 // A tile type from the interchange format perspective
 // this is not the same as a database tile type; because the Oxide graph can have
@@ -51,7 +52,7 @@ impl IcTileType {
     pub fn wire(&mut self, name: IdString) -> usize {
         self.wires.add(&name, IcWire::new(name))
     }
-    pub fn add_pip(&mut self, sub_tile: usize, src: IdString, dst: IdString) {
+    pub fn add_pip(&mut self, sub_tile: usize, src: IdString, dst: IdString, tmg_idx: usize) {
         let src_idx = self.wire(src);
         let dst_idx = self.wire(dst);
         self.pips.push(IcPip {
@@ -59,9 +60,10 @@ impl IcTileType {
             dst_wire: dst_idx,
             sub_tile: sub_tile,
             pseudo_cells: Vec::new(),
+            tmg_idx: tmg_idx,
         });
     }
-    pub fn add_ppip(&mut self, sub_tile: usize, src: IdString, dst: IdString, pseudo_cells: Vec<IcPseudoCell>) {
+    pub fn add_ppip(&mut self, sub_tile: usize, src: IdString, dst: IdString, tmg_idx: usize, pseudo_cells: Vec<IcPseudoCell>) {
         let src_idx = self.wire(src);
         let dst_idx = self.wire(dst);
         self.pips.push(IcPip {
@@ -69,6 +71,7 @@ impl IcTileType {
             dst_wire: dst_idx,
             sub_tile: sub_tile,
             pseudo_cells: pseudo_cells,
+            tmg_idx: tmg_idx,
         });
     }
 }
@@ -95,6 +98,7 @@ pub struct IcPip {
     pub dst_wire: usize,
     pub sub_tile: usize,
     pub pseudo_cells: Vec<IcPseudoCell>,
+    pub tmg_idx: usize,
 }
 
 // A tile instance
@@ -158,6 +162,7 @@ pub struct IcGraph {
     pub nodes: Vec<IcNode>,
     pub width: u32,
     pub height: u32,
+    pub pip_timings: IndexedSet<String>,
 }
 
 impl IcGraph {
@@ -167,7 +172,8 @@ impl IcGraph {
             tiles: (0..width*height).map(|i| IcTileInst::new(ids, i%width, i/width)).collect(),
             nodes: Vec::new(),
             width: width,
-            height: height
+            height: height,
+            pip_timings: IndexedSet::new(),
         }
     }
     pub fn tile_idx(&self, x: u32, y: u32) -> usize {
@@ -252,12 +258,29 @@ impl <'a> GraphBuilder<'a> {
             orig_tts: orig_tts,
         }
     }
+
+    fn get_pip_tmg_class(from_wire: &str, to_wire: &str) -> String {
+        let (src_rel, src_name) = Neighbour::parse_wire(from_wire);
+        let (dst_rel, dst_name) = Neighbour::parse_wire(to_wire);
+        let (src_x, src_y) = match src_rel {
+            Some(Neighbour::RelXY { rel_x: x, rel_y: y }) => (x, y),
+            _ => (0, 0)
+        };
+        let (dst_x, dst_y) = match dst_rel {
+            Some(Neighbour::RelXY { rel_x: x, rel_y: y }) => (x, y),
+            _ => (0, 0)
+        };
+        classify_pip(src_x, src_y, src_name, dst_x, dst_y, dst_name)
+            .unwrap_or("".into())
+    }
+
     fn setup_tiletypes(&mut self) {
         for t in self.g.tiles.iter_mut() {
             let key = self.tiletypes_by_xy.get(&(t.x, t.y)).unwrap();
             t.key = key.clone();
             t.type_idx = self.g.tile_types.add(key, IcTileType::new(key.clone(), &self.chip.family, self.db));
         }
+        let mut pip_timings = IndexedSet::new();
         for (key, lt) in self.g.tile_types.iter_mut() {
             // setup wires for site pins
             let site_wires : Vec<String> = lt.site_types.iter().map(|s| s.pins.iter()).flatten().map(|p| p.tile_wire.clone()).collect();
@@ -285,7 +308,9 @@ impl <'a> GraphBuilder<'a> {
                             // https://github.com/YosysHQ/nextpnr/blob/24ae205f20f0e1a0326e48002ab14d5bacfca1ef/nexus/fasm.cc#L272-L286
                             continue;
                         }
-                        lt.add_pip(sub_tile, self.ids.id(&pip.from_wire), self.ids.id(to_wire));
+                        let tmg_cls = Self::get_pip_tmg_class(&pip.from_wire, to_wire);
+                        let tmg_idx = pip_timings.add(&tmg_cls);
+                        lt.add_pip(sub_tile, self.ids.id(&pip.from_wire), self.ids.id(to_wire), tmg_idx);
                     }
                 }
                 for (to_wire, conns) in tdb.conns.iter() {
@@ -293,7 +318,7 @@ impl <'a> GraphBuilder<'a> {
                         if is_site_wire(tt, &conn.from_wire) && is_site_wire(tt, to_wire) {
                             continue;
                         }
-                        lt.add_pip(sub_tile, self.ids.id(&conn.from_wire), self.ids.id(to_wire));
+                        lt.add_pip(sub_tile, self.ids.id(&conn.from_wire), self.ids.id(to_wire), 0);
                     }
                 }
             }
@@ -303,7 +328,7 @@ impl <'a> GraphBuilder<'a> {
                 let sub_tile = key.tile_types.iter().position(|x| &x[..] == "PLC").unwrap();
                 for i in 0..8 {
                     // Create pseudo-ground drivers for LUT outputs
-                    lt.add_ppip(sub_tile, gnd_wire, self.ids.id(&format!("JF{}", i)),
+                    lt.add_ppip(sub_tile, gnd_wire, self.ids.id(&format!("JF{}", i)), 0,
                         vec![
                             IcPseudoCell {
                                 bel: self.ids.id(&format!("SLICE{}_LUT{}", &"ABCD"[(i/2)..(i/2)+1], i%2)),
@@ -312,7 +337,7 @@ impl <'a> GraphBuilder<'a> {
                         ]);
                     // Create LUT route-through PIPs
                     for j in &["A", "B", "C", "D"] {
-                        lt.add_ppip(sub_tile, self.ids.id(&format!("J{}{}", j, i)), self.ids.id(&format!("JF{}", i)),
+                        lt.add_ppip(sub_tile, self.ids.id(&format!("J{}{}", j, i)), self.ids.id(&format!("JF{}", i)), 0,
                         vec![
                             IcPseudoCell {
                                 bel: self.ids.id(&format!("SLICE{}_LUT{}", &"ABCD"[(i/2)..(i/2)+1], i%2)),
@@ -323,6 +348,7 @@ impl <'a> GraphBuilder<'a> {
                 }
             }
         }
+        self.g.pip_timings = pip_timings;
     }
     // Convert a neighbour to a coordinate
     pub fn neighbour_tile(&self, x: u32, y: u32, n: &Neighbour) -> Option<(u32, u32)> {
