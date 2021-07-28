@@ -520,6 +520,24 @@ impl Bel {
         }
     }
 
+    pub fn make_iol(tiledata: &TileBitsDatabase, s: bool, z: usize) -> Bel {
+        let ch = Z_TO_CHAR[z];
+        let postfix = if s {
+            format!("_SIOLOGIC_CORE_IBASE_PIC_{}", ch)
+        } else {
+            format!("_IOLOGIC_CORE_I_GEARING_PIC_TOP_{}", ch)
+        };
+        let maybe_s = if s { "S" } else { "" };
+        Bel {
+            name: format!("{}IOLOGIC{}", maybe_s, ch),
+            beltype:  format!("{}IOLOGIC", maybe_s),
+            pins: Bel::get_io(&tiledata, &postfix, 0, 0),
+            rel_x: 0,
+            rel_y: 0,
+            z: (z + 3) as u32,
+        }
+    }
+
     pub fn make_ebr(tiledata: &TileBitsDatabase, z: usize) -> Bel {
         Bel {
             name: format!("EBR{}", z),
@@ -637,13 +655,14 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
         | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C"
         | "SYSIO_B0_0_15K" | "SYSIO_B1_0_15K" => {
-            (0..2).map(Bel::make_seio33).collect()
+            vec![Bel::make_seio33(0), Bel::make_seio33(1), Bel::make_iol(tiledata, true, 0), Bel::make_iol(tiledata, true, 1)]
         },
         "SYSIO_B1_DED" | "SYSIO_B1_DED_15K" => vec![Bel::make_seio33(1)],
         "SYSIO_B3_0" | "SYSIO_B3_0_DLY30_V18" | "SYSIO_B3_0_DQS1" | "SYSIO_B3_0_DQS3"
         | "SYSIO_B4_0" | "SYSIO_B4_0_DQS1" | "SYSIO_B4_0_DQS3" | "SYSIO_B4_0_DLY50" | "SYSIO_B4_0_DLY42"
         |  "SYSIO_B5_0" | "SYSIO_B5_0_15K_DQS52" | "SYSIO_B4_0_15K_DQS42"
-        | "SYSIO_B4_0_15K_BK4_V42" | "SYSIO_B4_0_15K_V31" | "SYSIO_B3_0_15K_DQS32" => vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18()],
+        | "SYSIO_B4_0_15K_BK4_V42" | "SYSIO_B4_0_15K_V31" | "SYSIO_B3_0_15K_DQS32" => vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18(),
+            Bel::make_iol(tiledata, false, 0), Bel::make_iol(tiledata, false, 1)],
         "EFB_1_OSC" | "OSC_15K" => vec![Bel::make_osc_core()],
         "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
@@ -747,7 +766,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
 
     let tt = &tile.tiletype[..];
     match &bel.beltype[..] {
-        "SEIO33_CORE" => match tt {
+        "SEIO33_CORE" | "SIOLOGIC" => match tt {
             "SYSIO_B1_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B1_0_REM")],
             "SYSIO_B2_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B2_0_REM")],
             "SYSIO_B6_0_C" => vec![tn, rel_tile(0, 1, "SYSIO_B6_0_REM")],
@@ -758,7 +777,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             }
             _ => vec![tn]
         }
-        "SEIO18_CORE" | "DIFF18_CORE" => vec![tn, rel_tile_prefix(1, 0, "SYSIO")],
+        "SEIO18_CORE" | "DIFF18_CORE" | "IOLOGIC" => vec![tn, rel_tile_prefix(1, 0, "SYSIO")],
         "OXIDE_EBR" => match bel.z {
             0 => vec![rel_tile(0, 0, "EBR_1"), rel_tile(1, 0, "EBR_2")],
             1 => vec![rel_tile(0, 0, "EBR_4"), rel_tile(1, 0, "EBR_5")],
