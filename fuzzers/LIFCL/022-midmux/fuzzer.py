@@ -1,8 +1,6 @@
 from fuzzconfig import FuzzConfig
 from interconnect import fuzz_interconnect
 
-cr, cc = (28, 49)
-
 configs = [
     ("HPFE", (28, 0), 12, "L",
         FuzzConfig(job="LMIDROUTE", device="LIFCL-40", sv="../shared/route_40.v", tiles=["CIB_R28C0:LMID"])),
@@ -24,6 +22,10 @@ configs = [
 def main():
     for feed, rc, ndcc, side, cfg in configs:
         cfg.setup()
+        if cfg.device == "LIFCL-40":
+            cr, cc = (28, 49)
+        else:
+            cr, cc = (10, 37)
         r, c = rc
         nodes = []
         mux_nodes = []
