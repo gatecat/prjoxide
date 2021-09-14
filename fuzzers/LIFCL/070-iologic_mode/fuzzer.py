@@ -4,6 +4,8 @@ import fuzzloops
 import re
 
 configs = [
+
+    # LIFCL-40 tiles
     ("IOL_B8A", "IOLOGICA", FuzzConfig(job="IOL5AMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C8:SYSIO_B5_0", "CIB_R56C9:SYSIO_B5_1"])),
     ("IOL_B8B", "IOLOGICB", FuzzConfig(job="IOL5BMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C8:SYSIO_B5_0", "CIB_R56C9:SYSIO_B5_1"])),
     ("IOL_B18A", "IOLOGICA", FuzzConfig(job="IOL4AMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R56C18:SYSIO_B4_0", "CIB_R56C19:SYSIO_B4_1"])),
@@ -46,6 +48,17 @@ configs = [
 
     ("IOL_R3B", "SIOLOGICB", FuzzConfig(job="IOL3DEMODE", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R3C87:SYSIO_B1_DED"])),
 
+    # LIFCL-17 tiles
+    ("IOL_T57A", "SIOLOGICA", FuzzConfig(job="IOLT57AMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C57:SYSIO_B0_0_15K"])),
+    ("IOL_T57B", "SIOLOGICB", FuzzConfig(job="IOLT57BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C57:SYSIO_B0_0_15K"])),
+
+    ("IOL_R3B", "SIOLOGICB", FuzzConfig(job="IOLR3BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R3C75:SYSIO_B1_DED_15K"])),
+
+    ("IOL_R5A", "SIOLOGICA", FuzzConfig(job="IOLR5AMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R5C75:SYSIO_B1_0_15K"])),
+    ("IOL_R5B", "SIOLOGICB", FuzzConfig(job="IOLR5BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R5C75:SYSIO_B1_0_15K"])),
+
+    # It appears that LIFCL-17 does not expose any pins from
+    # - SYSIO_B1_1_15K
 ]
 
 def main():
@@ -53,23 +66,40 @@ def main():
         site, prim, cfg = x
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
-        cfg.sv = "iologic.v"
-        s = (prim[0] == "S")
 
+        if cfg.device == "LIFCL-40":
+            cfg.sv = "iologic_40.v"
+        elif cfg.device == "LIFCL-17":
+            cfg.sv = "iologic_17.v"
+        else:
+            assert False, cfg.device
+
+        s = (prim[0] == "S")
 
         side = site[4]
         pos = int(site[5:-1])
         ab = site[-1]
 
-        # For LIFCL-40 only!!
-        if side == "L":
-            rc = "R{}C{}".format(pos, 0)
-        elif side == "R":
-            rc = "R{}C{}".format(pos, 87)
-        elif side == "B":
-            rc = "R{}C{}".format(56, pos)
-        elif side == "T":
-            rc = "R{}C{}".format(0, pos)
+        if cfg.device == "LIFCL-40":
+            if side == "L":
+                rc = "R{}C{}".format(pos, 0)
+            elif side == "R":
+                rc = "R{}C{}".format(pos, 87)
+            elif side == "B":
+                rc = "R{}C{}".format(56, pos)
+            elif side == "T":
+                rc = "R{}C{}".format(0, pos)
+        elif cfg.device == "LIFCL-17":
+            if side == "L":
+                rc = "R{}C{}".format(pos, 0)
+            elif side == "R":
+                rc = "R{}C{}".format(pos, 75)
+            elif side == "B":
+                rc = "R{}C{}".format(29, pos)
+            elif side == "T":
+                rc = "R{}C{}".format(0, pos)
+        else:
+            assert False, cfg.device
 
         def get_substs(mode="NONE", default_cfg=False, scope=None, kv=None, mux=False, glb=False, dqs=False, pinconn=""):
             if default_cfg:
