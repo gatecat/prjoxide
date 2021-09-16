@@ -52,7 +52,7 @@ configs = [
     ("IOL_T57A", "SIOLOGICA", FuzzConfig(job="IOLT57AMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C57:SYSIO_B0_0_15K"])),
     ("IOL_T57B", "SIOLOGICB", FuzzConfig(job="IOLT57BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R0C57:SYSIO_B0_0_15K"])),
 
-    ("IOL_R3B", "SIOLOGICB", FuzzConfig(job="IOLR3BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R3C75:SYSIO_B1_DED_15K"])),
+    ("IOL_R3B", "SIOLOGICB", FuzzConfig(job="IOLR3BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R3C75:SYSIO_B1_DED_15K", "CIB_R4C75:PIC_B1_DED_15K"])),
 
     ("IOL_R5A", "SIOLOGICA", FuzzConfig(job="IOLR5AMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R5C75:SYSIO_B1_0_15K"])),
     ("IOL_R5B", "SIOLOGICB", FuzzConfig(job="IOLR5BMODE", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R5C75:SYSIO_B1_0_15K"])),
