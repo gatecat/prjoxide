@@ -123,15 +123,26 @@ def main():
                 config = "{}:::{}={}".format(mode if scope is None else scope, kv[0], kv[1])
             if pinconn != "":
                 # Add routing so that pin is 'used'
-                if side in ("L", "R", "T"):
-                    first_wire = "{}_JDOUT_SIOLOGIC_CORE_IBASE_PIC_{}".format(rc, ab)
-                    second_wire = "{}_JPADDO_SEIO33_CORE_IO{}".format(rc, ab)
-                else:
-                    first_wire = "{}_JDOUT_IOLOGIC_CORE_I_GEARING_PIC_TOP_{}".format(rc, ab)
-                    if ab == "A":
-                        second_wire = "{}_JPADDO_DIFFIO18_CORE_IO{}".format(rc, ab)
+                if "TOUT" in pinconn:
+                    if side in ("L", "R", "T"):
+                        first_wire = "{}_JTOUT_SIOLOGIC_CORE_IBASE_PIC_{}".format(rc, ab)
+                        second_wire = "{}_JPADDT_SEIO33_CORE_IO{}".format(rc, ab)
                     else:
-                        second_wire = "{}_JPADDO_SEIO18_CORE_IO{}".format(rc, ab)
+                        first_wire = "{}_JTOUT_IOLOGIC_CORE_I_GEARING_PIC_TOP_{}".format(rc, ab)
+                        if ab == "A":
+                            second_wire = "{}_JPADDT_DIFFIO18_CORE_IO{}".format(rc, ab)
+                        else:
+                            second_wire = "{}_JPADDT_SEIO18_CORE_IO{}".format(rc, ab)
+                else:
+                    if side in ("L", "R", "T"):
+                        first_wire = "{}_JDOUT_SIOLOGIC_CORE_IBASE_PIC_{}".format(rc, ab)
+                        second_wire = "{}_JPADDO_SEIO33_CORE_IO{}".format(rc, ab)
+                    else:
+                        first_wire = "{}_JDOUT_IOLOGIC_CORE_I_GEARING_PIC_TOP_{}".format(rc, ab)
+                        if ab == "A":
+                            second_wire = "{}_JPADDO_DIFFIO18_CORE_IO{}".format(rc, ab)
+                        else:
+                            second_wire = "{}_JPADDO_SEIO18_CORE_IO{}".format(rc, ab)
                 route = '(* \\xref:LOG ="q_c@0@9", \\dm:arcs ="{}.{}" *) '.format(second_wire, first_wire)
                 sig = route + "wire sig;"
             else:
@@ -160,6 +171,17 @@ def main():
             lambda x: get_substs(mode="IDDRX1_ODDRX1", default_cfg=True, pinconn=(".DOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.IREG_OREG.OUTPUT".format(prim), ["DISABLED", "ENABLED"],
             lambda x: get_substs(mode="IREG_OREG", default_cfg=True, pinconn=(".DOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
+
+        if not s:
+            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IDDRX1_ODDRX1.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+                lambda x: get_substs(mode="IDDRX1_ODDRX1", kv=("TOUTMUX", "TSREG"), glb=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
+            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IREG_OREG.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+                lambda x: get_substs(mode="IREG_OREG", kv=("TOUTMUX", "TSREG"), glb=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
+        else:
+            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IDDRX1_ODDRX1.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+                lambda x: get_substs(mode="IDDRX1_ODDRX1", default_cfg=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
+            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IREG_OREG.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+                lambda x: get_substs(mode="IREG_OREG", default_cfg=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
 
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.INMUX".format(prim), ["BYPASS", "DELAY"],
             lambda x: get_substs(mode="IREG_OREG", kv=("INMUX", x), glb=True), False)
