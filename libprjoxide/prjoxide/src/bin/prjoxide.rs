@@ -21,7 +21,7 @@ use include_dir::{include_dir, Dir};
 const DATABASE_DIR: Dir = include_dir!("../../database");
 
 #[derive(Clap)]
-#[clap(version = "0.1", author = "David Shah <dave@ds0.me>")]
+#[clap(version = "0.1", author = "gatecat <gatecat@ds0.me>")]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
