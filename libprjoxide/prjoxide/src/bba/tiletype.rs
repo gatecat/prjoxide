@@ -149,6 +149,10 @@ impl TileType {
                 tt.wires.insert(wire_name);
             }
         }
+        if tt.wires.contains("G:VCC") {
+            tt.wires.insert("LOCAL_VCC".to_string());
+            tt.wire_ids.insert(ids.id("LOCAL_VCC"));
+        }
         // Determine which wires are neighbour wires, and the neighbour they are in
         for wire in tt.wires.iter() {
             let (maybe_n, basewire) = Neighbour::parse_wire(wire);

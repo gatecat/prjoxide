@@ -609,6 +609,14 @@ impl LocationTypes {
         }
     }
 
+    fn remap_vcc<'a>(from_wire: &'a str) -> &'a str {
+        if from_wire == "G:VCC" {
+            return "LOCAL_VCC";
+        } else {
+            return from_wire;
+        }
+    }
+
     pub fn write_locs_bba(
         &self,
         out: &mut BBAStructs,
@@ -683,7 +691,7 @@ impl LocationTypes {
                 for (to_wire, pips) in tts.get(tt).unwrap().data.pips.iter() {
                     let to_wire_idx = data.wires.get_index(&ids.id(to_wire)).unwrap();
                     for pip in pips.iter() {
-                        let from_wire_idx = data.wires.get_index(&ids.id(&pip.from_wire)).unwrap();
+                        let from_wire_idx = data.wires.get_index(&ids.id(Self::remap_vcc(&pip.from_wire))).unwrap();
                         wire_downhill
                             .entry(from_wire_idx)
                             .or_insert(Vec::new())
@@ -701,7 +709,7 @@ impl LocationTypes {
                 for (to_wire, conns) in tts.get(tt).unwrap().data.conns.iter() {
                     let to_wire_idx = data.wires.get_index(&ids.id(to_wire)).unwrap();
                     for pip in conns.iter() {
-                        let from_wire_idx = data.wires.get_index(&ids.id(&pip.from_wire)).unwrap();
+                        let from_wire_idx = data.wires.get_index(&ids.id(Self::remap_vcc(&pip.from_wire))).unwrap();
                         wire_downhill
                             .entry(from_wire_idx)
                             .or_insert(Vec::new())
@@ -715,6 +723,19 @@ impl LocationTypes {
                         pip_index += 1;
                     }
                 }
+            }
+            if let Some(local_vcc_idx) = data.wires.get_index(&ids.id("LOCAL_VCC")) {
+                let global_vcc_idx = data.wires.get_index(&ids.id("G:VCC")).unwrap();
+                wire_downhill
+                    .entry(global_vcc_idx)
+                    .or_insert(Vec::new())
+                    .push(pip_index);
+                wire_uphill
+                    .entry(local_vcc_idx)
+                    .or_insert(Vec::new())
+                    .push(pip_index);
+                out.tile_pip(global_vcc_idx, local_vcc_idx, PIP_FIXED_CONN, 0, ids.id(""))?;
+                pip_index += 1;
             }
             *tt_pip_count.get_mut(i).unwrap() = pip_index;
             // Wire pip and bel lists
