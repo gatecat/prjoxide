@@ -632,6 +632,20 @@ impl LocationTypes {
         None
     }
 
+    fn extra_pip_flags(from_wire: &str, to_wire: &str) -> u16 {
+        let mut flags = 0;
+        // Ensure we only have one non-zero-cost PIP for each permutable LUT input,
+        // to avoid issues with unbalanced congestion costs for different permutations
+        if to_wire.ends_with("_CDMUX") || (to_wire.ends_with("_DRMUX") && !from_wire.starts_with("JC") && !from_wire.starts_with("JF")) {
+            flags |= PIP_ZERO_RR_COST;
+        }
+        // These pips can easily cause congestion if misused
+        if to_wire.ends_with("_DRMUX") && from_wire.starts_with("JC") {
+            flags |= PIP_DRMUX_C;
+        }
+        return flags;
+    }
+
     pub fn write_locs_bba(
         &self,
         out: &mut BBAStructs,
@@ -716,7 +730,7 @@ impl LocationTypes {
                             .or_insert(Vec::new())
                             .push(pip_index);
                         let tmg_cls = self.get_pip_tmg_class(&pip.from_wire, to_wire, tmg);
-                        out.tile_pip(from_wire_idx, to_wire_idx, 0, tmg_cls, tt_id)?;
+                        out.tile_pip(from_wire_idx, to_wire_idx, Self::extra_pip_flags(&pip.from_wire, to_wire), tmg_cls, tt_id)?;
                         pip_index += 1;
                     }
                 }
@@ -766,7 +780,7 @@ impl LocationTypes {
                             .or_insert(Vec::new())
                             .push(pip_index);
                         let tmg_cls = self.get_pip_tmg_class(&pip.from_wire, to_wire, tmg);
-                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN, tmg_cls, tt_id)?;
+                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN | Self::extra_pip_flags(&pip.from_wire, to_wire), tmg_cls, tt_id)?;
                         pip_index += 1;
                     }
                 }

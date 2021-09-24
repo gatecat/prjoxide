@@ -40,6 +40,8 @@ pub const LOC_TRUNK: u32 = 0x004000;
 pub const LOC_MIDMUX: u32 = 0x008000;
 pub const LOC_CMUX: u32 = 0x010000;
 // Pip flags
+pub const PIP_DRMUX_C : u16 = 0x1000;
+pub const PIP_ZERO_RR_COST: u16 = 0x2000;
 pub const PIP_LUT_PERM: u16 = 0x4000;
 pub const PIP_FIXED_CONN: u16 = 0x8000;
 
