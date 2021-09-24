@@ -12,6 +12,11 @@ use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap};
 use std::convert::TryInto;
 use std::iter::FromIterator;
+use regex::Regex;
+
+lazy_static! {
+    static ref LUT_INPUT_RE: Regex = Regex::new(r"^J([ABCD])([01])_SLICE([ABCD])$").unwrap();
+}
 
 pub struct TileLocation {
     tiletypes: Vec<String>,
@@ -617,6 +622,30 @@ impl LocationTypes {
         }
     }
 
+    fn parse_lut_perm(to_wire: &str) -> Option<(u32, u32)> {
+        if let Some(m) = LUT_INPUT_RE.captures(to_wire) {
+            let input = "ABCD".find(&m[1]).unwrap().try_into().unwrap();
+            let lut : u32 ="01".find(&m[2]).unwrap().try_into().unwrap();
+            let slice : u32 = "ABCD".find(&m[3]).unwrap().try_into().unwrap();
+            return Some((input, slice*2+lut));
+        }
+        None
+    }
+
+    fn extra_pip_flags(from_wire: &str, to_wire: &str) -> u16 {
+        let mut flags = 0;
+        // Ensure we only have one non-zero-cost PIP for each permutable LUT input,
+        // to avoid issues with unbalanced congestion costs for different permutations
+        if to_wire.ends_with("_CDMUX") || (to_wire.ends_with("_DRMUX") && !from_wire.starts_with("JC") && !from_wire.starts_with("JF")) {
+            flags |= PIP_ZERO_RR_COST;
+        }
+        // These pips can easily cause congestion if misused
+        if to_wire.ends_with("_DRMUX") && from_wire.starts_with("JC") {
+            flags |= PIP_DRMUX_C;
+        }
+        return flags;
+    }
+
     pub fn write_locs_bba(
         &self,
         out: &mut BBAStructs,
@@ -701,13 +730,45 @@ impl LocationTypes {
                             .or_insert(Vec::new())
                             .push(pip_index);
                         let tmg_cls = self.get_pip_tmg_class(&pip.from_wire, to_wire, tmg);
-                        out.tile_pip(from_wire_idx, to_wire_idx, 0, tmg_cls, tt_id)?;
+                        out.tile_pip(from_wire_idx, to_wire_idx, Self::extra_pip_flags(&pip.from_wire, to_wire), tmg_cls, tt_id)?;
                         pip_index += 1;
                     }
                 }
                 // Fixed connections; also represented as pips
                 for (to_wire, conns) in tts.get(tt).unwrap().data.conns.iter() {
                     let to_wire_idx = data.wires.get_index(&ids.id(to_wire)).unwrap();
+                    if let Some((input, lut)) = Self::parse_lut_perm(to_wire) {
+                        for j in 0..4 {
+                            if j == input {
+                                // Dealt with as a fixed connection below
+                                continue;
+                            }
+                            let flags = PIP_LUT_PERM | ((lut as u16) << 8) | ((j as u16) << 4) | (input as u16);
+                            let from_wire = match j {
+                                0 => format!("JA{}", lut),
+                                1 => format!("JB{}", lut),
+                                2 => format!("JCOUT{}_CDMUX", lut),
+                                3 => format!("JDL{}_DRMUX", lut),
+                                _ => unimplemented!()
+                            };
+                            let tmg_cls = self.get_pip_tmg_class(&from_wire, &format!("J{}{}_SLICE{}",
+                                        "ABCD".chars().nth(j as usize).unwrap(),
+                                        lut % 2,
+                                        "ABCD".chars().nth((lut/2) as usize).unwrap()), 
+                                    tmg);
+                            let from_wire_idx = data.wires.get_index(&ids.id(&from_wire)).unwrap();
+                            wire_downhill
+                                .entry(from_wire_idx)
+                                .or_insert(Vec::new())
+                                .push(pip_index);
+                            wire_uphill
+                                .entry(to_wire_idx)
+                                .or_insert(Vec::new())
+                                .push(pip_index);
+                            out.tile_pip(from_wire_idx, to_wire_idx, flags, tmg_cls, tt_id)?;
+                            pip_index += 1;
+                        }
+                    }
                     for pip in conns.iter() {
                         let from_wire_idx = data.wires.get_index(&ids.id(Self::remap_vcc(&pip.from_wire))).unwrap();
                         wire_downhill
@@ -719,7 +780,7 @@ impl LocationTypes {
                             .or_insert(Vec::new())
                             .push(pip_index);
                         let tmg_cls = self.get_pip_tmg_class(&pip.from_wire, to_wire, tmg);
-                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN, tmg_cls, tt_id)?;
+                        out.tile_pip(from_wire_idx, to_wire_idx, PIP_FIXED_CONN | Self::extra_pip_flags(&pip.from_wire, to_wire), tmg_cls, tt_id)?;
                         pip_index += 1;
                     }
                 }
