@@ -584,6 +584,25 @@ impl Bel {
         }
     }
 
+    pub fn make_dcs() -> Bel {
+        // FIXME: Support DCS1 for CertusPro-NX too
+        let postfix = format!("DCS_DCSIP");
+        Bel {
+            name: format!("DCS0"),
+            beltype: format!("DCS"),
+            pins: vec![
+                input!(&postfix, "CLK0", "Clock input port 0 (default)"),
+                input!(&postfix, "CLK1", "Clock input port 1"),
+                input!(&postfix, "SEL", "Input clock select"),
+                input!(&postfix, "SELFORCE", "Selects glitchless (0) or non-glitchless (1) behavior"),
+                output!(&postfix, "DCSOUT", "Clock output port"),
+            ],
+            rel_x: 0,
+            rel_y: -1,
+            z: 4
+        }
+    }
+
     pub fn make_vcc() -> Bel {
         Bel {
             name: format!("VCC_DRV"),
@@ -720,7 +739,11 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "RMID_DLY20" | "RMID_PICB_DLY10" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
         "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),
         "BMID_0_ECLK_1" => (0..18).map(|x| Bel::make_dcc("B", x)).collect(),
-        "CMUX_0" => (0..4).map(|x| Bel::make_dcc("C", x)).collect(),
+        "CMUX_0" => {
+                let mut bels = (0..4).map(|x| Bel::make_dcc("C", x)).collect::<Vec<Bel>>();
+                bels.push(Bel::make_dcs());
+                bels
+            },
         "GPLL_LLC" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 1, 0)],
         "GPLL_ULC" => vec![Bel::make_pll_core("PLL_ULC", &tiledata, 0, 1)],
         "GPLL_LRC" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, -1, 0)],

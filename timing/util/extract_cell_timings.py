@@ -131,6 +131,9 @@ def rewrite_path(modules, modtype, from_pin, to_pin):
                     return key
                 elif from_pin == "SEL":
                     return ("OXIDE_COMB:WIDEFN9", from_pin, to_pin[:-1])
+        elif celltype.startswith("DCS"):
+            if from_pin in ("CLK0", "CLK1", "SEL", "SELFORCE") and to_pin in ("DCSOUT", "CLK0", "CLK1"):
+                return("DCS:DCS", from_pin, to_pin)
         elif "_INPUT" in modtype or "_OUTPUT" in modtype or "_INOUT" in modtype:
             # PIO config is encoded in name
             ct = modtype.split("__")
