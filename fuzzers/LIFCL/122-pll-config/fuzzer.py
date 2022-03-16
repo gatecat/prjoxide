@@ -30,7 +30,6 @@ def main():
             cfg.sv = "pll.v"
         else:
             cfg.sv = "pll_17.v"
-        print(cfg.sv, cfg.device)
 
         def bin_to_int(x):
             val = 0

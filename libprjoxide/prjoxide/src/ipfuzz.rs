@@ -19,9 +19,10 @@ pub struct IPFuzzer {
     mode: IPFuzzMode,
     ipcore: String,
     iptype: String,
-    base: Chip,                           // bitstream with nothing set
-    deltas: BTreeMap<IPFuzzKey, IPDelta>, // used for words and enums
-    desc: String,                         // description of the setting being fuzzed
+    base: Chip,                             // bitstream with nothing set
+    deltas: BTreeMap<IPFuzzKey, IPDelta>,   // used for words and enums
+    desc: String,                           // description of the setting being fuzzed
+    watched_bits: BTreeSet<(u32, u8)>,       // watched bits , bits that change we are interested in
 }
 
 impl IPFuzzer {
@@ -34,6 +35,7 @@ impl IPFuzzer {
         desc: &str,
         width: usize,
         inverted_mode: bool,
+        watched_bits: &BTreeSet<(u32, u8)>,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Word {
@@ -46,6 +48,7 @@ impl IPFuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            watched_bits: watched_bits.clone(),
         }
     }
     pub fn init_enum_fuzzer(
@@ -54,6 +57,7 @@ impl IPFuzzer {
         fuzz_iptype: &str,
         name: &str,
         desc: &str,
+        watched_bits: &BTreeSet<(u32, u8)>,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Enum {
@@ -64,6 +68,7 @@ impl IPFuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            watched_bits: watched_bits.clone(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: IPFuzzKey, bitfile: &str) {
@@ -74,7 +79,7 @@ impl IPFuzzer {
             .get(&self.ipcore)
             .unwrap();
         let delta: IPDelta =
-            parsed_bitstream.ip_delta(&self.base, addr.addr, addr.addr + (1 << addr.abits));
+            parsed_bitstream.ip_delta(&self.base, addr.addr, addr.addr + (1 << addr.abits), &self.watched_bits);
         self.deltas.insert(key, delta);
     }
     pub fn add_word_sample(&mut self, db: &mut Database, set_bits: Vec<bool>, bitfile: &str) {

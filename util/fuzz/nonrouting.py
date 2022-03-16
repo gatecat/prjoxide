@@ -47,11 +47,11 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
                 opt_bit = config.build_design(config.sv, get_sv_substs((opt, c)), prefix)
                 fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
         else:
-            opt_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
+            opt_bit = config.build_design(config.sv, get_sv_substs(opt), "{}{}_".format(prefix, opt))
             fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
     fz.solve(fuzzconfig.db)
 
-def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=None):
+def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=None, watched_bits=[]):
     """
     Fuzz a multi-bit IP setting with an optimum number of bitstreams
 
@@ -72,7 +72,7 @@ def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=N
 
     baseline = config.build_design(config.sv, get_sv_substs([inverted_mode for _ in range(length)]), prefix)
     ipcore, iptype = config.tiles[0].split(":")
-    fz = libpyprjoxide.IPFuzzer.word_fuzzer(fuzzconfig.db, baseline, ipcore, iptype, name, desc, length, inverted_mode)
+    fz = libpyprjoxide.IPFuzzer.word_fuzzer(fuzzconfig.db, baseline, ipcore, iptype, name, desc, length, inverted_mode, watched_bits)
     for i in range(0, length.bit_length()):
         bits = [(j >> i) & 0x1 == (1 if inverted_mode else 0) for j in range(length)]
         i_bit = config.build_design(config.sv, get_sv_substs(bits), prefix)
@@ -80,7 +80,7 @@ def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=N
     fz.solve(fuzzconfig.db)
 
 
-def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, desc=""):
+def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, desc="", watched_bits=[]):
     """
     Fuzz a multi-bit IP enum with an optimum number of bitstreams
 
@@ -92,7 +92,7 @@ def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, des
     """
     prefix = "thread{}_".format(threading.get_ident())
     ipcore, iptype = config.tiles[0].split(":")
-    fz = libpyprjoxide.IPFuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, ipcore, iptype, name, desc)
+    fz = libpyprjoxide.IPFuzzer.enum_fuzzer(fuzzconfig.db, empty_bitfile, ipcore, iptype, name, desc, watched_bits)
     for opt in values:
         opt_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
         fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)

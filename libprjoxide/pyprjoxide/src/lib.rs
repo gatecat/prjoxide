@@ -4,6 +4,7 @@ use pyo3::wrap_pyfunction;
 
 use std::fs::File;
 use std::io::*;
+use std::collections::BTreeSet;
 
 use prjoxide::bitstream;
 use prjoxide::chip;
@@ -48,6 +49,7 @@ impl Fuzzer {
         desc: &str,
         width: usize,
         zero_bitfile: &str,
+        watched_bits: &PyList,
     ) -> Fuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -63,6 +65,9 @@ impl Fuzzer {
                 desc,
                 width,
                 zero_bitfile,
+                &watched_bits.iter()
+                .map(|x| x.extract::<(usize, usize)>().unwrap())
+                .collect(),
             ),
         }
     }
@@ -95,6 +100,7 @@ impl Fuzzer {
                     .collect(),
                 full_mux,
                 skip_fixed,
+                &BTreeSet::new(),
             ),
         }
     }
@@ -108,6 +114,7 @@ impl Fuzzer {
         desc: &str,
         include_zeros: bool,
         assume_zero_base: bool,
+        watched_bits: &PyList,
     ) -> Fuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -122,6 +129,9 @@ impl Fuzzer {
                 desc,
                 include_zeros,
                 assume_zero_base,
+                &watched_bits.iter()
+                .map(|x| x.extract::<(usize, usize)>().unwrap())
+                .collect(),
             ),
         }
     }
@@ -160,6 +170,7 @@ impl IPFuzzer {
         desc: &str,
         width: usize,
         inverted_mode: bool,
+        watched_bits: &PyList,
     ) -> IPFuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -173,6 +184,9 @@ impl IPFuzzer {
                 desc,
                 width,
                 inverted_mode,
+                &watched_bits.iter()
+                .map(|x| x.extract::<(u32, u8)>().unwrap())
+                .collect(),
             ),
         }
     }
@@ -185,6 +199,7 @@ impl IPFuzzer {
         fuzz_iptype: &str,
         name: &str,
         desc: &str,
+        watched_bits: &PyList,
     ) -> IPFuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -195,6 +210,9 @@ impl IPFuzzer {
                 fuzz_iptype,
                 name,
                 desc,
+                &watched_bits.iter()
+                .map(|x| x.extract::<(u32, u8)>().unwrap())
+                .collect(),
             ),
         }
     }
