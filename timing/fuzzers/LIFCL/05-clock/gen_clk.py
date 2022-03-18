@@ -125,7 +125,7 @@ for i in range(N):
     print('    always @(posedge {clk}) r[{i} + 1] <= r[{i}];'.format(clk=clkwire, i=i))
 
 for pll in used_plls:
-    print()
+    print("")
     for sig in pll_pins:
         print('    wire {}_{};'.format(pll, sig))
     print('    (* LOC="{}" *)'.format(pll))
