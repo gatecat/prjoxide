@@ -51,7 +51,7 @@ impl BitMatrix {
     }
     // Get a list of the differences
     // as a tuple (frame, bit, new value)
-    pub fn delta(&self, base: &Self, watched_bits: &BTreeSet<(usize,usize)>) -> Vec<(usize, usize, bool)> {
+    pub fn delta(&self, base: &Self) -> Vec<(usize, usize, bool)> {
         base.data
             .iter()
             .zip(self.data.iter())
@@ -59,14 +59,10 @@ impl BitMatrix {
             .filter_map(|(i, (o, n))| {
                 let f = i / self.bits;
                 let b = i % self.bits;
-                if (watched_bits.len() == 0) || watched_bits.contains(&(f,b)) {
-                    match (o, n) {
-                        (false, true) => Some((f, b, true)),  // going high
-                        (true, false) => Some((f, b, false)), // going low
-                        _ => None,
-                    }
-                } else {
-                    None
+                match (o, n) {
+                    (false, true) => Some((f, b, true)),  // going high
+                    (true, false) => Some((f, b, false)), // going low
+                    _ => None,
                 }
             })
             .collect()
@@ -286,26 +282,25 @@ impl Chip {
         }
     }
     // Compare two chips
-    pub fn delta(&self, base: &Self, watched_bits: &BTreeSet<(usize,usize)>) -> ChipDelta {
+    pub fn delta(&self, base: &Self) -> ChipDelta {
         base.tiles
             .iter()
             .zip(self.tiles.iter())
             .map(|(t1, t2)| {
                 assert_eq!(t1.name, t2.name);
-                (t1.name.to_string(), t2.cram.delta(&t1.cram, watched_bits))
+                (t1.name.to_string(), t2.cram.delta(&t1.cram))
             })
             .filter(|(_k, v)| v.len() > 0)
             .collect()
     }
     // Compare the IP config of two chips
-    pub fn ip_delta(&self, base: &Self, start_addr: u32, end_addr: u32, watched_bits: &BTreeSet<(u32,u8)> ) -> IPDelta {
+    pub fn ip_delta(&self, base: &Self, start_addr: u32, end_addr: u32) -> IPDelta {
         let mut delta = IPDelta::new();
         for a in start_addr..end_addr {
             let d1 = self.ipconfig.get(&a).unwrap_or(&0x00);
             let d0 = base.ipconfig.get(&a).unwrap_or(&0x00);
             for b in 0..8 {
-                if (d1 >> b) & (0x1 as u8) != (d0 >> b) & (0x1 as u8) &&
-                   (watched_bits.len() == 0 || watched_bits.contains(&(a-start_addr,b))) {
+                if (d1 >> b) & (0x1 as u8) != (d0 >> b) & (0x1 as u8) {
                     delta.push((a - start_addr, b, ((d1 >> b) & (0x1 as u8)) != 0));
                 }
             }

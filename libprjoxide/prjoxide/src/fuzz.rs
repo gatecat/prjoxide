@@ -35,10 +35,9 @@ enum FuzzKey {
 pub struct Fuzzer {
     mode: FuzzMode,
     tiles: BTreeSet<String>,
-    base: Chip,                                 // bitstream with nothing set
-    deltas: BTreeMap<FuzzKey, ChipDelta>,       // used for arcs, words and enums
-    desc: String,                               // description of the setting being fuzzed
-    watched_bits: BTreeSet<(usize, usize)>,     // watched bits , bits that change we are interested in
+    base: Chip,                           // bitstream with nothing set
+    deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs, words and enums
+    desc: String,                         // description of the setting being fuzzed
 }
 
 impl Fuzzer {
@@ -50,7 +49,6 @@ impl Fuzzer {
         ignore_tiles: &BTreeSet<String>,
         full_mux: bool,
         skip_fixed: bool,
-        watched_bits: &BTreeSet<(usize, usize)>,
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Pip {
@@ -64,7 +62,6 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: "".to_string(),
-            watched_bits: watched_bits.clone(),
         }
     }
     pub fn init_word_fuzzer(
@@ -75,7 +72,6 @@ impl Fuzzer {
         desc: &str,
         width: usize,
         _zero_bitfile: &str,
-        watched_bits: &BTreeSet<(usize, usize)>,
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Word {
@@ -86,7 +82,6 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
-            watched_bits: watched_bits.clone(),
         }
     }
     pub fn init_enum_fuzzer(
@@ -96,7 +91,6 @@ impl Fuzzer {
         desc: &str,
         include_zeros: bool,
         assume_zero_base: bool,
-        watched_bits: &BTreeSet<(usize, usize)>,
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Enum {
@@ -109,12 +103,11 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
-            watched_bits: watched_bits.clone(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
         let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
-        let delta: ChipDelta = parsed_bitstream.delta(&self.base, &self.watched_bits);
+        let delta: ChipDelta = parsed_bitstream.delta(&self.base);
         if let Some(d) = self.deltas.get_mut(&key) {
             // If key already in delta, take the intersection of the two
             let intersect: ChipDelta = d
