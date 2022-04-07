@@ -47,7 +47,7 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
                 opt_bit = config.build_design(config.sv, get_sv_substs((opt, c)), prefix)
                 fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
         else:
-            opt_bit = config.build_design(config.sv, get_sv_substs(opt), prefix)
+            opt_bit = config.build_design(config.sv, get_sv_substs(opt), "{}{}_".format(prefix, opt))
             fz.add_enum_sample(fuzzconfig.db, opt, opt_bit)
     fz.solve(fuzzconfig.db)
 

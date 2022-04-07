@@ -14,12 +14,22 @@ cfgs = [
     ("PLL_LRC",
         FuzzConfig(job="PLL_LL", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R53C87:GPLL_LRC"]),
     ),
+    ("PLL_LLC",
+        FuzzConfig(job="PLL_LL", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R29C1:GPLL_LLC_15K"]),
+    ),
+    ("PLL_LRC",
+        FuzzConfig(job="PLL_LL", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R29C74:GPLL_LRC_15K"]),
+    ),
 ]
+
 def main():
     for prim, cfg in cfgs:
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
-        cfg.sv = "pll.v"
+        if cfg.device == "LIFCL-40":
+            cfg.sv = "pll.v"
+        else:
+            cfg.sv = "pll_17.v"
 
         def bin_to_int(x):
             val = 0

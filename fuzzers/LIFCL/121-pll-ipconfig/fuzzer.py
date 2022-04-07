@@ -57,7 +57,6 @@ def main():
         ("REF_MMD_IN", 8, bin2bin, ""),
         ("REF_MMD_PULS_CTL", 4, bin2bin, ""),
         ("REF_TIMING_CTL", 2, bin2bin, ""),
-        ("RESERVED", 7, bin2bin, ""),
         ("SSC_DELTA", 15, bin2bin, ""),
         ("SSC_DELTA_CTL", 2, bin2bin, ""),
         ("SSC_F_CODE", 15, bin2bin, ""),
@@ -132,11 +131,20 @@ def main():
         ("TRIMOS2_BYPASS_N", bypuse, "bypass CLKOS2 trimming"),
         ("TRIMOS3_BYPASS_N", bypuse, "bypass CLKOS3 trimming"),
         ("TRIMOS4_BYPASS_N", bypuse, "bypass CLKOS4 trimming"),
-        ("V2I_KVCO_SEL", [str(x) for x in range(10, 90, 5)], ""),
+        ("TRIMOS5_BYPASS_N", bypuse, "bypass CLKOS5 trimming"),
+        ("V2I_KVCO_SEL", [str(x) for x in range(10, 120, 5)], ""),
         ("V2I_1V_EN", endis, "PLL VCC selection"),
     ]
     empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K"))
     for name, options, desc in enum_settings:
-        nonrouting.fuzz_ip_enum_setting(cfg, empty, name, options, lambda x: dict(k=name, v=x), desc)
+        func = lambda x: dict(k=name, v=x)
+        if name == "V2I_KVCO_SEL":
+            cfg.sv = "pll_2.v"
+            empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K", ldt="LDT_LOCK_SEL", ldt_val="U_FREQ"))
+            func = lambda x: dict(k=name, v=x, ldt="LDT_LOCK_SEL", ldt_val="U_FREQ")
+        nonrouting.fuzz_ip_enum_setting(cfg, empty, name, options, func, desc)
+        if name == "V2I_KVCO_SEL":
+            cfg.sv = "pll.v"
+            empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K"))
 if __name__ == "__main__":
     main()

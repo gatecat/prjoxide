@@ -64,8 +64,8 @@ pub fn write(c: &Chip, db: &mut Database, ids: &mut IdStringDB, graph: &IcGraph,
                         p.set_wire0(pip_data.src_wire.try_into().unwrap());
                         p.set_wire1(pip_data.dst_wire.try_into().unwrap());
                         p.set_directional(true);
-                        p.set_buffered20(true);
-                        p.set_buffered21(false);
+                        p.set_buffered20(false);
+                        p.set_buffered21(true);
                         p.set_sub_tile(pip_data.sub_tile.try_into().unwrap());
                         p.set_timing(pip_data.tmg_idx.try_into().unwrap());
                         if pip_data.pseudo_cells.is_empty() {
