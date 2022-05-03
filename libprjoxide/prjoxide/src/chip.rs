@@ -117,6 +117,8 @@ pub struct Chip {
     pub settings: BTreeMap<String, String>,
     // number of TAP frames
     pub tap_frame_count: usize,
+    // bits masked for ecc purposes
+    pub ecc_masked: BTreeSet<(usize, usize)>,
 }
 
 pub type ChipDelta = BTreeMap<String, Vec<(usize, usize, bool)>>;
@@ -145,7 +147,8 @@ impl Chip {
             tap_frame_count: match device {
                 "LFCPNX-100" => 42,
                 _ => 24,
-            }
+            },
+            ecc_masked: BTreeSet::new(),
         };
         c.tiles_by_name = c
             .tiles
@@ -226,8 +229,28 @@ impl Chip {
                 chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
             }
         }
-        chip.tiles_to_cram();
+        chip.tiles_to_cram(db);
         return chip;
+    }
+    pub fn update_ecc_mask(&mut self, db: &mut Database) {
+        let bitdb = &db.tile_bitdb(&self.family, "PLC").db;
+        self.ecc_masked.clear();
+        for t in self.tiles.iter() {
+            if t.tiletype != "PLC" {
+                continue;
+            }
+            // Find logic tiles in DPRAM mode
+            let mode_bits = bitdb.enums.get("SLICEC.MODE").unwrap().options.get("RAMW").unwrap();
+            if mode_bits.iter().all(|b| t.cram.get(b.frame, b.bit) != b.invert) {
+                // If in DPRAM mode, mask out the init of the lower two SLICEs
+                for s in ["SLICEA.K0.INIT", "SLICEA.K1.INIT", "SLICEB.K0.INIT", "SLICEB.K1.INIT"] {
+                    let slice_bits = bitdb.words.get(s).unwrap();
+                    for bit in slice_bits.bits.iter().flatten() {
+                        self.ecc_masked.insert((t.start_frame + bit.frame, t.start_bit + bit.bit));
+                    }
+                }
+            }
+        }
     }
     // Copy the whole-chip CRAM to the per-tile CRAM
     pub fn cram_to_tiles(&mut self) {
@@ -237,7 +260,8 @@ impl Chip {
         }
     }
     // Copy the per-tile CRAM windows to the whole chip CRAM
-    pub fn tiles_to_cram(&mut self) {
+    pub fn tiles_to_cram(&mut self, db: &mut Database) {
+        self.update_ecc_mask(db);
         for t in self.tiles.iter() {
             self.cram.copy_window(&t.cram, t.start_frame, t.start_bit);
         }

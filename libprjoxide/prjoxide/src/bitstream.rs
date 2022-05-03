@@ -316,7 +316,11 @@ impl BitstreamParser {
             for j in (0..bits_per_frame).rev() {
                 let ofs = (j + pad_bits) as usize;
                 let value = c.cram.get(frame_idx, j);
-                self.update_ecc(value);
+                if c.ecc_masked.contains(&(frame_idx, j)) {
+                    self.update_ecc(false);
+                } else {
+                    self.update_ecc(value);
+                }
                 if value {
                     frame_bytes[(total_frame_bytes - 1) - (ofs / 8)] |= 1 << (ofs % 8);
                 }
