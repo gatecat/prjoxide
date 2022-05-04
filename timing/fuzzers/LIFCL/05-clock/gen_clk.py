@@ -44,11 +44,11 @@ print("    input d,")
 print("    output q")
 print(");")
 
-print("    reg [{}:0] r;".format(N))
+print("    reg [{}:0] r;".format(N+4))
 print("    always @* r[0] = d;")
 print("    assign q = r[{}];".format(N))
 
-print("    wire [3:0] ctrl = r[5:2];")
+print("    wire [3:0] ctrl = r[24:21];")
 
 
 clock_sources = []
@@ -66,13 +66,22 @@ for dcs in central_dcs:
 
 random.shuffle(clock_sources)
 
+for i in range(18, 20):
+    if clock_sources[i][0] == "dcs":
+        clock_sources[i], clock_sources[17] = clock_sources[17], clock_sources[i]
+
 used_plls = set()
 
 j = 0
+clkwire_final = None
 
 def get_source():
     global j
+    global clkwire_final
+    if j == N:
+        return clkwire_final
     srctype, src = clock_sources.pop()
+    clkwire = None
     if srctype == "pin":
         clkwire = "pin_{}".format(src)
     elif srctype == "pll":
@@ -118,11 +127,20 @@ def get_source():
         ))
         clkwire = dccwire
     j += 1
+    if j == N:
+        clkwire_final = clkwire
     return clkwire
 
+last_clkwire = None
 for i in range(N):
     clkwire = get_source()
     print('    always @(posedge {clk}) r[{i} + 1] <= r[{i}];'.format(clk=clkwire, i=i))
+    last_clkwire = clkwire
+
+print('    always @(posedge {clk}) r[21] <= r[20];'.format(clk=last_clkwire))
+print('    always @(posedge {clk}) r[22] <= r[21];'.format(clk=last_clkwire))
+print('    always @(posedge {clk}) r[23] <= r[22];'.format(clk=last_clkwire))
+print('    always @(posedge {clk}) r[24] <= r[23];'.format(clk=last_clkwire))
 
 for pll in used_plls:
     print("")
@@ -132,7 +150,7 @@ for pll in used_plls:
     print('    PLL_CORE pll_{} ('.format(pll))
     print('        .REFCK(pllin_{}),'.format(pll))
     for sig in pll_pins:
-           print('        .{}({}_{}),'.format(sig, pll, sig)) 
+           print('        .{}({}_{}),'.format(sig, pll, sig))
     print('        .FBKCK({}_CLKOP)'.format(pll))
     print('    );')
 print('endmodule')
