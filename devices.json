@@ -15,7 +15,8 @@
                     "fuzz": true,
                     "variants": {
                         "": {"idcode": 286199875},
-                        "ES": {"idcode": 17764419}
+                        "ES": {"idcode": 17764419},
+                        "ES2": {"idcode": 134678561}
                     }
                 },
                 "LFD2NX-40": {
