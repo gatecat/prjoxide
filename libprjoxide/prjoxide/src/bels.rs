@@ -819,18 +819,20 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
                 _ => panic!("bad DSP tile {}", &tile.tiletype)
             }
         }
-        "DCC" => match &bel.name[..] {
+        "DCC" => match &bel.name[..5] {
             "DCC_T" => match bel.z {
                 0..=7  => vec![tn],
-                8..=15 => vec![rel_tile_prefix(1, 0, "TMID_1")],
+                8..=15 => vec![tn, rel_tile_prefix(1, 0, "TMID_1")],
                 _ => panic!("bad DCC_T tile {}", &tile.tiletype)
             }
             "DCC_B" => match bel.z {
                 0..=8  => vec![tn],
-                9..=17 => vec![rel_tile(1, 0, "BMID_1_ECLK_2")],
+                9..=17 => vec![tn, rel_tile(1, 0, "BMID_1_ECLK_2")],
                 _ => panic!("bad DCC_B tile {}", &tile.tiletype)
             }
-            _ => vec![tn]
+            _ => {
+                vec![tn]
+            }
         }
         _ => vec![tn]
     }
