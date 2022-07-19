@@ -615,11 +615,11 @@ impl Bel {
         }
     }
 
-    pub fn make_pll_core(name: &str, tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32) -> Bel {
+    pub fn make_pll_core(name: &str, tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32, is_17k: bool) -> Bel {
         Bel {
             name: name.to_string(),
             beltype: "PLL_CORE".to_string(),
-            pins: Bel::get_io(&tiledata, "_PLL_CORE_PLL_LMMI", rel_x, rel_y),
+            pins: Bel::get_io(&tiledata, if is_17k { "_PLL_CORE_PLL_LMMI" } else { "_PLL_CORE_I_PLL_LMMI" }, rel_x, rel_y),
             rel_x: rel_x,
             rel_y: rel_y,
             z: 0,
@@ -743,11 +743,11 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
                 bels.push(Bel::make_dcs());
                 bels
             },
-        "GPLL_LLC" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 1, 0)],
-        "GPLL_ULC" => vec![Bel::make_pll_core("PLL_ULC", &tiledata, 0, 1)],
-        "GPLL_LRC" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, -1, 0)],
-        "GPLL_LLC_15K" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 0, -1)],
-        "GPLL_LRC_15K" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, 0, -1)],
+        "GPLL_LLC" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 1, 0, false)],
+        "GPLL_ULC" => vec![Bel::make_pll_core("PLL_ULC", &tiledata, 0, 1, false)],
+        "GPLL_LRC" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, -1, 0, false)],
+        "GPLL_LLC_15K" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 0, -1, true)],
+        "GPLL_LRC_15K" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, 0, -1, true)],
         "LRAM_0" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, -5)],
         "LRAM_1" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, -1)],
 
