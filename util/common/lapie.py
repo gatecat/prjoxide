@@ -23,8 +23,12 @@ def run(commands, workdir=None):
     # meh, fails sometimes
     # assert result == 0, "lapie returned non-zero status code {}".format(result)
     outfile = path.join(workdir, 'lapie.log')
+    output = ""
     with open(outfile, 'r') as f:
-        output = f.read()
+        for line in f:
+            if line.startswith("WARNING - "):
+                continue
+            output += line
     # Strip Lattice header
     delimiter = "-" * 80
     output = output[output.rindex(delimiter)+81:].strip()
@@ -117,22 +121,18 @@ def get_node_data(udb, nodes, regex=False):
         return parse_node_report(nf.read())
 
 def list_nets(udb):
-    output = run_with_udb(udb, ['des_list_net'])
-    net_list = []
-    in_nets = False
+    # des_list_net no longer works?
+    output = run_with_udb(udb, ['des_report_instance'])
+    net_list = set()
 
     for line in output.split('\n'):
-        if 'Successfully loading udb' in line:
-            in_nets = True
-        elif in_nets:
-            if '-------------------------------------' in line:
-                break
-            else:
-                net_name = line.strip()
-                if len(net_name) > 0:
-                    net_list.append(net_name)
-
-    return net_list
+        net_re = re.compile(r'.*sig=([A-Za-z0-9_\[\]()./]+).*')
+        m = net_re.match(line)
+        if m:
+            if m.group(1) == "n/a":
+                continue
+            net_list.add(m.group(1))
+    return list(sorted(net_list))
 
 
 class NetPin:
