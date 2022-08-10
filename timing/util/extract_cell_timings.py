@@ -53,6 +53,20 @@ ebr_prefixes = [
     "ADA",
     "ADB",
 ]
+lram_prefixes = [
+    "DIA",
+    "DIB",
+    "DOA",
+    "DOB",
+    "CSA",
+    "CSB",
+    "ADA",
+    "ADB",
+    "BENA_N",
+    "BENB_N",
+    "ERRDECA",
+    "ERRDECB",
+]
 
 # Which IOLOGIC signals are relevant for which purposes...
 iol_input_sigs = ["SCLKIN", "CEIN", "LSRIN", "INFF", "DI", "WORDALIGN"] + ["RXDATA{}".format(i) for i in range(10)]
@@ -218,6 +232,8 @@ def rewrite_path(modules, modtype, from_pin, to_pin):
             if not celltype.startswith(ebr_type):
                 continue
             return (ebr_type, strip_prefix_ebr(from_pin, ebr_prefixes), strip_prefix_ebr(to_pin, ebr_prefixes))
+        if celltype.startswith("LRAM_CORE"):
+            return ("LRAM_CORE", strip_prefix(from_pin, lram_prefixes), strip_prefix(to_pin, lram_prefixes))
     return None
 
 def main():
