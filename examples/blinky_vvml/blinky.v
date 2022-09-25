@@ -1,4 +1,4 @@
-// Simple blinky example for the LIFCL-40-EVN board
+// Simple blinky example for the LIFCL-40-VVML board
 
 module top(input gsrn, output [3:0] led);
 	wire clk;
