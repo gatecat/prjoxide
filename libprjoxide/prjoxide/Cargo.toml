@@ -20,8 +20,7 @@ pulldown-cmark = "0.6.1"
 itertools = "0.8.2"
 num-bigint = "0.4.0"
 log = "0.4.11"
-clap = "<=3.0.0-beta.2"
-clap_derive = "<=3.0.0-beta.2"
+clap = { version = "3.1", features = ["derive"] }
 include_dir = "0.6.0"
 capnp = {version = "0.14", optional = true }
 flate2 = {version = "1.0", optional = true }

@@ -1,4 +1,4 @@
-use clap::Clap;
+use clap::Parser;
 
 use prjoxide::bba::bbafile::*;
 use prjoxide::bba::bbastruct::*;
@@ -20,33 +20,34 @@ use include_dir::{include_dir, Dir};
 
 const DATABASE_DIR: Dir = include_dir!("../../database");
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[clap(version = "0.1", author = "gatecat <gatecat@ds0.me>")]
 struct Opts {
     #[clap(subcommand)]
     subcmd: SubCommand,
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 enum SubCommand {
-    #[clap(about = "pack FASM into a bitstream")]
+    /// pack FASM into a bitstream.
     Pack(Pack),
-    #[clap(about = "unpack a bitstream into FASM")]
+    /// unpack a bitstream into FASM.
     Unpack(Unpack),
-    #[clap(about = "export a BBA file for the nextpnr build")]
+    /// export a BBA file for the nextpnr build.
     BBAExport(BBAExport),
     #[cfg(feature = "interchange")]
-    #[clap(about = "export a FPGA interchange file (not yet implemented)")]
+    /// export a FPGA interchange file (not yet implemented).
     InterchangeExport(InterchangeExport),
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct Pack {
-    #[clap(long, about = "create background programmable bitstream (advanced)")]
+    /// create background programmable bitstream (advanced).
+    #[clap(long)]
     background: bool,
-    #[clap(about = "input FASM file")]
+    /// input FASM file.
     fasm: String,
-    #[clap(about = "output bitstream")]
+    /// output bitstream.
     bitstream: String,
 
 }
@@ -68,11 +69,11 @@ impl Pack {
     }
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct Unpack {
-    #[clap(about = "input bitstream")]
+    /// input bitstream.
     bitstream: String,
-    #[clap(about = "output FASM file")]
+    /// output FASM file.
     fasm: String,
 }
 
@@ -106,13 +107,13 @@ impl Unpack {
     }
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 struct BBAExport {
-    #[clap(about = "device family name")]
+    /// device family name.
     family: String,
-    #[clap(about = "path to nextpnr constids.inc")]
+    /// path to nextpnr constids.inc.
     constids: String,
-    #[clap(about = "path to output bba file")]
+    /// path to output bba file.
     bba: String,
 }
 
@@ -182,12 +183,12 @@ impl BBAExport {
     }
 }
 
-#[derive(Clap)]
+#[derive(Parser)]
 #[cfg(feature = "interchange")]
 struct InterchangeExport {
-    #[clap(about = "device name")]
+    /// device name.
     device: String,
-    #[clap(about = "path to output interchange file")]
+    /// path to output interchange file.
     interchange: String,
 }
 
