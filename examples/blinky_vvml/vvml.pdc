@@ -1,0 +1,11 @@
+ldc_set_location -site {H1} [get_ports {led[0]}]
+ldc_set_location -site {J1} [get_ports {led[1]}]
+ldc_set_location -site {H5} [get_ports {led[2]}]
+ldc_set_location -site {H6} [get_ports {led[3]}]
+ldc_set_location -site {L2} [get_ports gsrn]
+
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[0]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[1]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[2]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports {led[3]}]
+ldc_set_port -iobuf {IO_TYPE=LVCMOS33} [get_ports gsrn]
