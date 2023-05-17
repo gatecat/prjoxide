@@ -53,6 +53,10 @@ const ISC_PROGRAM_DONE: u8 = 0b01011110;
 const LSC_POWER_CTRL: u8 = 0b001010110;
 const DUMMY: u8 = 0b11111111;
 
+// Signing related (we just ignore)
+const LSC_AUTH_CTRL: u8 = 0b01011000;
+
+
 // CRC16 constants
 const CRC16_POLY: u16 = 0x8005;
 const CRC16_INIT: u16 = 0x0000;
@@ -500,6 +504,11 @@ impl BitstreamParser {
                     self.skip_bytes(3);
                     curr_frame = self.get_u32();
                     println!("set frame address to 0x{:08X}", curr_frame);
+                }
+                LSC_AUTH_CTRL => {
+                    self.skip_bytes(3);
+                    self.skip_bytes(64);
+                    println!("LSC_AUTH_CTRL (bitstream is probably signed!)");
                 }
                 LSC_PROG_INCR_RTI => {
                     let cfg = self.get_byte();
