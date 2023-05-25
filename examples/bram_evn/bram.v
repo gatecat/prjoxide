@@ -21,8 +21,8 @@ module top(input clk,
     reg [(RAM_WIDTH-1):0] ram [0:(RAM_DEPTH-1)]; 
     wire [(RAM_WIDTH-1):0] w_data;
     reg [(RAM_WIDTH-1):0] r_data;
-    reg [(ADDR_WIDTH-1):0] w_addr;
-    reg [(ADDR_WIDTH-1):0] r_addr;
+    wire [(ADDR_WIDTH-1):0] w_addr;
+    wire [(ADDR_WIDTH-1):0] r_addr;
     wire w_en;
     wire r_en; 
     always @(posedge clk) begin
@@ -42,20 +42,8 @@ module top(input clk,
     assign w_data = sw;
     assign led[13:RAM_WIDTH] = {14-RAM_WIDTH{1'b1}};
     assign led[RAM_WIDTH-1:0] = ~(w_en ? sw : r_data);
-
-    //// Address increment to prevent synthesis
-    // from simplifying bram away
-    always @(posedge clk) begin
-        if (w_en) begin
-            w_addr <= w_addr + 10'd1;
-        end
-    end
-
-    always @(posedge clk) begin
-        if (r_en) begin
-            r_addr <= r_addr + 10'd1;
-        end
-    end
+    assign w_addr = sw;
+    assign r_addr = sw;
 
     //// //// //// ////  RAM
     initial begin
