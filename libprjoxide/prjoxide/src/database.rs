@@ -619,7 +619,7 @@ impl Database {
                 }
             };
             self.tilebits
-                .insert(key.clone(), TileBitsData::new(tiletype.clone(), tb));
+                .insert(key.clone(), TileBitsData::new(tiletype, tb));
         }
         self.tilebits.get_mut(&key).unwrap()
     }
@@ -642,7 +642,7 @@ impl Database {
                 }
             };
             self.ipbits
-                .insert(key.clone(), TileBitsData::new(iptype.clone(), tb));
+                .insert(key.clone(), TileBitsData::new(iptype, tb));
         }
         self.ipbits.get_mut(&key).unwrap()
     }

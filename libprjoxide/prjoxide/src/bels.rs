@@ -768,7 +768,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
     let tn = tile.name.to_string();
     let rel_tile = |dx: i32, dy: i32, tt: &str| {
         chip.tile_by_xy_type((tile.x as i32 + dx).try_into().unwrap(),
-            (tile.y as i32 + dy).try_into().unwrap(), tt.clone()).unwrap().name.to_string()
+            (tile.y as i32 + dy).try_into().unwrap(), tt).unwrap().name.to_string()
     };
 
     let rel_tile_prefix = |dx, dy, tt_prefix| {
