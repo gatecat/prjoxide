@@ -432,7 +432,7 @@ impl LocationTypes {
         for lg in lgs.iter_mut() {
             for y in 0..lg.height {
                 for x in 0..lg.width {
-                    let mut loc = lg.get_mut(x, y).unwrap();
+                    let loc = lg.get_mut(x, y).unwrap();
 
                     let loc_key = LocTypeKey {
                         tiletypes: loc.tiletypes.iter().map(|tt| tt.to_string()).collect(),
@@ -464,7 +464,7 @@ impl LocationTypes {
                         },
                         NeighbourhoodData::new(),
                     );
-                    let mut loc = lg.get_mut(x, y).unwrap();
+                    let loc = lg.get_mut(x, y).unwrap();
                     loc.neigh_type_at_loc = Some(nt);
                 }
             }
