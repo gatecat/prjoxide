@@ -75,7 +75,7 @@ iol_dly_sigs = ["INDD", "DIR", "LOAD_N", "MOVE", "CFLAG"]
 
 subtracts = {}
 
-def rewrite_path(modules, modtype, from_pin, to_pin):
+def rewrite_path(modules, modtype, from_pin, to_pin, cellconf=None):
     # Rewrite a (celltype, from_pin, to_pin) tuple given cell data, or returns None to drop the path
     # This looks at the JSON output by Yosys from the Lattice structural Verilog netlist in order
     # to determine what the cells in the SDF file are actually doing
@@ -233,7 +233,17 @@ def rewrite_path(modules, modtype, from_pin, to_pin):
                 continue
             return (ebr_type, strip_prefix_ebr(from_pin, ebr_prefixes), strip_prefix_ebr(to_pin, ebr_prefixes))
         if celltype.startswith("LRAM_CORE"):
-            return ("LRAM_CORE", strip_prefix(from_pin, lram_prefixes), strip_prefix(to_pin, lram_prefixes))
+            conf_str = ""
+            if cellconf is not None:
+                spen = "ENABLE" if cellconf["type"] == "SP512K" else "DISABLE"
+                if "OUTREG" in cellconf["params"]:
+                    oreg_a = cellconf["params"]["OUTREG"]
+                    oreg_b = cellconf["params"]["OUTREG"]
+                else:
+                    oreg_a = cellconf["params"]["OUTREG_A"]
+                    oreg_b = cellconf["params"]["OUTREG_B"]
+                conf_str = ":{},{},{}".format(spen, oreg_a, oreg_b)
+            return ("LRAM_CORE" + conf_str, strip_prefix(from_pin, lram_prefixes), strip_prefix(to_pin, lram_prefixes))
     return None
 
 def main():
@@ -256,13 +266,23 @@ def main():
         with open(sdffile, "rb") as sdff:
             sdf = pickle.load(sdff)
 
+        # Load cell configuration if any
+        conffile = netlist.rsplit("_", maxsplit=1)[0] + ".json"
+        try:
+            with open(conffile, "r") as fp:
+                conf = json.load(fp)
+        except FileNotFoundError:
+            conf = dict()
+
         speed = sdffile.replace(".sdf.pickle", "").split("_")[-1]
         assert speed in speedgrades
         for cell in sdf.cells.values():
             celltype = unescape_sdf_name(cell.type)
+            if conf is not None:
+                cellconf = conf.get(cell.inst.split("\\",maxsplit=1)[0], None)
             for entry in cell.entries:
                 if isinstance(entry, IOPath):
-                    rewritten = rewrite_path(modules, celltype, entry.from_pin, entry.to_pin)
+                    rewritten = rewrite_path(modules, celltype, entry.from_pin, entry.to_pin, cellconf)
                     if rewritten is None:
                         continue
                     if rewritten in iopaths[speed]:
