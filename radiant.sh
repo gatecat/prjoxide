@@ -27,6 +27,13 @@ case "${PART}" in
 		LSE_ARCH="lifcl"
 		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
 		;;
+	LIFCL-33U)
+		PACKAGE="${DEV_PACKAGE:-FCCSP104}"
+		DEVICE="LIFCL-33U"
+		LSE_ARCH="lifcl"
+		SPEED_GRADE="${SPEED_GRADE:-8_High-Performance_1.0V}"
+		;;
+
 	LIFCL-40)
 		PACKAGE="${DEV_PACKAGE:-CABGA400}"
 		DEVICE="LIFCL-40"

@@ -34,6 +34,22 @@
                         "": {"idcode": 823070787}
                     }
                 },
+                "LIFCL-33U": {
+                    "packages": ["CABGA196", "CSFBGA104"],
+                    "idcode": 17805379,
+                    "frames": 5344,
+                    "bits_per_frame": 1003,
+                    "pad_bits_after_frame": 0,
+                    "pad_bits_before_frame": 0,
+                    "frame_ecc_bits": 14,
+                    "max_row" : 30,
+                    "max_col" : 41,
+                    "col_bias" : 0,
+                    "fuzz": false,
+                    "variants": {
+                        "": {"idcode": 17805379}
+                    }
+                },
                 "LIFCL-17": {
                     "packages": ["QFN72", "csfBGA121", "caBGA256"],
                     "idcode": 17760323,

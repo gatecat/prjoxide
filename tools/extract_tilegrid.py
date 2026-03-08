@@ -59,6 +59,10 @@ tap_frame_to_col_17 = {
     28: 50,
     34: 62
 }
+tap_frame_to_col_33u = {
+    16: 14,
+    22: 38,
+}
 
 def get_tf2c(dev):
     if dev == "LFCPNX-100":
@@ -67,6 +71,8 @@ def get_tf2c(dev):
         return tap_frame_to_col_40
     elif dev == "LIFCL-17":
         return tap_frame_to_col_17
+    elif dev == "LIFCL-33U":
+        return tap_frame_to_col_33u
     else:
         assert False
 

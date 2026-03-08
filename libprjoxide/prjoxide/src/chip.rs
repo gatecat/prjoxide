@@ -354,6 +354,8 @@ impl Chip {
             format!("SG{}", &long_name[3..])
         } else if long_name.starts_with("WLCSP") {
             format!("UWG{}", &long_name[5..])
+        } else if long_name.starts_with("FCCSP") {
+            format!("CTG{}", &long_name[5..])
         } else {
             panic!("unknown package name {}", &long_name);
         }

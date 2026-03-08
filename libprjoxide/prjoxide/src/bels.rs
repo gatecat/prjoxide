@@ -774,6 +774,7 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "GPLL_LLC_15K" => vec![Bel::make_pll_core("PLL_LLC", &tiledata, 0, -1, true)],
         "GPLL_LRC_15K" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, 0, -1, true)],
         "LRAM_0" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, -5)],
+        "LRAM_0_33U" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, 0)],
         "LRAM_1" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, -1)],
 
         "LRAM_0_15K" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, 0)],
@@ -861,7 +862,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
         },
         "CONFIG_MULTIBOOT_CORE" | "CONFIG_LMMI_CORE" | "CONFIG_CLKRST_CORE" => match tt {
             "EFB_0" => {
-                vec![tn, rel_tile_prefix(2, 0, "EFB_1_OSC"), rel_tile_prefix(4, 0, "EFB_2"), rel_tile_prefix(6, 0, "I2C_EFB_3")]
+                vec![tn, rel_tile_prefix(2, 0, "EFB_1"), rel_tile_prefix(4, 0, "EFB_2"), rel_tile_prefix(6, 0, "I2C_EFB_3")]
             },
             _ => { // default: -17 case
                 vec![tn]
