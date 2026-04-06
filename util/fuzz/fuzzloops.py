@@ -168,6 +168,8 @@ def chain(future, func, *args, **kwargs):
                 new_f.name = name
             else:
                 fut.set_result(func(r, *args, **kwargs))
+        except CancelledError as e:
+            fut.set_exception(e)
         except BaseException as e:
             logging.error(f"Encountered exception while calling {func} with {r} {args} {kwargs}")
             traceback.print_exception(e)
@@ -310,12 +312,15 @@ def FuzzerAsyncMain(f, *args, **kwargs):
                                 if fut.done():
                                     try:
                                         if fut.exception() is not None:
-                                            logging.error(f"Encountered exception in future {fut}: {fut.exception()}")
-                                            traceback.print_exception(fut.excecption())
-                                            all_exceptions.append(fut.exception())
+                                            if not isinstance(fut.exception(), CancelledError):
+                                                logging.error(f"Encountered exception in future {fut}: {fut.exception()}")
+                                                traceback.print_exception(fut.excecption())
+                                                all_exceptions.append(fut.exception())
                                         else:
                                             finished_tasks = finished_tasks + 1
                                             fut.result()
+                                    except CancelledError as e:
+                                        pass
                                     except BaseException as e:
                                         all_exceptions.append(e)
 
@@ -351,7 +356,7 @@ def FuzzerAsyncMain(f, *args, **kwargs):
 
                 except CancelledError as e:
                     logging.warning("Cancelling all executor jobs")
-                    traceback.print_exception(e)
+                    #traceback.print_exception(e)
                     executor.shutdown(wait=False, cancel_futures=True)
                     raise
                 except BaseException as e:

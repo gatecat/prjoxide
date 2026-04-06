@@ -9,7 +9,8 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use log::{debug, info, warn};
-
+use regex::Regex;
+use crate::bels::Bel;
 // Deserialization of 'devices.json'
 
 macro_rules! emit_bit_change_error {
@@ -115,7 +116,9 @@ pub struct GlobalSpineData {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct GlobalHrowData {
+    #[serde(default)]
     pub hrow_col: usize,
+    #[serde(default)]
     pub hrow_row: usize,
     pub spine_cols: Vec<usize>,
 }
@@ -304,12 +307,16 @@ pub struct TileBitsDatabase {
     #[serde(default)]
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub always_on: BTreeSet<ConfigBit>,
-    #[serde(default)]
 
+    #[serde(default)]
     // Relative offset for the tiles that this tiletype configures -- that is, changes in
     // this tiles bits reflect a change in either pips or primitives in the other tile.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub tile_configures_external_tiles : BTreeSet<(i32, i32)>,
+
+    #[serde(default)]
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub bels: BTreeSet<Bel>,
 }
 
 impl TileBitsDatabase {
@@ -342,7 +349,8 @@ pub struct TileBitsData {
     dirty: bool,
     new_pips: u32,
     new_enums: u32,
-    new_words: u32
+    new_words: u32,
+    new_bels: u32
 }
 
 impl TileBitsData {
@@ -358,7 +366,8 @@ impl TileBitsData {
             dirty: false,
             new_pips: 0,
             new_enums: 0,
-            new_words : 0
+            new_words : 0,
+            new_bels: 0
         }
     }
 
@@ -397,6 +406,12 @@ impl TileBitsData {
                 }
             }
         }
+
+        for bel in other_db.bels.iter() {
+            self.add_bel(bel)?
+        }
+
+        self.set_always_on(&other_db.always_on);
         self.dirty = true;
 
         Ok(())
@@ -506,6 +521,50 @@ impl TileBitsData {
 
         Ok(())
     }
+
+    pub fn add_bel(&mut self, bel : &Bel) -> Result<(), String> {
+
+        let re = Regex::new(r"R(\d+)C(\d+)").unwrap();
+
+        let get_rc = |n: &String| -> Option<String>{
+            n.split("_").last().filter(|x| {
+                re.captures(x).is_some()
+            }).map(|x| x.to_string())
+        };
+
+        let current_rc = self.db.bels.iter().map(|x|get_rc(&x.name)).find(|x|x.is_some()).flatten();
+        let new_rc = get_rc(&bel.name);
+
+        match (current_rc, new_rc) {
+            (Some(crc), Some(new_rc)) => {
+                if crc != new_rc {
+                    return Err(format!("A tile type can not have two different RC bels: {crc} and {new_rc} for {} {}. The bel must be given a non-tile dependent name if the tile type is found in multiple tiles.", self.tiletype, bel.name));
+                }
+            }
+            _ => {}
+        }
+
+        match self.db.bels.clone().iter().find(|x|x.name == bel.name) {
+            Some(old_bel) => {
+                if *old_bel != *bel {
+                    emit_bit_change_error!(
+                            "Bel mismatch conflict for {} existing: {:?} new: {:?}",
+                            self.tiletype, old_bel, bel
+                        );
+                }
+                self.db.bels.remove(old_bel);
+            },
+            None => {}
+        }
+
+        let new_bel = bel.clone();
+        self.db.bels.insert(new_bel);
+        self.new_bels += 1;
+        self.dirty = true;
+
+        Ok(())
+    }
+
     pub fn add_enum_option(
         &mut self,
         name: &str,
@@ -569,6 +628,9 @@ impl TileBitsData {
     }
     pub fn set_always_on(&mut self, aon: &BTreeSet<ConfigBit>) {
         if aon != &self.db.always_on {
+            if !self.db.always_on.is_empty() {
+                warn!("Always on configuration change: {aon:?} vs {:?}", self.db.always_on);
+            }
             self.db.always_on = aon.clone();
             self.dirty = true;
         }
@@ -1001,8 +1063,6 @@ impl Database {
 
             // let ip_tiledb = other.ip_bitdb(family_str, tiletype.as_str());
             // self.ip_bitdb(family_str, &tiletype).merge(&ip_tiledb.db)?;
-
-
         }
 
         for (device, name_to_type_map) in other.overlay_tiletypes.iter() {
@@ -1013,9 +1073,7 @@ impl Database {
         }
 
         for (family, family_data) in other.devices.families.iter() {
-            info!("-> {family}");
             for (device, _) in family_data.devices.iter() {
-                info!("-> {family} {device}");
                 if let Some(overlay_files) = other.overlay_files(family, device) {
                     for file in overlay_files.iter() {
                         let old_file = format!("{}/{}", other.root.as_ref().unwrap().as_str(), file);
@@ -1039,6 +1097,7 @@ impl Database {
             conns: BTreeMap::new(),
             always_on: BTreeSet::new(),
             tile_configures_external_tiles : BTreeSet::new(),
+            bels: BTreeSet::new()
         };
         let mut tile_bits = TileBitsData::new(tiletype, tile_bits_db);
         debug!("Merge {tiletype} {:?}", overlay.overlays);
@@ -1051,7 +1110,7 @@ impl Database {
         for layer in overlay_members {
             debug!("[{family}] Merging {layer} into {tiletype}");
             let overlay_bits = self.tile_bitdb(family, layer.as_str());
-            tile_bits.merge(&overlay_bits.db)?;
+            tile_bits.merge(&overlay_bits.db).map_err(|e| format!("Error encountered merging in {layer}: {}", e.to_string()))?;
         }
 
         Ok(tile_bits)
@@ -1068,7 +1127,9 @@ impl Database {
 
             let tile_bits = match overlay {
                 Some(overlay) => {
-                    self.tile_bitdb_from_overlays(family, tiletype, &overlay).unwrap()
+                    self.tile_bitdb_from_overlays(family, tiletype, &overlay)
+                        .map_err(|e| format!("Error encountered merging in {tiletype} in {family}: {}", e.to_string()))
+                        .unwrap()
                 }
                 None => {
                     let is_overlay = tiletype.starts_with("overlays/");
@@ -1091,6 +1152,7 @@ impl Database {
                             conns: BTreeMap::new(),
                             always_on: BTreeSet::new(),
                             tile_configures_external_tiles : BTreeSet::new(),
+                            bels: BTreeSet::new(),
                         }
                     };
                     TileBitsData::new(tiletype, tb)
@@ -1119,6 +1181,7 @@ impl Database {
                     conns: BTreeMap::new(),
                     always_on: BTreeSet::new(),
                     tile_configures_external_tiles : BTreeSet::new(),
+                    bels: BTreeSet::new(),
                 }
             };
             self.ipbits
@@ -1142,6 +1205,7 @@ impl Database {
         let mut new_pips : u32 = 0;
         let mut new_enums : u32 = 0;
         let mut new_words : u32 = 0;
+        let mut new_bels : u32 = 0;
 
         for kv in self.tilebits.iter_mut() {
             let (family, tiletype) = kv.0;
@@ -1171,6 +1235,7 @@ impl Database {
             new_pips += tilebits.new_pips;
             new_enums += tilebits.new_enums;
             new_words += tilebits.new_words;
+            new_bels += tilebits.new_bels;
 
             let tt_ron_buf = ron::ser::to_string_pretty(&tilebits.db, pretty).unwrap();
 
@@ -1213,7 +1278,7 @@ impl Database {
         }
 
         if new_pips > 0 || new_enums > 0 || new_words > 0 {
-            info!("Flushing with {} new pips, {} new enum settings, {} new words", new_pips, new_enums, new_words);
+            info!("Flushing with {} new pips, {} new enum settings, {} new words, {} new bels", new_pips, new_enums, new_words, new_bels);
         }
     }
 }

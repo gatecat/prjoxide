@@ -4,15 +4,23 @@ use itertools::Itertools;
 use std::collections::BTreeSet;
 use std::convert::TryInto;
 use log::{debug, warn};
+use serde::{Deserialize, Serialize};
+
+fn default<T: Default + PartialEq>(t: &T) -> bool {
+    *t == Default::default()
+}
 
 // A reference to a wire in a relatively located tile
-#[derive(Clone)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub struct RelWire {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_x: i32,   // (bel.x + rel_x == tile.x)
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_y: i32,   // (bel.y + rel_y == tile.y)
     pub name: String, // wire name in tile
 }
-
 impl RelWire {
     pub fn prefix(total_rel_x : i32, total_rel_y : i32) -> String {
         let mut prefix = String::new();
@@ -43,16 +51,18 @@ impl RelWire {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Ord, PartialOrd, Debug, Deserialize, Serialize)]
 pub enum PinDir {
     INPUT = 0,
     OUTPUT = 1,
     INOUT = 2,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub struct BelPin {
     pub name: String,  // name of pin on bel
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub desc: String,  // description for documentation
     pub dir: PinDir,   // direction
     pub wire: RelWire, // reference to wire in tile
@@ -121,13 +131,19 @@ impl BelPin {
         }
     }
 }
-
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub struct Bel {
     pub name: String,
     pub beltype: String,
     pub pins: Vec<BelPin>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_x: i32,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_y: i32,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub z: u32,
 }
 
@@ -704,6 +720,14 @@ impl Bel {
 
 pub fn get_tile_bels(full_tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
     // Tiletypes constructed from overlays are named like so: <tiletype>/<id>
+    if tiledata.bels.len() > 0{
+        let mut bels = tiledata.bels.iter().cloned().collect_vec();
+        for (idx, bel) in bels.iter_mut().enumerate() {
+            bel.z = idx as u32;
+        }
+        return bels.into_iter().collect_vec();
+    }
+
     let tiletype = full_tiletype.split("/").next().unwrap();
     let mut stt = tiletype;
     if tiletype.ends_with("_EVEN") || tiletype.ends_with("_ODD") {

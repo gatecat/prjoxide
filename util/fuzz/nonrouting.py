@@ -21,7 +21,7 @@ def fuzz_intval(vec):
             x |= (1 << i)
     return x
 
-def fuzz_word_setting(config, name, length, get_sv_substs, desc="", executor = None):
+def fuzz_word_setting(config, name, length, get_sv_substs, desc="", overlay="", executor = None):
     """
     Fuzz a multi-bit setting, such as LUT initialisation
 
@@ -31,6 +31,9 @@ def fuzz_word_setting(config, name, length, get_sv_substs, desc="", executor = N
     :param get_sv_substs: a callback function, that is called with an array of bits to create a design with that setting
     """
     if not fuzzconfig.should_fuzz_platform(config.device):
+        return
+
+    if config.check_deltas(name):
         return
 
     with fuzzloops.Executor(executor) as executor:
@@ -49,7 +52,7 @@ def fuzz_word_setting(config, name, length, get_sv_substs, desc="", executor = N
             bitstreams = bitstreams[1:]
             with fuzzconfig.db_lock() as db:
                 fz = libpyprjoxide.Fuzzer.word_fuzzer(db, baseline.bitstream, set(config.tiles), name, desc, length,
-                                                      baseline.bitstream)
+                                                      baseline.bitstream, overlay=overlay)
                 for i in range(length):
                     fz.add_word_sample(db, i, bitstreams[i].bitstream)
 
@@ -60,7 +63,7 @@ def fuzz_word_setting(config, name, length, get_sv_substs, desc="", executor = N
                         f"Exception {e} while adding word sample {i} from {[b.vfiles for b in bitstreams]} vs {baseline.vfiles}")
                     raise
 
-        return fuzzloops.chain([baseline, *bitstream_futures], "Solve word", integrate_bitstreams)
+        return fuzzloops.chain([baseline, *bitstream_futures], f"Word {config.device}", integrate_bitstreams)
 
 def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, include_zeros=False,
                       assume_zero_base=False, min_cover={}, desc="", mark_relative_to=None, executor = None, overlay=""):
@@ -129,9 +132,9 @@ def fuzz_enum_setting(config, empty_bitfile, name, values, get_sv_substs, includ
                     raise
 
 
-        return fuzzloops.chain(futures, "Enum Setting", integrate_bitstreams )
+        return fuzzloops.chain(futures, f"Enum Setting {config.device}", integrate_bitstreams )
 
-def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=None, executor = None):
+def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=None, overlay="", executor = None):
     """
     Fuzz a multi-bit IP setting with an optimum number of bitstreams
 
@@ -168,15 +171,15 @@ def fuzz_ip_word_setting(config, name, length, get_sv_substs, desc="", default=N
             baseline = bitstreams[0]
             ipcore, iptype = config.tiles[0].split(":")
             with fuzzconfig.db_lock() as db:
-                fz = libpyprjoxide.IPFuzzer.word_fuzzer(db, baseline.bitstream, ipcore, iptype, name, desc, length, inverted_mode)
+                fz = libpyprjoxide.IPFuzzer.word_fuzzer(db, baseline.bitstream, ipcore, iptype, name, desc, length, inverted_mode, overlay=overlay)
                 for (i, bitfile) in enumerate(bitstreams[1:]):
                     bits = [(j >> i) & 0x1 == (1 if inverted_mode else 0) for j in range(length)]
                     fz.add_word_sample(db, bits, bitfile.bitstream)
                 config.solve(fz, db)
 
-        return fuzzloops.chain([baseline_future, *bitstream_futures], "Solve IP word", integrate_bitstreams)
+        return fuzzloops.chain([baseline_future, *bitstream_futures], f"IP Word {config.device}", integrate_bitstreams)
 
-def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, desc="", executor = None):
+def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, desc="", overlay="",executor = None):
     """
     Fuzz a multi-bit IP enum with an optimum number of bitstreams
 
@@ -203,12 +206,12 @@ def fuzz_ip_enum_setting(config, empty_bitfile, name, values, get_sv_substs, des
 
         def integrate_bitstreams(bitstreams):
             with fuzzconfig.db_lock() as db:
-                fz = libpyprjoxide.IPFuzzer.enum_fuzzer(db, empty_bitfile.bitstream, ipcore, iptype, name, desc)
+                fz = libpyprjoxide.IPFuzzer.enum_fuzzer(db, empty_bitfile.bitstream, ipcore, iptype, name, desc, overlay=overlay)
                 for (opt, bitfile) in zip(values, bitstreams):
                     fz.add_enum_sample(db, opt, bitfile.bitstream)
                 config.solve(fz, db)
 
-        return fuzzloops.chain(bitstream_futures,  "Solve IP enum", integrate_bitstreams)
+        return fuzzloops.chain(bitstream_futures,  f"IP Enum {config.device}", integrate_bitstreams)
 
 def fuzz_primitive_definition(cfg, empty, site, primitive, mark_relative_to = None, mode_name = None, get_substs=None):
     def default_get_substs(mode="NONE", kv=None):

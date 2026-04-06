@@ -11,7 +11,7 @@ pyo3-log = "0.13.2"
 
 [dependencies.pyo3]
 version = "0.13.1"
-features = ["extension-module"]
+features = ["extension-module", "serde"]
 
 [dependencies.pythonize]
 version = "0.13"

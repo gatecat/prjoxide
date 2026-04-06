@@ -90,11 +90,13 @@ primitives = defaultdict(list)
 
 
 class PrimitiveDefinition(object):
-    def __init__(self, site_type, settings=[], pins=[], mode=None, desc=None, primitive=None):
+    def __init__(self, site_type, settings=[], pins=[], mode=None, desc=None, primitive=None, beltype=None, belname=None):
         self.site_type = site_type
         self.mode = mode
         self.desc = desc
         self.primitive = primitive
+        self.beltype = beltype
+        self.needs_overlay = False
         if self.mode is None:
             self.mode = self.site_type
         if self.primitive is None:
@@ -104,6 +106,14 @@ class PrimitiveDefinition(object):
 
         self.settings = settings
         self.pins = pins
+        self._belname = belname
+
+    def belname(self, site, site_info, ts):
+        if isinstance(self._belname, str):
+            return self._belname
+        if callable(self._belname):
+            return self._belname(site, site_info, ts)
+        return site
 
     def get_setting(self, name):
         settings = {s.name: s for s in self.settings}
@@ -137,7 +147,7 @@ class PrimitiveDefinition(object):
         return self.configuration({s: s.fill_value() for s in self.settings})
 
     @staticmethod
-    def parse_primitive_json(primitive, site_type=None, core_suffix=True, mode = None, value_sizes={}):
+    def parse_primitive_json(primitive, site_type=None, core_suffix=True, mode = None, value_sizes={}, beltype=None):
         import database
 
         parsed = database.get_primitive_json(primitive)
@@ -216,11 +226,19 @@ class PrimitiveDefinition(object):
             pins=pins,
             desc=parsed.get("description", ""),
             mode=mode,
-            primitive=primitive
+            primitive=primitive,
+            beltype=beltype
         )
+
+def lram_core_belname(site, site_info, ts):
+    tt = ts[0].split(":")[-1]
+    return f"LRAM{tt.split('_')[1]}"
 
 lram_core = PrimitiveDefinition(
     "LRAM_CORE",
+    beltype = "LRAM_CORE",
+    belname=lram_core_belname,
+    settings =
     [
         EnumSetting("ASYNC_RST_RELEASE", ["SYNC", "ASYNC"],
                     desc="LRAM reset release configuration"),
@@ -268,7 +286,8 @@ iologic_core = PrimitiveDefinition(
     mode="IREG_OREG"
 )
 
-delayb = PrimitiveDefinition.parse_primitive_json("DELAYB", site_type="SIOLOGIC_CORE", mode="IREG_OREG", value_sizes={"DEL_VALUE": 7})
+delayb = PrimitiveDefinition.parse_primitive_json("DELAYB",
+                                                  site_type="SIOLOGIC_CORE", mode="IREG_OREG", value_sizes={"DEL_VALUE": 7})
 # siologic_core = PrimitiveDefinition(
 #     "SIOLOGIC_CORE",
 #     [
@@ -314,6 +333,8 @@ osc_core = PrimitiveDefinition(
 
 oscd_core = PrimitiveDefinition(
     "OSCD_CORE",
+    beltype="OSCD",
+    belname="OSCD",
     settings=[
         EnumSetting("DTR_EN", ["ENABLED", "DISABLED"]),
 
@@ -345,11 +366,13 @@ oscd_core = PrimitiveDefinition(
 )
 
 dcc = PrimitiveDefinition.parse_primitive_json("DCC", core_suffix=False)
+dcc.beltype = "DCC"
 dcc.get_setting("DCCEN").enable_value = "1"
 dcc.settings[0].desc = "DCC bypassed (0) or used as gate (1)"
 
 PrimitiveDefinition(
     "DCS",
+    beltype="DCS",
     settings=[
         EnumSetting("DCSMODE",
                     ["VCC", "GND", "DCS", "DCS_1", "BUFGCECLK0", "BUFGCECLK0_1", "BUFGCECLK1", "BUFGCECLK1_1", "BUF0",
@@ -357,7 +380,13 @@ PrimitiveDefinition(
     ]
 )
 
-pll_core = PrimitiveDefinition.parse_primitive_json("PLL", core_suffix=True, value_sizes={"": 9, "DYN_SEL": 3})
+pll_value_sizes = {"": 9, "DYN_SEL": 3, "EXTERNAL_DIVIDE_FACTOR": 6}
+for k in ["A", "B", "C", "D", "E", "F"]:
+    pll_value_sizes[f"DEL{k}"] = 7
+    pll_value_sizes[f"DIV{k}"] = 7
+    pll_value_sizes[f"PHI{k}"] = 3
+
+pll_core = PrimitiveDefinition.parse_primitive_json("PLL", core_suffix=True, value_sizes=pll_value_sizes, beltype="PLL_CORE")
 for s in pll_core.settings:
     if s.name.startswith("ENCLK_"):
         s.enable_value = "ENABLED"
@@ -441,6 +470,7 @@ eclkdiv.get_setting("ECLK_DIV").enable_value = "2"
 # This definition is from 2024 web docs
 pclkdiv = PrimitiveDefinition(
     "PCLKDIV",
+    beltype="PCLKDIV",
     settings=[
         EnumSetting("DIV_PCLKDIV", [
         "X1",
@@ -454,13 +484,27 @@ pclkdiv = PrimitiveDefinition(
       ], desc="Divisor applied to clkin"),
     ],
 )
+pclkdiv.needs_overlay = True
+
+def dlldel_belname(site, site_info, ts):
+    tt = ts[0].split(":")[-1]
+    return f"DLLDEL{tt.split('_')[-1]}"
 
 dlldel = PrimitiveDefinition.parse_primitive_json("DLLDEL", value_sizes={"ADJUST": 9})
+dlldel.beltype = "DLLDEL"
+dlldel.needs_overlay = True
+dlldel.belname = dlldel_belname
 dlldel.get_setting("ENABLE").enable_value = "ENABLED"
+dlldel.settings.append(
+    ProgrammablePin("CLKIN", ["#SIG", "#INV"], desc="CLK inversion control", primitive="DLLDEL_CORE"),
+)
+
 
 wdt = PrimitiveDefinition(
     "CONFIG_WDT_CORE",
     mode="CONFIG_WDT_CORE",
+    beltype="WDT",
+    belname="WDT",
     settings=[
         EnumSetting("WDTEN", ["DIS", "EN"], enable_value="EN"),
         EnumSetting("WDTMODE", ["SINGLE", "CONTINUOUS"]),

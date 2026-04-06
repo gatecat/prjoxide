@@ -123,6 +123,16 @@ async def FuzzAsync(executor):
             (anon_pips, *args) = overlay_key
             overlay = make_overlay_name(overlay_key)
 
+            fn = database.get_cache_dir() + f"/pip-overlays-sigs/{device}/{overlay}.txt"
+            os.makedirs(database.get_cache_dir() + f"/pip-overlays-sigs/{device}", exist_ok=True)
+            if not os.path.exists(fn):
+                with open(fn, "w") as f:
+                    logging.warning(f"New pip grouping {fn}")
+                    print(overlay_key,file=f)
+                    print("\n",file=f)
+                    print(ts,file=f)
+                    print("\n",file=f)
+
             config = FuzzConfig(job=f"pip-overlays", device=device, tiles=ts)
             return await interconnect.fuzz_interconnect_sinks_across_span(config, ts, anon_pips, executor=executor, overlay=overlay, check_pip_placement=False, builder=builder)
 

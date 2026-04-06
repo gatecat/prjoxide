@@ -28,6 +28,7 @@ pub struct IPFuzzer {
     base: Chip,                           // bitstream with nothing set
     deltas: BTreeMap<IPFuzzKey, IPDelta>, // used for words and enums
     desc: String,                         // description of the setting being fuzzed
+    overlay: String,
 }
 
 impl IPFuzzer {
@@ -40,6 +41,7 @@ impl IPFuzzer {
         desc: &str,
         width: usize,
         inverted_mode: bool,
+        overlay: &str,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Word {
@@ -52,6 +54,7 @@ impl IPFuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string(),
         }
     }
     pub fn init_enum_fuzzer(
@@ -60,6 +63,7 @@ impl IPFuzzer {
         fuzz_iptype: &str,
         name: &str,
         desc: &str,
+        overlay: &str,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Enum {
@@ -70,6 +74,7 @@ impl IPFuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: IPFuzzKey, bitfile: &str) {

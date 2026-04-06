@@ -31,7 +31,6 @@ pub enum FuzzMode {
         disambiguate: bool,  // add explicit 0s to disambiguate settings only
         assume_zero_base: bool,
         mark_relative_to: Option<String>, // Track relative to this tile
-        overlay: String
     }
 }
 
@@ -48,6 +47,7 @@ pub struct Fuzzer {
     base: Chip,                           // bitstream with nothing set
     deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs, words and enums
     desc: String,                         // description of the setting being fuzzed
+    overlay: String,
 }
 
 impl Fuzzer {
@@ -72,6 +72,7 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: "".to_string(),
+            overlay: "".to_string(),
         }
     }
     pub fn init_word_fuzzer(
@@ -82,6 +83,7 @@ impl Fuzzer {
         desc: &str,
         width: usize,
         _zero_bitfile: &str,
+        overlay: &str
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Word {
@@ -92,6 +94,7 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string()
         }
     }
     pub fn init_enum_fuzzer(
@@ -111,12 +114,12 @@ impl Fuzzer {
                 disambiguate: false, // fixme
                 assume_zero_base,
                 mark_relative_to,
-                overlay: overlay.to_string(),
             },
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string(),
         }
     }
     fn add_sample_delta(&mut self, key: FuzzKey, delta: ChipDelta) {
@@ -382,9 +385,17 @@ impl Fuzzer {
                         };
                         cbits.push(b);
                     }
+
                     // Add the word to the tile data
                     let tile_data = self.base.tile_by_name(tile).unwrap();
-                    let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
+                    let tiletype = &tile_data.tiletype;
+                    let tiletype_or_overlay = if self.overlay.is_empty() {
+                        tiletype.clone()
+                    } else {
+                        format!("overlays/{}-{}", tiletype, self.overlay)
+                    };
+
+                    let tile_db = db.tile_bitdb(&self.base.family, tiletype_or_overlay.as_str());
                     tile_db.add_word(&name, &self.desc, cbits).unwrap();
                 }
             }
@@ -394,7 +405,6 @@ impl Fuzzer {
                 disambiguate: _,
                 assume_zero_base,
                 mark_relative_to,
-                overlay
             } => {
                 if self.deltas.len() < 2 {
                     warn!("Need at least two deltas got {} for fuzzmode {name}", self.deltas.len());
@@ -478,10 +488,10 @@ impl Fuzzer {
                                     let tile_data = self.base.tile_by_name(&tile).unwrap();
 
                                     let tiletype = &tile_data.tiletype;
-                                    let tiletype_or_overlay = if overlay.is_empty() {
+                                    let tiletype_or_overlay = if self.overlay.is_empty() {
                                         tiletype.clone()
                                     } else {
-                                        format!("overlays/{}-{}", tiletype, overlay)
+                                        format!("overlays/{}-{}", tiletype, self.overlay)
                                     };
                                     
                                     info!("Resolved {} {} {:?} {}", name, option, b, tiletype_or_overlay);

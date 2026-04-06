@@ -297,7 +297,7 @@ def get_rc_from_name(device, name):
     if m:
         return get_rc_from_edge(device, m.group(1), m.group(2))
 
-    if name not in ["R", "L"]:
+    if name not in ["R", "L"] and not name.startswith("DCC"):
         logging.warning(f"Could not derive RC from {name}")
     return None
 

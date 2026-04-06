@@ -11,6 +11,7 @@ import fuzzconfig
 import tiles
 from pathlib import Path
 from os import path
+import cachecontrol
 
 workdir = tempfile.mkdtemp()
 
@@ -94,17 +95,21 @@ endmodule
     return config.build_design(vfile, prefix=prefix)
 
 def get_wires_delta(device, wires, prefix = "", executor = None, with_bitstream_info=False, job_name = None):
+    @cachecontrol.cache_fn()
+    def _get_wires_delta(device, wires, prefix = "", with_bitstream_info=False):
+        config = fuzzconfig.FuzzConfig(job=f"wires-delta", device=device)
+        bitstream = create_wires_file(config, wires, prefix)
+        if with_bitstream_info:
+            return *fuzzconfig.find_baseline_differences(device, bitstream), bitstream
+        return fuzzconfig.find_baseline_differences(device, bitstream)
+
     if executor is not None:
-        f = executor.submit(get_wires_delta, device, wires, prefix, with_bitstream_info=with_bitstream_info)
+        f = executor.submit(_get_wires_delta, device, wires, prefix, with_bitstream_info=with_bitstream_info)
         if job_name is not None:
             f.name = job_name
         return f
 
-    config = fuzzconfig.FuzzConfig(job=f"wires-delta", device=device)
-    bitstream = create_wires_file(config, wires, prefix)
-    if with_bitstream_info:
-        return *fuzzconfig.find_baseline_differences(device, bitstream), bitstream
-    return fuzzconfig.find_baseline_differences(device, bitstream)
+    return _get_wires_delta(device, wires, prefix, with_bitstream_info)
 
 def set_default(obj):
     if isinstance(obj, set):

@@ -353,6 +353,9 @@ def stablehash(x):
     return hasher.hexdigest()
 
 def make_overlay_name(k):
+    if isinstance(k, str):
+        return k
+
     (anon_pips, *args) = k
     return "-".join([*args, stablehash(anon_pips)])
 

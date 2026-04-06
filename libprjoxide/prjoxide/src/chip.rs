@@ -251,7 +251,7 @@ impl Chip {
     pub fn tile_by_name(&self, name: &str) -> Result<&Tile, &'static str> {
         match self.tiles_by_name.get(name) {
             None => {
-                println!("no tile named {}", name);
+                warn!("no tile named {}", name);
                 Err("unknown tile name")
             }
             Some(i) => Ok(&self.tiles[*i]),
@@ -261,7 +261,7 @@ impl Chip {
     pub fn tile_by_name_mut(&mut self, name: &str) -> Result<&mut Tile, &'static str> {
         match self.tiles_by_name.get(name) {
             None => {
-                println!("no tile named {}", name);
+                warn!("no tile named {}", name);
                 Err("unknown tile name")
             }
             Some(i) => Ok(&mut self.tiles[*i]),
@@ -474,9 +474,9 @@ Please make sure Oxide and nextpnr are up to date and input source code is meani
                     }
                 }
                 if !found {
-                    println!("Tilegroup {group} tiles:");
+                    info!("Tilegroup {group} tiles:");
                     tg.iter().for_each(|tile| {
-                        println!(" - {tile}");
+                        info!(" - {tile}");
                     });
                     panic!("No enum named {} in tilegroup {}.\n\
 Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, group);

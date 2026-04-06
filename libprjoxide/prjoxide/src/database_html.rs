@@ -2,7 +2,7 @@ use crate::bels::*;
 use crate::database::*;
 use crate::docs::{md_file_to_html, md_to_html};
 use std::cmp::max;
-use std::collections::{BTreeSet, BTreeMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
@@ -49,6 +49,7 @@ pub fn write_tilegrid_html(db: &mut Database, fam: &str, device: &str, filepath:
         let colour = get_colour(&tiledata.tiletype);
         tiles[tiledata.y as usize][tiledata.x as usize].push((name, &tiledata.tiletype, colour));
     }
+
     let mut html = File::create(filepath).unwrap();
     write!(
         html,
@@ -74,7 +75,7 @@ pub fn write_tilegrid_html(db: &mut Database, fam: &str, device: &str, filepath:
             .unwrap();
             for (name, ttype, colour) in tloc.iter() {
                 writeln!(html, "<div style='height: {h}%; background-color: {c}'><em>{n}</em><br/><strong><a href='../tilehtml/{t}.html' style='color: black'>{t}</a></strong></div>",
-                    h=(100.0 / (tloc.len() as f32)), c=colour, n=name, t=ttype).unwrap();
+                    h=(100.0 / (tloc.len() as f32)), c=colour, n=name, t=ttype.replace("/", "_")).unwrap();
             }
             writeln!(html, "</td>").unwrap();
         }
@@ -117,6 +118,11 @@ pub fn write_bits_html(
 
     let bitdb = &db.tile_bitdb(fam, tiletype).db;
 
+    println!("write_bits_html {tiletype} {nframes} {nbits}");
+    if nframes == 0 || nbits == 0 {
+        return;
+    }
+
     // Find the purpose of each bit
     // (frame, bit) --> (link, labels)
     let mut bitgrid: Vec<Vec<(BTreeSet<String>, Option<String>)>> =
@@ -157,7 +163,7 @@ pub fn write_bits_html(
     let mut html = File::create(
         Path::new(outdir)
             .join("tilehtml")
-            .join(format!("{}.html", tiletype))
+            .join(format!("{}.html", tiletype.replace("/", "_")))
             .to_str()
             .unwrap(),
     )
@@ -252,10 +258,11 @@ pub fn write_bits_html(
                 0 => " bgcolor=\"#dddddd\"",
                 _ => "",
             };
+            let sanitize_tiletype = tiletype.replace("/", "_");
             let belhtml_path = Path::new(outdir)
                 .join("belhtml")
-                .join(format!("{}_{}.html", tiletype, bel.name));
-            write_bel_html(docs_root, tiletype, bel, belhtml_path.to_str().unwrap());
+                .join(format!("{}_{}.html", sanitize_tiletype, bel.name));
+            write_bel_html(docs_root, sanitize_tiletype.as_str(), bel, belhtml_path.to_str().unwrap());
             writeln!(
                 html,
                 "<tr {s}><td style=\"padding-left: 20px; padding-right: 20px\"><a href='../belhtml/{tt}_{bn}.html'>{bn}</a></td>\n\
@@ -263,7 +270,7 @@ pub fn write_bits_html(
                 s = style,
                 bn = bel.name,
                 bt = bel.beltype,
-                tt = tiletype
+                tt = sanitize_tiletype
             )
             .unwrap();
         }

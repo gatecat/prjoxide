@@ -11,17 +11,53 @@ use prjoxide::pip_classes;
 use prjoxide::sites;
 use prjoxide::wires;
 use pyo3::exceptions::PyException;
+use pyo3::types::{PyDict, PyList, PySet};
 use pyo3::prelude::*;
-use pyo3::types::{PyList, PySet};
-use pyo3::wrap_pyfunction;
 use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::*;
+use pyo3::prelude::{pyclass, pymethods};
+use pyo3::wrap_pyfunction;
+use prjoxide::bels::{Bel, BelPin};
 use prjoxide::chip::ChipDelta;
+use pythonize::{depythonize, pythonize};
+use prjoxide::database_html::write_bits_html;
 
 #[pyclass]
 struct Database {
     db: database::Database
+}
+
+#[pyclass]
+struct PyBel {
+    bel: Bel
+}
+
+impl FromPyObject<'_> for PyBel {
+    fn extract(ob: &PyAny) -> PyResult<Self> {
+        let bel: Bel = depythonize(ob)?;
+        Ok(PyBel{bel})
+    }
+}
+
+impl ToPyObject for PyBel {
+    fn to_object(&self, py: Python) -> PyObject {
+        pythonize(py, &self.bel).unwrap()
+    }
+}
+
+pub struct PyBelPin(pub BelPin);
+impl FromPyObject<'_> for PyBelPin {
+    fn extract(ob: &PyAny) -> PyResult<Self> {
+        let belpin: BelPin = depythonize(ob)?;
+        Ok(PyBelPin(belpin))
+    }
+}
+
+impl ToPyObject for PyBelPin {
+    fn to_object(&self, py: Python) -> PyObject {
+        pythonize(py, &self.0).unwrap()
+    }
 }
 
 #[pymethods]
@@ -36,6 +72,18 @@ impl Database {
     }
     pub fn add_conn(&mut self, family: &str, tiletype: &str, from: &str, to: &str) {
         self.db.tile_bitdb(family, tiletype).add_conn(from, to);
+    }
+    pub fn tiletypes(&mut self, fam: &str, device: &str) -> BTreeSet<String> {
+        let tilegrid = self.db.device_tilegrid(fam, device);
+        tilegrid.tiles.iter().map(|x| x.1.tiletype.clone()).collect()
+    }
+    pub fn add_bel(&mut self, family: &str, tiletype: &str, bel: &PyDict, py: Python) -> PyResult<()> {
+        let bel = depythonize(bel)?;
+        py.allow_threads(|| {
+            Ok(self.db.tile_bitdb(family, tiletype).add_bel(&bel).map_err(|e| {
+                PyException::new_err(e)
+            })?)
+        })
     }
     pub fn add_conns(&mut self, family: &str, tiletype: &str, conns: Vec<(String, String)>, py: Python) {
         py.allow_threads(|| {
@@ -138,6 +186,7 @@ impl Fuzzer {
         desc: &str,
         width: usize,
         zero_bitfile: &str,
+        overlay: &str
     ) -> Fuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -153,6 +202,7 @@ impl Fuzzer {
                 desc,
                 width,
                 zero_bitfile,
+                overlay
             ),
             name: name.to_string()
         }
@@ -292,6 +342,7 @@ impl IPFuzzer {
         desc: &str,
         width: usize,
         inverted_mode: bool,
+        overlay: &str
     ) -> IPFuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -305,6 +356,7 @@ impl IPFuzzer {
                 desc,
                 width,
                 inverted_mode,
+                overlay
             ),
             name: name.to_string()
         }
@@ -318,6 +370,7 @@ impl IPFuzzer {
         fuzz_iptype: &str,
         name: &str,
         desc: &str,
+        overlay: &str
     ) -> IPFuzzer {
         let base_chip = bitstream::BitstreamParser::parse_file(&mut db.db, base_bitfile).unwrap();
 
@@ -328,6 +381,7 @@ impl IPFuzzer {
                 fuzz_iptype,
                 name,
                 desc,
+                overlay
             ),
             name: name.to_string()
         }
@@ -522,5 +576,6 @@ fn libpyprjoxide(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Fuzzer>()?;
     m.add_class::<IPFuzzer>()?;
     m.add_class::<Chip>()?;
+    m.add_class::<PyBel>()?;
     Ok(())
 }
