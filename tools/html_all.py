@@ -106,6 +106,7 @@ def main(argv):
         docs_toc += "<h4>Generated Bitstream Documentation</h4>"
         docs_toc += "<ul>"
         tiles = get_device_tiles(fam, fam_data["devices"])
+        db = libpyprjoxide.Database(database.get_db_root())
         for dev, devdata in sorted(fam_data["devices"].items()):
             if devdata["fuzz"]:
                 ddir = path.join(fdir, dev)
@@ -114,7 +115,7 @@ def main(argv):
                 print("********* Generating documentation for device {}".format(dev))
                 generate_device_docs(fam, dev, ddir)
                 if (fam, dev) in tiles:
-                    for tile in tiles[fam, dev]:
+                    for tile in db.tiletypes(fam, dev):
                         print("*** Generating documentation for tile {}".format(tile))
                         generate_tile_docs(fam, dev, tile, fdir)
                 docs_toc += '<li><a href="{}">{} Documentation</a></li>'.format(

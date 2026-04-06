@@ -2,6 +2,7 @@ from fuzzconfig import FuzzConfig
 from interconnect import fuzz_interconnect
 import nonrouting
 import re
+import fuzzloops
 
 configs = [
     {
@@ -70,4 +71,5 @@ def main():
         nonrouting.fuzz_enum_setting(cfg, empty, "DDRDLL.RSTMUX", ["RST", "INV"],
             lambda x: get_substs(kv=("RST", x), mux=True), False)
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)
+

@@ -1,0 +1,2 @@
+ldc_set_location -site {B6} [get_ports led]
+ldc_set_location -site {D3} [get_ports gsrn]

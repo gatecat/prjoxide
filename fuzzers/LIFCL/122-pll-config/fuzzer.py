@@ -22,7 +22,7 @@ cfgs = [
     ),
 ]
 
-def main():
+def main(executor):
     for prim, cfg in cfgs:
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
@@ -55,15 +55,15 @@ def main():
             return dict(mode=mode, cmt="//" if mode == "NONE" else "", config=config, site=prim)
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(prim), ["NONE", "PLL_CORE"],
             lambda x: get_substs(mode=x), False,
-            desc="PLL_CORE primitive mode")
+            desc="PLL_CORE primitive mode", executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.CLKMUX_FB".format(prim), ["CMUX_CLKOP", "CMUX_CLKOS", "CMUX_CLKOS2", "CMUX_CLKOS3", "CMUX_CLKOS4", "CMUX_CLKOS5"],
             lambda x: get_substs(mode="PLL_CORE", kv=("CLKMUX_FB", x)), False,
-            desc="internal feedback selection")
+            desc="internal feedback selection", executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.LMMICLKMUX".format(prim), ["LMMICLK", "INV"],
             lambda x: get_substs(mode="PLL_CORE", kv=("LMMICLK", x), mux=True), False,
-            desc="")
+            desc="", executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "{}.LMMIRESETNMUX".format(prim), ["LMMIRESETN", "INV"],
             lambda x: get_substs(mode="PLL_CORE", kv=("LMMIRESETN", x), mux=True), False,
-            desc="")
-if __name__ == '__main__':
-    main()
+            desc="", executor=executor)
+if __name__ == "__main__":
+    fuzzloops.FuzzerMain(main)

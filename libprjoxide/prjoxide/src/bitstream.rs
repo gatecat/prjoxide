@@ -3,7 +3,9 @@ use crate::database::*;
 
 use std::convert::TryInto;
 use std::fs::File;
-use std::io::Read;
+use std::io::{BufReader, Read};
+use flate2::read::GzDecoder;
+use log::{debug, warn};
 
 pub struct BitstreamParser {
     data: Vec<u8>,
@@ -20,6 +22,7 @@ const COMMENT_START: [u8; 2] = [0xFF, 0x00];
 const COMMENT_END: [u8; 2] = [0x00, 0xFF];
 const COMMENT_END_RDBK: [u8; 2] = [0x00, 0xFE];
 const PREAMBLE: [u8; 4] = [0xFF, 0xFF, 0xBD, 0xB3];
+const PREAMBLE_IP_EVAL: [u8; 4] = [0xFF, 0xFF, 0xBE, 0xB3];
 
 // Commands
 
@@ -34,6 +37,7 @@ const VERIFY_ID: u8 = 0b11100010;
 
 #[allow(dead_code)]
 const LSC_WRITE_COMP_DIC: u8 = 0b00000010;
+const LSC_READ_CNTRL0: u8 = 0b00100000;
 const LSC_PROG_CNTRL0: u8 = 0b00100010;
 const LSC_INIT_ADDRESS: u8 = 0b01000110;
 const LSC_WRITE_ADDRESS: u8 = 0b10110100;
@@ -57,6 +61,8 @@ const DUMMY: u8 = 0b11111111;
 // Signing related (we just ignore)
 const LSC_AUTH_CTRL: u8 = 0b01011000;
 
+// Read the dry-run User Electronic Signature shadow register.
+const LSC_READ_DR_UES: u8 = 0b01011101;
 
 // CRC16 constants
 const CRC16_POLY: u16 = 0x8005;
@@ -84,12 +90,19 @@ impl BitstreamParser {
         }
     }
 
-    pub fn parse_file(db: &mut Database, filename: &str) -> Result<Chip, &'static str> {
-        let mut f = File::open(filename).map_err(|_x| "failed to open file")?;
+    pub fn parse_file(db: &mut Database, filename: &str) -> Result<Chip, String> {
+        let mut f = File::open(filename).map_err(|x| format!("failed to open file {}: {:?}", filename, x) )?;
+
         let mut buffer = Vec::new();
-        // read the whole file
-        f.read_to_end(&mut buffer)
-            .map_err(|_x| "failed to read file")?;
+
+        if filename.ends_with(".gz") {
+            let reader = BufReader::new(f);
+            let mut gz = GzDecoder::new(reader);
+            gz.read_to_end(&mut buffer)
+        } else {
+            f.read_to_end(&mut buffer)
+        }.map_err(|x| format!("failed to read file {filename}: {x:?}"))?;
+
         let mut parser = BitstreamParser::new(&buffer);
         let mut c = parser.parse(db)?;
         c.cram_to_tiles();
@@ -527,9 +540,13 @@ impl BitstreamParser {
         let mut curr_meta = String::new();
         while !self.done() {
             if self.check_preamble(&PREAMBLE) {
-                println!("bitstream start at {}", self.index);
+                debug!("bitstream start at {}", self.index);
                 return Ok(BitstreamType::NORMAL);
             }
+            if self.check_preamble(&PREAMBLE_IP_EVAL) {
+                debug!("bitstream (ip eval) start at {}", self.index);
+                return Ok(BitstreamType::NORMAL);
+            }	    
             if !in_metadata && self.check_preamble(&COMMENT_START) {
                 in_metadata = true;
                 continue;
@@ -537,6 +554,11 @@ impl BitstreamParser {
             if in_metadata && self.check_preamble(&COMMENT_END) {
                 if curr_meta.len() > 0 {
                     self.metadata.push(curr_meta.to_string());
+ 		    if curr_meta.is_ascii() {
+                       debug!("Metadata: {}", &curr_meta);
+		    } else {
+                       warn!("Warning: Metadata of len {} contains non ascii data", curr_meta.len());
+                    } 		    
                     curr_meta.clear();
                 }
                 in_metadata = false;
@@ -553,7 +575,11 @@ impl BitstreamParser {
                 let ch = self.get_byte();
                 if ch == 0x00 {
                     if curr_meta.len() > 0 {
-                        println!("Metadata: {}", &curr_meta);
+		        if curr_meta.is_ascii() {
+                            debug!("Metadata: {}", &curr_meta);
+			} else {
+                            warn!("Warning: Metadata of len {} contains non ascii data", curr_meta.len());
+                        }
                     }
                     self.metadata.push(curr_meta.to_string());
                     curr_meta.clear();
@@ -673,14 +699,14 @@ impl BitstreamParser {
             let cmd = self.get_opcode_byte();
             match cmd {
                 LSC_RESET_CRC => {
-                    println!("reset CRC");
+                    debug!("reset CRC");
                     self.skip_bytes(3);
                     self.crc16 = CRC16_INIT;
                 }
                 LSC_PROG_CNTRL0 => {
                     self.skip_bytes(3);
                     let ctrl0 = self.get_u32();
-                    println!("set CTRL0 to 0x{:08X}", ctrl0);
+                    debug!("set CTRL0 to 0x{:08X}", ctrl0);
                 }
                 VERIFY_ID => {
                     self.skip_bytes(3);
@@ -688,22 +714,22 @@ impl BitstreamParser {
                     let mut chip = Chip::from_idcode(db, idcode);
                     chip.metadata = self.metadata.clone();
                     curr_chip = Some(chip);
-                    println!("check IDCODE is 0x{:08X}", idcode);
+                    debug!("check IDCODE is 0x{:08X}", idcode);
                 }
                 LSC_INIT_ADDRESS => {
                     self.skip_bytes(3);
-                    println!("reset frame address");
+                    debug!("reset frame address");
                     curr_frame = 0;
                 }
                 LSC_WRITE_ADDRESS => {
                     self.skip_bytes(3);
                     curr_frame = self.get_u32();
-                    println!("set frame address to 0x{:08X}", curr_frame);
+                    debug!("set frame address to 0x{:08X}", curr_frame);
                 }
                 LSC_AUTH_CTRL => {
                     self.skip_bytes(3);
                     self.skip_bytes(64);
-                    println!("LSC_AUTH_CTRL (bitstream is probably signed!)");
+                    debug!("LSC_AUTH_CTRL (bitstream is probably signed!)");
                 }
                 LSC_PROG_INCR_RTI => {
                     let cfg = self.get_byte();
@@ -721,24 +747,28 @@ impl BitstreamParser {
                             return Err("got bitstream before idcode");
                         }
                     }
-                    println!("write {} frames at 0x{:08x}", count, curr_frame);
+                    debug!("write {} frames at 0x{:08x}", count, curr_frame);
                     let mut frame_bytes = vec![0 as u8; (bits_per_frame + 14 + 7) / 8];
                     assert_eq!(cfg, 0x91);
+
                     for _ in 0..count {
                         self.copy_bytes(&mut frame_bytes);
                         self.ecc14 = ECC_INIT;
+
+                        let decoded_frame = chip.frame_addr_to_idx(curr_frame);
                         for j in (0..bits_per_frame).rev() {
                             let ofs = (j + pad_bits) as usize;
                             if ((frame_bytes[(frame_bytes.len() - 1) - (ofs / 8)] >> (ofs % 8))
                                 & 0x01)
                                 == 0x01
                             {
-                                let decoded_frame = chip.frame_addr_to_idx(curr_frame);
                                 if decoded_frame < chip.cram.frames {
                                     chip.cram.set(decoded_frame, j, true);
+                                } else {
+                                    debug!("Decoded frame {} exceeds frame size {}", decoded_frame, chip.cram.frames);
                                 }
                                 if self.verbose {
-                                    println!("F0x{:08x}B{:04}", curr_frame, j);
+                                    debug!("F0x{:08x}B{:04}", curr_frame, j);
                                 }
                                 self.update_ecc(true);
                             } else {
@@ -749,13 +779,12 @@ impl BitstreamParser {
                             | (frame_bytes[frame_bytes.len() - 1] as u16))
                             & 0x3FFF;
                         let exp_parity = self.finalise_ecc();
-
                         // ECC calculation here is actually occasionally unsound,
                         // as LUT RAM initialisation is masked from ECC calculation
                         // as it changes at runtime. But it is too early to check this here.
 
                         if self.verbose {
-                            println!("F0x{:08x}P{:014b}E{:014b}", curr_frame, parity, exp_parity);
+                            debug!("F0x{:08x}P{:014b}E{:014b}", curr_frame, parity, exp_parity);
                         }
                         self.check_crc16();
                         let d = self.get_byte();
@@ -766,13 +795,13 @@ impl BitstreamParser {
                 LSC_POWER_CTRL => {
                     self.skip_bytes(2);
                     let pwr = self.get_byte();
-                    println!("power control: {}", pwr);
+                    debug!("power control: {}", pwr);
                 }
                 ISC_PROGRAM_USERCODE => {
                     let cmp_crc = self.get_byte() & 0x80 == 0x80;
                     self.skip_bytes(2);
                     let usercode = self.get_u32();
-                    println!("set usercode to 0x{:08X}", usercode);
+                    debug!("set usercode to 0x{:08X}", usercode);
                     if cmp_crc {
                         self.check_crc16();
                     }
@@ -873,12 +902,21 @@ impl BitstreamParser {
                 }
                 ISC_PROGRAM_DONE => {
                     self.skip_bytes(3);
-                    println!("done");
+                    debug!("done");
                 }
+                LSC_READ_DR_UES => {
+                    self.skip_bytes(3);
+                    debug!("read DR_UES");
+                }
+                LSC_READ_CNTRL0 => {
+                    self.skip_bytes(3);
+                    debug!("read CNTRL0");
+                }				
                 DUMMY => {}
                 _ => {
-                    println!("unknown command 0x{:02X} at {}", cmd, self.index);
-                    return Err("unknown bitstream command");
+                    warn!("unknown command 0x{:02X} at {}", cmd, self.index);
+		    //self.skip_bytes(3);   
+                    //return Err("unknown bitstream command");
                 }
             }
         }

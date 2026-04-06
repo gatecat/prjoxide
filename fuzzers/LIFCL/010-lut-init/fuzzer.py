@@ -1,9 +1,11 @@
+import asyncio
+
 from fuzzconfig import FuzzConfig
 import nonrouting
 import fuzzloops
 import re
 
-cfg = FuzzConfig(job="PLCINIT", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["R2C2:PLC"])
+cfg = FuzzConfig(job="PLCINIT", device="LIFCL-40", tiles=["R2C2:PLC"])
 
 def get_lut_function(init_bits):
     sop_terms = []
@@ -24,19 +26,17 @@ def get_lut_function(init_bits):
     return lut_func
 
 
-def main():
+async def main(executor):
     cfg.setup()
     cfg.sv = "lut.v"
 
-    def per_slice(slicen):
+    async def per_slice(slicen):
         for k in range(2):
-            def get_substs(bits):
-                return dict(z=slicen, k=str(k), func=get_lut_function(bits))
-            nonrouting.fuzz_word_setting(cfg, "SLICE{}.K{}.INIT".format(slicen, k), 16, get_substs,
-                desc="SLICE {} LUT{} init value".format(slicen, k))
+            await asyncio.wrap_future(executor.submit(nonrouting.fuzz_word_setting, cfg, "SLICE{}.K{}.INIT".format(slicen, k), 16,
+                                                      lambda  bits, k=k,slicen=slicen: dict(z=slicen, k=str(k), func=get_lut_function(bits)),
+                desc="SLICE {} LUT{} init value".format(slicen, k), executor=executor))
 
-    fuzzloops.parallel_foreach(["A", "B", "C", "D"], per_slice)
-
+    await asyncio.gather(*[per_slice(s) for s in ["A", "B", "C", "D"]])
 
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerAsyncMain(main)

@@ -19,4 +19,4 @@ def main():
         nonrouting.fuzz_ip_word_setting(cfg, "INITVAL_{:02X}".format(w), 320, lambda b: dict(a="{:02X}".format(w), v="0x{:080x}".format(bin2dec(b))))
     fuzzloops.parallel_foreach(range(0x40), per_word)
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)

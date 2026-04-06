@@ -12,44 +12,21 @@ def main():
 			sl = sl.strip()
 			if len(sl) == 0 or sl.startswith('#'):
 				continue
-			splitl = sl.split(',')
+			splitl = [x.strip() for x in sl.split(',')]
 			if len(splitl) == 0 or splitl[0] == '':
 				continue
 			if len(packages) == 0:
 				# Header line
-				COL_PADN = 0
-				COL_FUNC = 1
-				COL_CUST_NAME = 2
-				COL_BANK = 3
-				COL_DF = 4
-				COL_LVDS = 5
-				COL_HIGHSPEED = 6
-				COL_DQS = 7
-				COL_PKG_START = 8
+				COL_PADN = splitl.index("PADN")
+				COL_FUNC = splitl.index("Pin/Ball Funcion")
+				COL_CUST_NAME = splitl.index("CUST_NAME") if "CUST_NAME" in splitl else None
+				COL_BANK = splitl.index("BANK")
+				COL_DF = splitl.index("Dual Function")
+				COL_LVDS = splitl.index("LVDS")
+				COL_HIGHSPEED = splitl.index("HIGHSPEED")
+				COL_DQS =  splitl.index("DQS") if "DQS" in splitl else None
+				COL_PKG_START = 1 + max(x for x in [COL_PADN, COL_FUNC, COL_CUST_NAME, COL_BANK, COL_DF, COL_LVDS, COL_HIGHSPEED, COL_DQS] if x is not None)
 
-				if splitl[0] == "index":
-					# new style pinout
-					COL_PADN = 1
-					COL_FUNC = 2
-					COL_CUST_NAME = None
-					COL_BANK = 3
-					COL_DF = 5
-					COL_LVDS = 6
-					COL_HIGHSPEED = 7
-					COL_DQS = 4
-					COL_PKG_START = 8
-				elif splitl[2] == "BANK":
-					# LIFCL-17 style pinout
-					COL_PADN = 0
-					COL_FUNC = 1
-					COL_CUST_NAME = None
-					COL_BANK = 2
-					COL_DF = 4
-					COL_LVDS = 5
-					COL_HIGHSPEED = 6
-					COL_DQS = 3
-					COL_PKG_START = 7
-				assert splitl[COL_PADN] == "PADN"
 				packages = splitl[COL_PKG_START:]
 				continue
 			func = splitl[COL_FUNC]
@@ -59,7 +36,7 @@ def main():
 			io_pio = -1
 			io_dqs = []
 			io_vref = -1
-			if len(func) >= 4 and func[0] == 'P' and func[1] in ('T', 'L', 'R', 'B') and func[-1] in ('A', 'B', 'C', 'D'):
+			if len(func) >= 4 and func[0] == 'P' and func[1] in ('T', 'L', 'R', 'B') and func[-1] in ('A', 'B', 'C', 'D') and "_" not in func:
 				# Regular PIO
 				io_offset = int(func[2:-1])
 				io_side = func[1]
@@ -67,7 +44,7 @@ def main():
 				io_pio = "ABCD".index(func[-1])
 				if io_spfunc == ['-']:
 					io_spfunc = []
-				io_dqs = splitl[COL_DQS]
+				io_dqs = splitl[COL_DQS] if COL_DQS is not None else ""
 				if io_dqs == "" or io_dqs == "-":
 					io_dqs = []
 				elif io_dqs.find("DQSN") == 1:
@@ -77,6 +54,7 @@ def main():
 				elif io_dqs.find("DQ") == 1:
 					io_dqs = [0, int(io_dqs[3:])]
 				else:
+					print(f"Bad DQS type {io_dqs}")
 					assert False, "bad DQS type"
 
 				for spf in io_spfunc:

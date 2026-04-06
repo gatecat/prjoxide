@@ -12,7 +12,7 @@ ld_lib_path_orig=$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH="${bindir}:${fpgabindir}"
 export LM_LICENSE_FILE="${radiantdir}/license/license.dat"
 
-set -ex
+#set -ex
 
 V_SUB=${2%.v}
 PART=$1
@@ -27,6 +27,19 @@ case "${PART}" in
 		LSE_ARCH="lifcl"
 		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
 		;;
+	LIFCL-33)
+		PACKAGE="${DEV_PACKAGE:-WLCSP84}"
+		DEVICE="LIFCL-33"
+		LSE_ARCH="lifcl"
+		SPEED_GRADE="${SPEED_GRADE:-8_High-Performance_1.0V}"
+		;;	
+	LIFCL-33U)
+		PACKAGE="${DEV_PACKAGE:-FCCSP104}"
+		DEVICE="LIFCL-33U"
+		LSE_ARCH="lifcl"
+		EXTRA_BIT_ARGS="-ipeval"		
+		SPEED_GRADE="${SPEED_GRADE:-7_High-Performance_1.0V}"
+		;;	
 	LIFCL-40)
 		PACKAGE="${DEV_PACKAGE:-CABGA400}"
 		DEVICE="LIFCL-40"
@@ -67,6 +80,7 @@ else
 	# Cache miss
 	cd "$2.tmp"
 	if [ -n "$STRUCT_VER" ]; then
+	  rm -f par.udb
 	"$fpgabindir"/sv2udb -o par.udb input.v
 	else
 	"$fpgabindir"/synthesis -a "$LSE_ARCH" -p "$DEVICE" -t "$PACKAGE" \
@@ -82,19 +96,30 @@ else
 		MAP_PDC=""
 	fi
 	"$fpgabindir"/map -o map.udb synth.udb $MAP_PDC
-	"$fpgabindir"/par map.udb par.udb
+	"$fpgabindir"/par map.udb -w par.udb
 	fi
 
 	if [ -n "$GEN_RBF" ]; then
-		"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -b -d -w par.udb
+		OUTPUT=$("$fpgabindir"/bitgen $EXTRA_BIT_ARGS -b -d -w par.udb 2>&1)
+		if [[ $OUTPUT == *"ERROR <"* ]]; then
+		  echo "Exiting due to error found during bitgen"
+		  exit -1
+		fi
+
 		LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.rbt"
 	else
 		if [ -n "$RBK_MODE" ]; then
-			"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w -m 1 par.udb
+			OUTPUT=$("$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w -m 1 par.udb 2>&1)
 			mv par.rbk par.bit
 		else	
-			"$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w par.udb
+			OUTPUT=$("$fpgabindir"/bitgen $EXTRA_BIT_ARGS -d -w par.udb 2>&1)
 		fi
+
+			if [[ $OUTPUT == *"ERROR <"* ]]; then
+			   echo "Exiting due to error found during bitgen"
+			   exit -1
+		  fi
+
 		LD_LIBRARY_PATH=$ld_lib_path_orig $bscache commit $PART "input.v" $MAP_PDC output "par.udb" "par.bit"
 	fi
 	export LD_LIBRARY_PATH=""
@@ -104,7 +129,8 @@ fi
 if [ -n "$GEN_RBF" ]; then
 cp "$2.tmp"/par.rbt "$2.rbt"
 else
-cp "$2.tmp"/par.bit "$2.bit"
+cp -P "$2.tmp"/par.bit "$2.bit" 2> /dev/null || :
+cp -P "$2.tmp"/par.bit.gz "$2.bit.gz" 2> /dev/null || :
 fi
 
 if [ -n "$DO_UNPACK" ]; then

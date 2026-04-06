@@ -6,14 +6,15 @@ YOSYS?=yosys
 NEXTPNR?=nextpnr-nexus
 PRJOXIDE?=prjoxide
 ECPPROG?=ecpprog
+TOP?=top
 
 all: $(PROJ).bit
 
 $(PROJ).json: $(PROJ).v $(EXTRA_VERILOG) $(MEM_INIT_FILES) 
-	$(YOSYS) -ql $(PROJ)_syn.log -p "synth_nexus $(SYNTH_ARGS) -top top -json $(PROJ).json" $(PROJ).v $(EXTRA_VERILOG)
+	$(YOSYS) -l $(PROJ)_syn.log -DSYNTHESIS=1 -p "synth_nexus $(SYNTH_ARGS) -top $(TOP) -json $(PROJ).json" $(PROJ).v $(EXTRA_VERILOG)
 
 $(PROJ).fasm: $(PROJ).json $(PDC)
-	$(NEXTPNR) --device $(DEVICE) --pdc $(PDC) --json $(PROJ).json --fasm $(PROJ).fasm
+	$(NEXTPNR) --device $(DEVICE) --pdc $(PDC) --sdc $(SDC) --json $(PROJ).json --fasm $(PROJ).fasm --report $(PROJ).report --detailed-timing-report -l $(PROJ)_par.log
 
 $(PROJ).bit: $(PROJ).fasm
 	$(PRJOXIDE) pack $(PROJ).fasm $(PROJ).bit

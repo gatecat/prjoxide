@@ -164,7 +164,7 @@ impl TileType {
             }
         }
         tt.neighbours = tt.neighbour_wire_ids.keys().cloned().collect();
-        return tt;
+        tt
     }
 
     pub fn has_routing(&self) -> bool {

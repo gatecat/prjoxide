@@ -1,9 +1,8 @@
-
-(* \db:architecture ="LIFCL", \db:device ="LIFCL-40", \db:package ="QFN72", \db:speed ="7_High-Performance_1.0V", \db:timestamp =1576073342, \db:view ="physical" *)
+(* \db:architecture ="${arch}", \db:device ="${device}", \db:package ="${package}", \db:speed ="${speed_grade}_High-Performance_1.0V", \db:timestamp =1576073342, \db:view ="physical" *)
 module top (
     
 );
-    ${cmt} (* \dm:primitive ="OSC_CORE", \dm:programming ="MODE:OSC_CORE ${config}", \dm:site ="OSC_CORE_R1C77" *) 
+    ${cmt} (* \dm:primitive ="OSC_CORE", \dm:programming ="MODE:OSC_CORE ${config}", \dm:site ="${site}" *) 
     ${cmt} OSC_CORE OSC_I ( );
 
     // A primitive is needed, but VHI should be harmless

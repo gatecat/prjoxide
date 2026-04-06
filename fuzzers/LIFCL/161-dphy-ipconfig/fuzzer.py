@@ -28,4 +28,5 @@ def main():
     fuzzloops.parallel_foreach(enums, per_enum)
 
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)
+

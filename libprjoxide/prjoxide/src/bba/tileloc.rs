@@ -12,7 +12,10 @@ use itertools::Itertools;
 use std::collections::{BTreeSet, HashMap};
 use std::convert::TryInto;
 use std::iter::FromIterator;
+
+use log::{debug, warn};
 use regex::Regex;
+use crate::bba::tiletype::Neighbour::RelXY;
 
 lazy_static! {
     static ref LUT_INPUT_RE: Regex = Regex::new(r"^J([ABCD])([01])_SLICE([ABCD])$").unwrap();
@@ -38,7 +41,13 @@ impl TileLocation {
         let mut tiletypes: Vec<String> = tiles
             .iter()
             .map(|t| t.tiletype.to_string())
-            .filter(|tt| tts.get(tt).unwrap().has_routing())
+            .filter(|tt| {
+                let has_routing = tts.get(tt).unwrap().has_routing();
+                if !has_routing {
+                    warn!("{tt} has no routing and has been omitted. Please check it's PIPs and connections.");
+                }
+                has_routing
+            })
             .collect();
         // (0, 0) is a special case as we keep all the global signals here,
         // but don't want to pollute other null tiles
@@ -75,7 +84,8 @@ pub struct LocationGrid {
     pub height: usize,
     tiles: Vec<TileLocation>,
     glb: DeviceGlobalsData,
-    iodb: DeviceIOData
+    iodb: DeviceIOData,
+    device: String
 }
 
 impl LocationGrid {
@@ -94,6 +104,7 @@ impl LocationGrid {
             tiles: locs,
             glb: globals.clone(),
             iodb: iodb,
+            device: ch.device.to_string()
         }
     }
     pub fn get(&self, x: usize, y: usize) -> Option<&TileLocation> {
@@ -137,22 +148,39 @@ impl LocationGrid {
                 }
             }
             Neighbour::Branch => {
-                let branch_col = self.glb.branch_sink_to_origin(x).unwrap();
-                Some((branch_col, y))
+                self.glb.branch_sink_to_origin(x).map(|x| (x, y))
             }
             Neighbour::BranchDriver { side } => {
-                let offset: i32 = match side {
-                    BranchSide::Right => 2,
-                    BranchSide::Left => -2,
+                let tap_side = match side {
+                    BranchSide::Right => "R",
+                    BranchSide::Left => "L",
                 };
-                let branch_col = self
-                    .glb
-                    .branch_sink_to_origin((x as i32 + offset) as usize)
-                    .unwrap();
-                Some((branch_col, y))
+                self.glb.branches
+                    .iter()
+                    .find(|b| x == b.tap_driver_col && tap_side == b.tap_side)
+                    .map(|b| (b.branch_col, y))
+                //
+                // self
+                //     .glb
+                //     .branch_sink_to_origin((x as i32 + offset) as usize)
+                //     .map(|x| (x, y))
             }
-            Neighbour::Spine => return Some(self.glb.spine_sink_to_origin(x, y).unwrap()),
-            Neighbour::HRow => return Some(self.glb.hrow_sink_to_origin(x, y).unwrap()),
+            Neighbour::Spine => {
+                let origin = self.glb.spine_sink_to_origin(x, y);
+                if origin.is_none() {
+                    warn!("Branch at {x} {y} can not resolve the spine origin")
+                }
+                origin
+            },
+            Neighbour::HRow => {
+                let origin = self.glb.hrow_sink_to_origin(x, y);
+                if origin.is_none() {
+                    warn!("Spine at {x} {y} can not resolve the HRow origin");
+                } else {
+                    debug!("Spine at {x} {y} resolved to {origin:?}");
+                }
+                origin
+            },
             _ => None,
         }
     }
@@ -160,15 +188,23 @@ impl LocationGrid {
     pub fn stamp_neighbours(&mut self) {
         for y in 0..self.height {
             for x in 0..self.width {
-                let neighbours: Vec<Neighbour> = self
-                    .get(x, y)
-                    .unwrap()
+                let tile = self.get(x, y).unwrap();
+                let tiletypes = tile.tiletypes.clone();
+                let neighbours: Vec<Neighbour> = tile
                     .neighbours
                     .iter()
                     .map(|x| x.0.clone())
                     .collect();
+
                 for n in neighbours {
                     let nt = self.neighbour_tile(x, y, &n);
+                    match (n.clone(), nt) {
+                        (RelXY {rel_x: _, rel_y: _}, None) => {}
+                        (n, None) => {
+                            warn!("Could not resolve the neighbor {n:?} at {x} {y} for {tiletypes:?}")
+                        }
+                        _ => {}
+                    }
                     if let Some((nx, ny)) = nt {
                         let other = self.get_mut(nx as usize, ny as usize).unwrap();
                         other.neighbours.insert((
@@ -277,6 +313,7 @@ impl LocationGrid {
         for (i, hr) in self.glb.hrows.iter().enumerate() {
             out.global_hrow_info(
                 hr.hrow_col,
+                hr.hrow_row,
                 hr.spine_cols.len(),
                 &format!("d{}_hr{}_sc", device_idx, i),
             )?;
@@ -336,7 +373,7 @@ impl LocationGrid {
 
         out.list_begin(&format!("d{}_packages", device_idx))?;
         for package in self.iodb.packages.iter() {
-            out.package_info(package, &Chip::get_package_short_name(package))?;
+            out.package_info(package, &Chip::get_package_short_name(package, self.device.as_str()))?;
         }
 
         Ok(())
@@ -508,7 +545,21 @@ impl LocationTypes {
                     }
                 }
             }
-            self.types.value_mut(i).wires = wires;
+            // This is a hack to position global and global-like wires near the beginning of the list,
+            // so those indices are shared for the most part for tiletypes which are very similar
+            let f = |x:&IdString| -> (i32, &str) {
+                let name = _ids.str(*x);
+                let parts = name.split(":").collect_vec();
+
+                (match parts[0] {
+                    "G" => 0,
+                    "HROW" => 1,
+                    _ if parts[0].starts_with("HPRX") => 2,
+                    "BRANCH" => 3,
+                    _ => 10 - (parts.len() as i32)
+                }, name)
+            };
+            self.types.value_mut(i).wires = wires.iter().cloned().sorted_by_key(f).collect();
         }
         // Import the n-n arcs
         let mut _arcs_count = 0;
@@ -909,6 +960,7 @@ impl LocationTypes {
                             arc_rel_x.try_into().unwrap(),
                             arc_rel_y.try_into().unwrap(),
                             other_loc_idx,
+                            arc.other_loc_wire
                         )?;
                         *neigh_wire_count.get_mut(k).unwrap() += 1;
                     }

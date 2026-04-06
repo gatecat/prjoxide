@@ -1,0 +1,2 @@
+ldc_set_location -site {A1} [get_ports clk]
+ldc_set_location -site {B1} [get_ports reset]

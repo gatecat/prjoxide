@@ -106,5 +106,6 @@ def main():
                         assume_zero_base=True,
                         desc="VccIO of bank {}".format(bank))
     fuzzloops.parallel_foreach(configs, per_config)
+
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)

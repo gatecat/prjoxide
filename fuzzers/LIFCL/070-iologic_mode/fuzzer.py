@@ -1,3 +1,5 @@
+import asyncio
+
 from fuzzconfig import FuzzConfig
 import nonrouting
 import fuzzloops
@@ -61,8 +63,8 @@ configs = [
     # - SYSIO_B1_1_15K
 ]
 
-def main():
-    def per_config(x):
+async def main(executor):
+    async def per_config(x):
         site, prim, cfg = x
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
@@ -101,9 +103,13 @@ def main():
         else:
             assert False, cfg.device
 
+        futures = []
+        def fuzz_enum_setting(*args, **kwargs):
+            futures.append(fuzzloops.wrap_future(nonrouting.fuzz_enum_setting(cfg, empty, *args, **kwargs,executor=executor)))
+
         def get_substs(mode="NONE", default_cfg=False, scope=None, kv=None, mux=False, glb=False, dqs=False, pinconn=""):
             if default_cfg:
-                config = "SCLKINMUX:#OFF GSR:ENABLED INMUX:#OFF OUTMUX:#OFF DELAYMUX:#OFF SRMODE:#ASYNC LOAD_NMUX:#OFF DIRMUX:#OFF MOVEMUX:#OFF CEOUTMUX:#OFF CEINMUX:#OFF LSRINMUX:#OFF LSROUTMUX:#OFF STOP_EN:DISABLED"
+                config = "SCLKINMUX:#OFF GSR:ENABLED INMUX:#OFF OUTMUX:#OFF DELAYMUX:#OFF CEOUTMUX:#OFF CEINMUX:#OFF LSRINMUX:#OFF LSROUTMUX:#OFF STOP_EN:DISABLED"
             elif kv is None:
                 config = ""
             elif glb:
@@ -151,66 +157,70 @@ def main():
         modes = ["NONE", "IREG_OREG", "IDDRX1_ODDRX1"]
         if not s:
             modes += ["IDDRXN", "ODDRXN", "MIDDRXN_MODDRXN"]
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(prim), modes,
+        fuzz_enum_setting("{}.MODE".format(prim), modes,
             lambda x: get_substs(x, default_cfg=True), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(prim), ["ENABLED", "DISABLED"],
+        fuzz_enum_setting("{}.GSR".format(prim), ["ENABLED", "DISABLED"],
             lambda x: get_substs(mode="IREG_OREG", kv=("GSR", x), glb=True), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.SRMODE".format(prim), ["ASYNC", "LSR_OVER_CE"],
+        fuzz_enum_setting("{}.SRMODE".format(prim), ["ASYNC", "LSR_OVER_CE"],
             lambda x: get_substs(mode="IREG_OREG", kv=("SRMODE", x), glb=True), False)
         if not s:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IDDRXN.DDRMODE".format(prim), ["NONE", "IDDRX2", "IDDR71", "IDDRX4", "IDDRX5"],
+            fuzz_enum_setting("{}.IDDRXN.DDRMODE".format(prim), ["NONE", "IDDRX2", "IDDR71", "IDDRX4", "IDDRX5"],
                 lambda x: get_substs(mode="IDDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x)), False)
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.ODDRXN.DDRMODE".format(prim), ["NONE", "ODDRX2", "ODDR71", "ODDRX4", "ODDRX5"],
+            fuzz_enum_setting("{}.ODDRXN.DDRMODE".format(prim), ["ODDRX2", "ODDR71", "ODDRX4", "ODDRX5"],
                 lambda x: get_substs(mode="ODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x)), False)
 
         for sig in ("SCLKIN", "SCLKOUT", "CEIN", "CEOUT", "LSRIN", "LSROUT"):
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(prim, sig), ["1" if sig[0:2] == "CE" else "0", sig, "INV"],
+            fuzz_enum_setting("{}.{}MUX".format(prim, sig), ["1" if sig[0:2] == "CE" else "0", sig, "INV"],
                 lambda x: get_substs(mode="IREG_OREG", kv=("{}MUX".format(sig), x), mux=True), False)
 
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.IDDRX1_ODDRX1.OUTPUT".format(prim), ["DISABLED", "ENABLED"],
+        fuzz_enum_setting("{}.IDDRX1_ODDRX1.OUTPUT".format(prim), ["DISABLED", "ENABLED"],
             lambda x: get_substs(mode="IDDRX1_ODDRX1", default_cfg=True, pinconn=(".DOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.IREG_OREG.OUTPUT".format(prim), ["DISABLED", "ENABLED"],
+        fuzz_enum_setting("{}.IREG_OREG.OUTPUT".format(prim), ["DISABLED", "ENABLED"],
             lambda x: get_substs(mode="IREG_OREG", default_cfg=True, pinconn=(".DOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
 
         if not s:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IDDRX1_ODDRX1.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+            fuzz_enum_setting("{}.IDDRX1_ODDRX1.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
                 lambda x: get_substs(mode="IDDRX1_ODDRX1", kv=("TOUTMUX", "TSREG"), glb=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IREG_OREG.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+            fuzz_enum_setting("{}.IREG_OREG.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
                 lambda x: get_substs(mode="IREG_OREG", kv=("TOUTMUX", "TSREG"), glb=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
         else:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IDDRX1_ODDRX1.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+            fuzz_enum_setting("{}.IDDRX1_ODDRX1.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
                 lambda x: get_substs(mode="IDDRX1_ODDRX1", default_cfg=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.IREG_OREG.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
+            fuzz_enum_setting("{}.IREG_OREG.TRISTATE".format(prim), ["DISABLED", "ENABLED"],
                 lambda x: get_substs(mode="IREG_OREG", default_cfg=True, pinconn=(".TOUT(sig), .LSRIN(sig)" if x == "ENABLED" else "")), False)
 
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.INMUX".format(prim), ["BYPASS", "DELAY"],
+        fuzz_enum_setting("{}.INMUX".format(prim), ["BYPASS", "DELAY"],
             lambda x: get_substs(mode="IREG_OREG", kv=("INMUX", x), glb=True), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.OUTMUX".format(prim), ["BYPASS", "DELAY"],
+        fuzz_enum_setting("{}.OUTMUX".format(prim), ["BYPASS", "DELAY"],
             lambda x: get_substs(mode="IREG_OREG", kv=("OUTMUX", x), glb=True), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.DELAYMUX".format(prim), ["OUT_REG", "IN"],
+        fuzz_enum_setting("{}.DELAYMUX".format(prim), ["OUT_REG", "IN"],
             lambda x: get_substs(mode="IREG_OREG", kv=("DELAYMUX", x), glb=True), False)
 
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.MOVEMUX".format(prim), ["0", "MOVE"],
-            lambda x: get_substs(mode="IREG_OREG", kv=("MOVEMUX", x), glb=True), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.DIRMUX".format(prim), ["0", "DIR"],
-            lambda x: get_substs(mode="IREG_OREG", kv=("DIRMUX", x), glb=True), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.LOAD_NMUX".format(prim), ["1", "LOAD_N"],
-            lambda x: get_substs(mode="IREG_OREG", kv=("LOAD_NMUX", x), glb=True), False)
+        if not s:
+            fuzz_enum_setting("{}.MOVEMUX".format(prim), ["0", "MOVE"],
+                lambda x: get_substs(mode="IREG_OREG", kv=("MOVEMUX", x), glb=True), False)
+            fuzz_enum_setting("{}.DIRMUX".format(prim), ["0", "DIR"],
+                lambda x: get_substs(mode="IREG_OREG", kv=("DIRMUX", x), glb=True), False)
+            fuzz_enum_setting("{}.LOAD_NMUX".format(prim), ["1", "LOAD_N"],
+                lambda x: get_substs(mode="IREG_OREG", kv=("LOAD_NMUX", x), glb=True), False)
 
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.INREG.REGSET".format(prim), ["SET", "RESET"],
+        fuzz_enum_setting("{}.INREG.REGSET".format(prim), ["SET", "RESET"],
             lambda x: get_substs(mode="IREG_OREG", kv=("REGSET", x), scope="INREG"), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.OUTREG.REGSET".format(prim), ["SET", "RESET"],
+        fuzz_enum_setting("{}.OUTREG.REGSET".format(prim), ["SET", "RESET"],
             lambda x: get_substs(mode="IREG_OREG", kv=("REGSET", x), scope="OUTREG"), False)
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.TSREG.REGSET".format(prim), ["SET", "RESET"],
+        fuzz_enum_setting("{}.TSREG.REGSET".format(prim), ["SET", "RESET"],
             lambda x: get_substs(mode="IREG_OREG", kv=("REGSET", x), scope="TSREG"), False)
         if not s:
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MIDDRXN.DDRMODE".format(prim), ["NONE", "MIDDRX2", "MIDDRX4"],
+            fuzz_enum_setting("{}.MIDDRXN.DDRMODE".format(prim), ["MIDDRX2", "MIDDRX4"],
                 lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x), scope="MIDDRXN"), False)
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODDRXN.DDRMODE".format(prim), ["NONE", "MOSHX2", "MOSHX4", "MODDRX2_DQSW", "MODDRX4_DQSW", "MODDRX2_DQSW270", "MODDRX4_DQSW270"],
+            fuzz_enum_setting("{}.MODDRXN.DDRMODE".format(prim), ["MOSHX2", "MOSHX4", "MODDRX2_DQSW", "MODDRX4_DQSW", "MODDRX2_DQSW270", "MODDRX4_DQSW270"],
                 lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x), scope="MODDRXN", dqs=True), False)
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.MTDDRXN.DDRMODE".format(prim), ["NONE", "MTSHX2", "MTSHX4"],
+            fuzz_enum_setting("{}.MTDDRXN.DDRMODE".format(prim), ["MTSHX2", "MTSHX4"],
                 lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x + " TOUTMUX:MTDDR"), scope="MTDDRXN"), False)
-    fuzzloops.parallel_foreach(configs, per_config)
+
+        await asyncio.gather(*futures)
+
+    await asyncio.gather(*[per_config(c) for c in configs])
 
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerAsyncMain(main)

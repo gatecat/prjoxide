@@ -3,6 +3,6 @@
 module top (
     
 );
-    (* \dm:cellmodel_primitives ="K${k}=i48_3_lut", \dm:primitive ="SLICE", \dm:programming ="MODE:LOGIC F${k}:F${k} K${k}::Z=${func} ", \dm:site ="R2C2${z}" *) 
+    (* \dm:cellmodel_primitives ="K${k}=i48_3_lut", \dm:primitive ="SLICE", \dm:programming ="MODE:LOGIC F${k}:F${k} K${k}::Z=${func} ", \dm:site ="R2C2${z}" *)
     SLICE SLICE_I ( );
 endmodule

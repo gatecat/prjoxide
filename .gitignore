@@ -11,3 +11,14 @@ __pycache__
 libprjoxide/target
 Cargo.lock
 .bitstreamcache/
+radiantc.tcl*
+radiantc.log*
+*~
+\#*
+*.log.gz
+.deltas
+work/
+.\#*
+*.fasm
+.cache
+fuzzers/*/*/db

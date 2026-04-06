@@ -14,4 +14,5 @@ export TCL_LIBRARY="${radiantdir}/tcltk/linux/lib/tcl8.6"
 export fpgabindir=${FOUNDRY}/bin/lin64
 export LD_LIBRARY_PATH="${bindir}:${fpgabindir}"
 export LM_LICENSE_FILE="${radiantdir}/license/license.dat"
+export LSC_SHOW_INTERNAL_ERROR=1
 PATH=$FOUNDRY/bin/lin64:$bindir:$PATH exec $*

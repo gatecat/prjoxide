@@ -142,10 +142,7 @@ impl Chip {
             tilegroups: HashMap::new(),
             metadata: Vec::new(),
             settings: BTreeMap::new(),
-            tap_frame_count: match device {
-                "LFCPNX-100" => 42,
-                _ => 24,
-            }
+            tap_frame_count: if data.tap_frame_count == 0 { 24 } else { data.tap_frame_count }
         };
         c.tiles_by_name = c
             .tiles
@@ -222,8 +219,10 @@ impl Chip {
                 chip.configure_ip(ip_name, db, ft);
             } else if chip.tilegroups.contains_key(tn) {
                 chip.apply_tilegroup(tn, db, ft);
+            } else if let Ok(tile) = chip.tile_by_name_mut(tn) {
+                tile.from_fasm(db, ft);
             } else {
-                chip.tile_by_name_mut(tn).unwrap().from_fasm(db, ft);
+                error!("Unknown tile {}", tn);
             }
         }
         chip.tiles_to_cram();
@@ -236,6 +235,12 @@ impl Chip {
                 .copy_from_window(&self.cram, t.start_frame, t.start_bit);
         }
     }
+    pub fn tile_by_frame_and_bit(&mut self, frame : usize, bit : usize)-> Result<&Tile, &'static str> {
+        self.tiles.iter().find(|x| x.start_frame <= frame && x.start_frame + x.cram.frames > frame &&
+            x.start_bit <= bit && x.start_bit + x.cram.bits > bit).ok_or("No tile for query")
+        //self.tiles.iter().find(|x| x.start_frame == frame && x.start_bit >= bit).ok_or("No tile for query")
+    }
+
     // Copy the per-tile CRAM windows to the whole chip CRAM
     pub fn tiles_to_cram(&mut self) {
         for t in self.tiles.iter() {
@@ -246,7 +251,7 @@ impl Chip {
     pub fn tile_by_name(&self, name: &str) -> Result<&Tile, &'static str> {
         match self.tiles_by_name.get(name) {
             None => {
-                println!("no tile named {}", name);
+                warn!("no tile named {}", name);
                 Err("unknown tile name")
             }
             Some(i) => Ok(&self.tiles[*i]),
@@ -256,7 +261,7 @@ impl Chip {
     pub fn tile_by_name_mut(&mut self, name: &str) -> Result<&mut Tile, &'static str> {
         match self.tiles_by_name.get(name) {
             None => {
-                println!("no tile named {}", name);
+                warn!("no tile named {}", name);
                 Err("unknown tile name")
             }
             Some(i) => Ok(&mut self.tiles[*i]),
@@ -321,12 +326,30 @@ impl Chip {
         }
     }
     // Convert frame address to flat frame index
+    // The tiles are set indexed in one way, and then the addressing is done in a different way
+    // addressing:
+    // 0x0000 -> 0x7fff -> cram.frames -> R_SIDE_IO_END
+    // 0x8000 -> 0x800f -> R_SIDE_IO_END -> R_SIDE_IO_START
+    // 0x8010 -> 0x801f -> L_SIDE_IO_END -> L_SIDE_IO_START
+    // 0x8020 -> 0x81ff -> TAP_END -> TAP_START
+    //
+    // The tile stack ups typically are:
+    //  0:  L_SIDE_IO_START
+    //   :  L_SIDE_IO_END
+    // 16:  TAP_START
+    //   :  TAP_END
+    // XX:  R_SIDE_IO_START
+    // XX:  R_SIDE_IO_END
+    // XX:  ...
+    //      cram.frames
+    //
+    // Most chips seem to have the same number of IO frames -- 16 but the tap frames varies.
     pub fn frame_addr_to_idx(&self, addr: u32) -> usize {
         match addr {
-            0x0000..=0x7FFF => (self.cram.frames - 1) - (addr as usize),
-            0x8000..=0x800F => (15 - ((addr - 0x8000) as usize)) + (16 + self.tap_frame_count), // right side IO
-            0x8010..=0x801F => (15 - ((addr - 0x8010) as usize)) + 0,  // left side IO
-            0x8020..=0x81FF => ((self.tap_frame_count - 1) - ((addr - 0x8020) as usize)) + 16, // TAPs (row-segment clocking)
+            0x0000..=0x7FFF => (self.cram.frames - 1) - (addr as usize), // 56 -> ???
+            0x8000..=0x800F => (15 - ((addr - 0x8000) as usize)) + (16 + self.tap_frame_count), // right side IO  40->55
+            0x8010..=0x801F => (15 - ((addr - 0x8010) as usize)) + 0,  // left side IO // 0 -> 15
+            0x8020..=0x81FF => ((self.tap_frame_count - 1) - ((addr - 0x8020) as usize)) + 16, // TAPs (row-segment clocking) 16 -> 39
             _ => panic!("unable to process frame address 0x{:08x}", addr),
         }
     }
@@ -343,7 +366,7 @@ impl Chip {
         }
     }
     // Convert a long package name to a short one
-    pub fn get_package_short_name(long_name: &str) -> String {
+    pub fn get_package_short_name(long_name: &str, device: &str) -> String {
         if long_name.starts_with("CABGA") {
             format!("BG{}", &long_name[5..])
         } else if long_name.starts_with("CSBGA") {
@@ -352,8 +375,12 @@ impl Chip {
             format!("MG{}", &long_name[6..])
         } else if long_name.starts_with("QFN") {
             format!("SG{}", &long_name[3..])
-        } else if long_name.starts_with("WLCSP") {
+        } else if long_name.starts_with("WLCSP") && !device.starts_with("LIFCL-33") {
             format!("UWG{}", &long_name[5..])
+        } else if long_name.starts_with("WLCSP") {
+            format!("USG{}", &long_name[5..])
+        } else if long_name.starts_with("FCC") {
+            format!("CTG{}", &long_name[5..])	    
         } else {
             panic!("unknown package name {}", &long_name);
         }
@@ -384,11 +411,31 @@ impl Chip {
     pub fn create_tilegroups(&mut self, db: &mut Database) {
         // Create tilegroups for all bels
         for t in self.tiles.iter() {
-            let bels = get_tile_bels(&t.tiletype, &db.tile_bitdb(&self.family, &t.tiletype).db);
+            let tile_bit_db = &db.tile_bitdb(&self.family, &t.tiletype).db;
+            let bels = get_tile_bels(&t.tiletype, tile_bit_db);
             for bel in bels {
                 let bel_name = format!("R{}C{}_{}", (t.y as i32) + bel.rel_y, (t.x as i32) + bel.rel_x, bel.name);
-                let bel_tiles = get_bel_tiles(&self, t, &bel);
-                self.tilegroups.insert(bel_name, bel_tiles);
+
+                let bel_tiles = {
+                    if tile_bit_db.tile_configures_external_tiles.is_empty() {
+                        get_bel_tiles(&self, t, &bel, &tile_bit_db.tile_configures_external_tiles.iter().cloned().next())
+                    } else {
+                        vec![t.name.clone()]
+                    }
+                };
+
+                match self.tilegroups.get_mut(&bel_name) {
+                    Some(tiles) => {
+                        info!("Appending tilegroup {bel_name} with {bel_tiles:?}");
+                        tiles.append(&mut bel_tiles.clone());
+                    }
+                    None => {
+                        if !bel_name.contains("SLICE") {
+                            info!("Creating tilegroup {bel_name} with {bel_tiles:?}");
+                        }
+                        self.tilegroups.insert(bel_name, bel_tiles);
+                    }
+                }
             }
         }
         // Create a tilegroup for chipwide settings
@@ -400,7 +447,7 @@ impl Chip {
     // This sets applicable words and enums to all tiles that match inside the tilegroup
     pub fn apply_tilegroup(&mut self, group: &str, db: &mut Database, ft: &FasmTile) {
         let tg = self.tilegroups.get(group).unwrap_or_else(|| panic!("No tilegroup named {}", group)).clone();
-        let tdbs : Vec<TileBitsDatabase> = tg.iter().map(|x| db.tile_bitdb(&self.family, &self.tile_by_name(x).unwrap().tiletype).db.clone()).collect();
+        let tdbs : Vec<TileBitsDatabase> = tg.iter().map(|x| db.tile_bitdb(&self.family, &self.tile_by_name(x).expect(format!("Could not find tile named '{x}' from {group} (tiles: {tg:?})").as_str()).tiletype).db.clone()).collect();
         for i in 0..2 {
             // Process "BASE_" enums first
             for (k, v) in ft
@@ -427,6 +474,10 @@ Please make sure Oxide and nextpnr are up to date and input source code is meani
                     }
                 }
                 if !found {
+                    info!("Tilegroup {group} tiles:");
+                    tg.iter().for_each(|tile| {
+                        info!(" - {tile}");
+                    });
                     panic!("No enum named {} in tilegroup {}.\n\
 Please make sure Oxide and nextpnr are up to date. If they are, consider reporting this as an issue.", k, group);
                 }

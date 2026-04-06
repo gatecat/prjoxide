@@ -137,14 +137,14 @@ def main():
     ]
     empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K"))
     for name, options, desc in enum_settings:
-        func = lambda x: dict(k=name, v=x)
+        func = lambda x,name=name: dict(k=name, v=x)
         if name == "V2I_KVCO_SEL":
             cfg.sv = "pll_2.v"
             empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K", ldt="LDT_LOCK_SEL", ldt_val="U_FREQ"))
-            func = lambda x: dict(k=name, v=x, ldt="LDT_LOCK_SEL", ldt_val="U_FREQ")
+            func = lambda x,name=name: dict(k=name, v=x, ldt="LDT_LOCK_SEL", ldt_val="U_FREQ")
         nonrouting.fuzz_ip_enum_setting(cfg, empty, name, options, func, desc)
         if name == "V2I_KVCO_SEL":
             cfg.sv = "pll.v"
             empty = cfg.build_design(cfg.sv, dict(k="V2I_PP_RES", v="11P3K"))
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)

@@ -67,7 +67,12 @@ def get_tf2c(dev):
         return tap_frame_to_col_40
     elif dev == "LIFCL-17":
         return tap_frame_to_col_17
+    elif dev == "LIFCL-33":
+        return tap_frame_to_col_17
+    elif dev == "LIFCL-33U":
+        return tap_frame_to_col_17        
     else:
+        print(f"Could not find dev {dev}")
         assert False
 
 def main(argv):
@@ -75,12 +80,27 @@ def main(argv):
     tiles = {}
     current_tile = None
     tap_frame_to_col = get_tf2c(args.device)
+
+    def fixup(tiletype):
+        if args.device.find("-33") > 0:
+            # These definitions were found to have conflicting PIPs against LIFCL-40/17
+            tiletypes_with_variants = ["LRAM_", "SYSIO_B1_DED", "SPINE_", "TAP_CIB", "TMID_", "CIB_LR"]
+            for v in tiletypes_with_variants:
+                if tiletype.startswith(v):
+                    return tiletype + "_33K"
+        elif args.device.find("-33U") > 0:
+            if tiletype == "OSC":
+                return "OSCD"
+
+        return tiletype
+    
     for line in args.infile:
         tile_m = tile_re.match(line)
         if tile_m:
             name = tile_m.group(6)
+            tiletype = fixup(tile_m.group(1))
             current_tile = {
-                "tiletype": tile_m.group(1),
+                "tiletype": tiletype,
                 "start_bit": int(tile_m.group(4)),
                 "start_frame": int(tile_m.group(5)),
                 "bits": int(tile_m.group(2)),
@@ -99,7 +119,8 @@ def main(argv):
             else:
                 current_tile["y"] = int(s.group(1))
                 current_tile["x"] = int(s.group(2))
-            identifier = name + ":" + tile_m.group(1)
+
+            identifier = name + ":" + tiletype
             assert identifier not in tiles
             tiles[identifier] = current_tile
     json.dump({"tiles": tiles}, args.outfile, sort_keys=True, indent=4)

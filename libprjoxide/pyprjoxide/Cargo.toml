@@ -5,10 +5,16 @@ edition = "2018"
 
 [dependencies]
 prjoxide = { path = "../prjoxide" }
+log = "0.4.29"
+env_logger = "0.11.8"
+pyo3-log = "0.13.2"
 
 [dependencies.pyo3]
 version = "0.13.1"
-features = ["extension-module"]
+features = ["extension-module", "serde"]
+
+[dependencies.pythonize]
+version = "0.13"
 
 [lib]
 name = "pyprjoxide"

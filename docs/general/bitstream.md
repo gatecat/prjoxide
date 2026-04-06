@@ -28,7 +28,13 @@ All commands (except the `0xFF` dummy command) are followed by three "parameter"
  - **ISC_PROGRAM_DONE** (`0x5E`): ends configuration and starts FPGA fabric running
  - **LSC_POWER_CTRL** (`0x56`): third param byte configures internal power switches (detail unknown)
 
+Fuller table available [here](https://www.latticesemi.com/-/media/LatticeSemi/Documents/ApplicationNotes/PT3/FPGA-TN-02099-3-5-sysCONFIG-User-Guide-for-Nexus-Platform.ashx?document_id=52790). 
+
 ## Config Frames
+
+Configuration bits are two dimensional. For a given device, there is a grid of frame_cnt by bits_per_frame size. Each tile configuration exists as a sub rectangle inside of the overall device grid. Each tile in the tilegrid.json file specifies the coordinates for that tiles configuration data.
+
+An important detail is that the relative bits in each tile sharing a tiletype mean the same thing for that tile. This means that when we have the configuration mapping for a single tile, we have it for all tiles of that type as well. 
 
 Config frames are written in three chunks (numbers for LIFCL):
 

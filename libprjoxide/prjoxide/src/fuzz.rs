@@ -5,6 +5,14 @@ use crate::wires;
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::FromIterator;
 
+use ron::ser::PrettyConfig;
+use serde::Serialize;
+use std::fs::File;
+use std::io::prelude::*;
+
+use log::{debug, info, trace, warn};
+
+#[derive(Clone, Debug)]
 pub enum FuzzMode {
     Pip {
         to_wire: String,
@@ -22,12 +30,13 @@ pub enum FuzzMode {
         include_zeros: bool, // if true, explicit 0s instead of base will be created for unset bits for a setting
         disambiguate: bool,  // add explicit 0s to disambiguate settings only
         assume_zero_base: bool,
-    },
+        mark_relative_to: Option<String>, // Track relative to this tile
+    }
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 enum FuzzKey {
-    PipKey { from_wire: String },
+    PipKey { from_wire: String, allow_partial_deltas: bool },
     WordKey { bit: usize },
     EnumKey { option: String },
 }
@@ -38,6 +47,7 @@ pub struct Fuzzer {
     base: Chip,                           // bitstream with nothing set
     deltas: BTreeMap<FuzzKey, ChipDelta>, // used for arcs, words and enums
     desc: String,                         // description of the setting being fuzzed
+    overlay: String,
 }
 
 impl Fuzzer {
@@ -62,6 +72,7 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: "".to_string(),
+            overlay: "".to_string(),
         }
     }
     pub fn init_word_fuzzer(
@@ -72,6 +83,7 @@ impl Fuzzer {
         desc: &str,
         width: usize,
         _zero_bitfile: &str,
+        overlay: &str
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Word {
@@ -82,6 +94,7 @@ impl Fuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string()
         }
     }
     pub fn init_enum_fuzzer(
@@ -91,23 +104,25 @@ impl Fuzzer {
         desc: &str,
         include_zeros: bool,
         assume_zero_base: bool,
+        mark_relative_to: Option<String>,
+        overlay: &str
     ) -> Fuzzer {
         Fuzzer {
             mode: FuzzMode::Enum {
                 name: name.to_string(),
-                include_zeros: include_zeros,
+                include_zeros,
                 disambiguate: false, // fixme
-                assume_zero_base: assume_zero_base,
+                assume_zero_base,
+                mark_relative_to,
             },
             tiles: fuzz_tiles.clone(),
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string(),
         }
     }
-    fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
-        let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
-        let delta: ChipDelta = parsed_bitstream.delta(&self.base);
+    fn add_sample_delta(&mut self, key: FuzzKey, delta: ChipDelta) {
         if let Some(d) = self.deltas.get_mut(&key) {
             // If key already in delta, take the intersection of the two
             let intersect: ChipDelta = d
@@ -126,11 +141,38 @@ impl Fuzzer {
             self.deltas.insert(key, delta);
         }
     }
+    fn add_sample(&mut self, db: &mut Database, key: FuzzKey, bitfile: &str) {
+        let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
+        let delta: ChipDelta = parsed_bitstream.delta(&self.base);
+        trace!("Sample delta {bitfile} {key:?} {delta:?}");
+        self.add_sample_delta(key, delta);
+    }
+
     pub fn add_pip_sample(&mut self, db: &mut Database, from_wire: &str, bitfile: &str) {
         self.add_sample(
             db,
             FuzzKey::PipKey {
                 from_wire: from_wire.to_string(),
+                allow_partial_deltas : false
+            },
+            bitfile,
+        );
+    }
+    pub fn add_pip_sample_delta(&mut self, from_wire: &str, delta: ChipDelta) {
+        self.add_sample_delta(
+            FuzzKey::PipKey {
+                from_wire: from_wire.to_string(),
+                allow_partial_deltas : false
+            },
+            delta,
+        );
+    }
+    pub fn add_pip_sample_with_partial_delta(&mut self, db: &mut Database, from_wire: &str, bitfile: &str) {
+        self.add_sample(
+            db,
+            FuzzKey::PipKey {
+                from_wire: from_wire.to_string(),
+                allow_partial_deltas : true
             },
             bitfile,
         );
@@ -138,6 +180,19 @@ impl Fuzzer {
     pub fn add_word_sample(&mut self, db: &mut Database, index: usize, bitfile: &str) {
         self.add_sample(db, FuzzKey::WordKey { bit: index }, bitfile);
     }
+    pub fn add_word_delta(&mut self, index: usize, delta : ChipDelta) {
+        self.add_sample_delta( FuzzKey::WordKey { bit: index }, delta);
+    }
+
+    pub fn add_enum_delta(&mut self, option: &str, delta: ChipDelta) {
+        self.add_sample_delta(
+            FuzzKey::EnumKey {
+                option: option.to_string(),
+            },
+            delta
+        );
+    }
+
     pub fn add_enum_sample(&mut self, db: &mut Database, option: &str, bitfile: &str) {
         self.add_sample(
             db,
@@ -147,126 +202,172 @@ impl Fuzzer {
             bitfile,
         );
     }
+
+    pub fn serialize_deltas(&mut self, filename: &str) {
+        let pretty = PrettyConfig {
+            depth_limit: 5,
+            new_line: "\n".to_string(),
+            indentor: "  ".to_string(),
+            enumerate_arrays: false,
+            separate_tuple_members: false,
+        };
+
+        let buf = ron::ser::to_string_pretty(&self.deltas, pretty).unwrap();
+        File::create(format!("{}.ron", filename))
+            .unwrap()
+            .write_all(buf.as_bytes())
+            .unwrap();
+    }
+
+    fn solve_pip(&mut self, db: &mut Database,
+                     changed_tiles: &BTreeSet<String>,
+                     to_wire: &String,
+                     full_mux: bool, // if true, explicit 0s instead of base will be created for unset bits for a setting
+                     skip_fixed: bool, // if true, skip pips that have no bits associated with them (rather than created fixed conns)
+                     fixed_conn_tile: &String,
+                     ignore_tiles: &BTreeSet<String>, // changes in these tiles don't cause pips to be rejected
+    ) -> usize {
+        let mut findings : usize = 0;
+	
+        // In full mux mode; we need the coverage sets of the changes
+        let mut coverage: BTreeMap<String, BTreeSet<(usize, usize)>> = BTreeMap::new();
+        if full_mux {
+            for tile in self.tiles.iter() {
+                coverage.insert(
+                    tile.to_string(),
+                    self.deltas
+                        .iter()
+                        .filter_map(|(_k, v)| v.get(tile))
+                        .flatten()
+                        .map(|(f, b, _v)| (*f, *b))
+                        .collect(),
+                );
+            }
+        }
+
+        for (key, value) in self.deltas.iter() {
+            if let FuzzKey::PipKey { from_wire, allow_partial_deltas } = key {
+                let relevant_deltas : BTreeMap<String, Vec<(usize, usize, bool)>> =
+                    value.into_iter().filter(|(k, _v)| self.tiles.contains(*k) || !allow_partial_deltas)
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
+
+                if relevant_deltas
+                    .iter()
+                    .any(|(k, _v)| !self.tiles.contains(k) && !ignore_tiles.contains(k))
+                {
+                    warn!("Pip {} -> {} ({:?}) is not in watched set of {:?}", from_wire, to_wire, relevant_deltas.keys(), self.tiles);
+                    // If this pip affects tiles outside of the fuzz region, skip it
+                    continue;
+                }
+                if changed_tiles.len() == 0 {
+                    debug!("No changed tiles for {from_wire} -> {to_wire}");
+                    // No changes; it is a fixed connection
+                    if skip_fixed {
+                        continue;
+                    }
+                    let db_tile = self.base.tile_by_name(fixed_conn_tile).unwrap();
+                    let tile_db = db.tile_bitdb(&self.base.family, &db_tile.tiletype);
+                    tile_db.add_conn(
+                        &wires::normalize_wire(&self.base, db_tile, from_wire),
+                        &wires::normalize_wire(&self.base, db_tile, to_wire),
+                    );
+                } else {
+                    for tile in changed_tiles.iter() {
+                        // Get the set of bits for this config
+                        let bits: BTreeSet<ConfigBit> = if full_mux {
+                            // In full mux mode, we add a value for all bits even if they didn't change
+                            let value_bits = relevant_deltas.get(tile);
+                            coverage
+                                .get(tile)
+                                .iter()
+                                .map(|&x| x)
+                                .flatten()
+                                .map(|(f, b)| ConfigBit {
+                                    frame: *f,
+                                    bit: *b,
+                                    invert: value_bits.iter().any(|x| {
+                                        x.contains(&(
+                                            *f,
+                                            *b,
+                                            !self
+                                                .base
+                                                .tile_by_name(tile)
+                                                .unwrap()
+                                                .cram
+                                                .get(*f, *b),
+                                        ))
+                                    }) == self
+                                        .base
+                                        .tile_by_name(tile)
+                                        .unwrap()
+                                        .cram
+                                        .get(*f, *b),
+                                })
+                                .collect()
+                        } else {
+                            // Get the changed bits in this tile as ConfigBits; or the base set if the tile didn't change
+                            relevant_deltas
+                                .get(tile)
+                                .iter()
+                                .map(|&x| x)
+                                .flatten()
+                                .map(|(f, b, v)| ConfigBit {
+                                    frame: *f,
+                                    bit: *b,
+                                    invert: !(*v),
+                                })
+                                .collect()
+                        };
+                        if bits.is_empty() && skip_fixed {
+                            info!("Skipping {from_wire}->{to_wire} while solving");
+                            continue;
+                        }
+                        // Add the pip to the tile data
+                        let tile_data = self.base.tile_by_name(tile).unwrap();
+                        let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
+                        tile_db.add_pip(
+                            &wires::normalize_wire(&self.base, tile_data, from_wire),
+                            &wires::normalize_wire(&self.base, tile_data, to_wire),
+                            bits,
+                        ).unwrap();
+			findings += 1;
+                    }
+                }
+            }
+        }
+
+	findings
+    }
+
     pub fn solve(&mut self, db: &mut Database) {
         // Get a set of tiles that have been changed
         let changed_tiles: BTreeSet<String> = self
-            .deltas
+            .deltas.clone()
             .iter()
             .flat_map(|(_k, v)| v.keys())
             .filter(|t| self.tiles.contains(*t))
             .map(String::to_string)
             .collect();
-        match &self.mode {
+        //
+        // for (key, delta) in self.deltas.iter() {
+        //     info!("Delta: {:?} {:?}", key, delta);
+        // }
+
+        // Clone so we can call out to individual functions later. Does a copy but this should be
+        // okay since solve isn't called in a hot loop
+        match self.mode.clone() {
             FuzzMode::Pip {
                 to_wire,
                 full_mux,
                 skip_fixed,
                 fixed_conn_tile,
                 ignore_tiles,
-            } => {
-                // In full mux mode; we need the coverage sets of the changes
-                let mut coverage: BTreeMap<String, BTreeSet<(usize, usize)>> = BTreeMap::new();
-                if *full_mux {
-                    for tile in self.tiles.iter() {
-                        coverage.insert(
-                            tile.to_string(),
-                            self.deltas
-                                .iter()
-                                .filter_map(|(_k, v)| v.get(tile))
-                                .flatten()
-                                .map(|(f, b, _v)| (*f, *b))
-                                .collect(),
-                        );
-                    }
-                }
-
-                for (key, value) in self.deltas.iter() {
-                    if let FuzzKey::PipKey { from_wire } = key {
-                        if value
-                            .iter()
-                            .any(|(k, _v)| !self.tiles.contains(k) && !ignore_tiles.contains(k))
-                        {
-                            // If this pip affects tiles outside of the fuzz region, skip it
-                            continue;
-                        }
-                        if changed_tiles.len() == 0 {
-                            // No changes; it is a fixed connection
-                            if *skip_fixed {
-                                continue;
-                            }
-                            let db_tile = self.base.tile_by_name(fixed_conn_tile).unwrap();
-                            let tile_db = db.tile_bitdb(&self.base.family, &db_tile.tiletype);
-                            tile_db.add_conn(
-                                &wires::normalize_wire(&self.base, db_tile, from_wire),
-                                &wires::normalize_wire(&self.base, db_tile, to_wire),
-                            );
-                        } else {
-                            for tile in changed_tiles.iter() {
-                                // Get the set of bits for this config
-                                let bits: BTreeSet<ConfigBit> = if *full_mux {
-                                    // In full mux mode, we add a value for all bits even if they didn't change
-                                    let value_bits = value.get(tile);
-                                    coverage
-                                        .get(tile)
-                                        .iter()
-                                        .map(|&x| x)
-                                        .flatten()
-                                        .map(|(f, b)| ConfigBit {
-                                            frame: *f,
-                                            bit: *b,
-                                            invert: value_bits.iter().any(|x| {
-                                                x.contains(&(
-                                                    *f,
-                                                    *b,
-                                                    !self
-                                                        .base
-                                                        .tile_by_name(tile)
-                                                        .unwrap()
-                                                        .cram
-                                                        .get(*f, *b),
-                                                ))
-                                            }) == self
-                                                .base
-                                                .tile_by_name(tile)
-                                                .unwrap()
-                                                .cram
-                                                .get(*f, *b),
-                                        })
-                                        .collect()
-                                } else {
-                                    // Get the changed bits in this tile as ConfigBits; or the base set if the tile didn't change
-                                    value
-                                        .get(tile)
-                                        .iter()
-                                        .map(|&x| x)
-                                        .flatten()
-                                        .map(|(f, b, v)| ConfigBit {
-                                            frame: *f,
-                                            bit: *b,
-                                            invert: !(*v),
-                                        })
-                                        .collect()
-                                };
-                                if bits.is_empty() && *skip_fixed {
-                                    continue;
-                                }
-                                // Add the pip to the tile data
-                                let tile_data = self.base.tile_by_name(tile).unwrap();
-                                let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                                tile_db.add_pip(
-                                    &wires::normalize_wire(&self.base, tile_data, from_wire),
-                                    &wires::normalize_wire(&self.base, tile_data, to_wire),
-                                    bits,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
+            } => { self.solve_pip(db, &changed_tiles, &to_wire, full_mux, skip_fixed, &fixed_conn_tile, &ignore_tiles); }
             FuzzMode::Word { name, width } => {
                 for tile in changed_tiles.iter() {
                     let mut cbits = Vec::new();
-                    for i in 0..*width {
+                    for i in 0..width {
                         let key = FuzzKey::WordKey { bit: i };
                         let b = match self.deltas.get(&key) {
                             None => BTreeSet::new(),
@@ -284,10 +385,18 @@ impl Fuzzer {
                         };
                         cbits.push(b);
                     }
+
                     // Add the word to the tile data
                     let tile_data = self.base.tile_by_name(tile).unwrap();
-                    let tile_db = db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                    tile_db.add_word(&name, &self.desc, cbits);
+                    let tiletype = &tile_data.tiletype;
+                    let tiletype_or_overlay = if self.overlay.is_empty() {
+                        tiletype.clone()
+                    } else {
+                        format!("overlays/{}-{}", tiletype, self.overlay)
+                    };
+
+                    let tile_db = db.tile_bitdb(&self.base.family, tiletype_or_overlay.as_str());
+                    tile_db.add_word(&name, &self.desc, cbits).unwrap();
                 }
             }
             FuzzMode::Enum {
@@ -295,8 +404,10 @@ impl Fuzzer {
                 include_zeros,
                 disambiguate: _,
                 assume_zero_base,
+                mark_relative_to,
             } => {
                 if self.deltas.len() < 2 {
+                    warn!("Need at least two deltas got {} for fuzzmode {name}", self.deltas.len());
                     return;
                 }
                 for tile in changed_tiles {
@@ -326,7 +437,7 @@ impl Fuzzer {
                                 if let FuzzKey::EnumKey { option } = key {
                                     let b = match delta.get(&tile) {
                                         None => {
-                                            if *include_zeros {
+                                            if include_zeros {
                                                 // All bits as default
                                                 changed_bits
                                                     .iter()
@@ -336,7 +447,7 @@ impl Fuzzer {
                                                         invert: *v,
                                                     })
                                                     .collect()
-                                            } else if *assume_zero_base {
+                                            } else if assume_zero_base {
                                                 changed_bits
                                                     .iter()
                                                     .filter(|(_f, _b, v)| !(*v))
@@ -353,12 +464,12 @@ impl Fuzzer {
                                         Some(td) => changed_bits
                                             .iter()
                                             .filter(|(f, b, v)| {
-                                                *include_zeros
+                                                include_zeros
                                                     || !(*v)
                                                     || td.contains(&(*f, *b, *v))
                                             })
                                             .filter(|(f, b, v)| {
-                                                !(*assume_zero_base)
+                                                !(assume_zero_base)
                                                     || *v
                                                     || !(*v) && !td.contains(&(*f, *b, *v))
                                             })
@@ -375,9 +486,31 @@ impl Fuzzer {
                                     };
                                     // Add the enum to the tile data
                                     let tile_data = self.base.tile_by_name(&tile).unwrap();
+
+                                    let tiletype = &tile_data.tiletype;
+                                    let tiletype_or_overlay = if self.overlay.is_empty() {
+                                        tiletype.clone()
+                                    } else {
+                                        format!("overlays/{}-{}", tiletype, self.overlay)
+                                    };
+                                    
+                                    info!("Resolved {} {} {:?} {}", name, option, b, tiletype_or_overlay);
+
                                     let tile_db =
-                                        db.tile_bitdb(&self.base.family, &tile_data.tiletype);
-                                    tile_db.add_enum_option(name, &option, &self.desc, b);
+                                        db.tile_bitdb(&self.base.family, &tiletype_or_overlay);
+
+                                    tile_db.add_enum_option(&name, &option, &self.desc, b).unwrap();
+
+                                    if let Some(relative_tile) = mark_relative_to.clone() {
+                                        let ref_tile = self.base.tile_by_name(&relative_tile).unwrap();
+                                        let offset = {
+                                            (ref_tile.x as i32 - tile_data.x as i32,
+                                             ref_tile.y as i32 - tile_data.y as i32)
+                                        };
+
+                                        tile_db.set_bel_offset(Some(offset.clone())).unwrap();
+                                    };
+
                                 }
                             }
                         }
@@ -405,7 +538,7 @@ pub fn copy_db(
             for (to_wire, pips) in origin_data.pips.iter() {
                 for p in pips.iter() {
                     if pattern == "" || to_wire.contains(pattern) || p.from_wire.contains(pattern) {
-                        dest_data.add_pip(&p.from_wire, to_wire, p.bits.clone());
+                        dest_data.add_pip(&p.from_wire, to_wire, p.bits.clone()).unwrap();
                     }
                 }
             }
@@ -414,7 +547,7 @@ pub fn copy_db(
             for (name, opts) in origin_data.enums.iter() {
                 if pattern == "" || name.contains(pattern) {
                     for (opt, bits) in opts.options.iter() {
-                        dest_data.add_enum_option(name, opt, &opts.desc, bits.clone());
+                        dest_data.add_enum_option(name, opt, &opts.desc, bits.clone()).unwrap();
                     }
                 }
             }
@@ -422,7 +555,7 @@ pub fn copy_db(
         if mode.contains('W') {
             for (name, data) in origin_data.words.iter() {
                 if pattern == "" || name.contains(pattern) {
-                    dest_data.add_word(name, &data.desc, data.bits.clone());
+                    dest_data.add_word(name, &data.desc, data.bits.clone()).unwrap();
                 }
             }
         }

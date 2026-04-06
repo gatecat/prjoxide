@@ -132,12 +132,14 @@ impl<'a> BBAStructs<'a> {
         rel_x: i16,
         rel_y: i16,
         wire_idx: usize,
+        wire_name: IdString
     ) -> Result<()> {
         self.out.i16_val(rel_x)?; // neighbour loc X
         self.out.i16_val(rel_y)?; // neighbour loc Y
         self.out.u16_val(wire_idx.try_into().unwrap())?; // index of wire in neighbour tile
         self.out.u8_val(loc_type)?; // for special cases like globals
         self.out.u8_val(arc_flags)?; // direction info
+        self.out.u32_val(wire_name.val().try_into().unwrap())?;
         Ok(())
     }
 
@@ -262,11 +264,12 @@ impl<'a> BBAStructs<'a> {
     pub fn global_hrow_info(
         &mut self,
         hrow_col: usize,
+        hrow_row: usize,
         num_spine_cols: usize,
         spine_cols_ref: &str,
     ) -> Result<()> {
         self.out.u16_val(hrow_col.try_into().unwrap())?;
-        self.out.u16_val(0)?; // padding
+        self.out.u16_val(hrow_row.try_into().unwrap())?;
         self.out.ref_slice(spine_cols_ref, num_spine_cols)?;
         Ok(())
     }

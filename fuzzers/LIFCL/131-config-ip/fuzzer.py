@@ -82,7 +82,7 @@ cfgs = [
             ("TCONFIG_WDT_CORE73", "CONFIG_WDT_CORE"),
             ("TCONFIG_CLKRST_CORE73", "CONFIG_CLKRST_CORE"),
             ("TCONFIG_IP_CORE73", "CONFIG_IP_CORE"),
-            ("TCONFIG_HSE_CORE73", "CONFIG_HSE_CORE"),
+            #("TCONFIG_HSE_CORE73", "CONFIG_HSE_CORE"),
             ("TCONFIG_MULTIBOOT_CORE73", "CONFIG_MULTIBOOT_CORE"),
             ("TCONFIG_LMMI_CORE73", "CONFIG_LMMI_CORE"),
         ]
@@ -125,14 +125,14 @@ def main():
                 desc="{} primitive mode".format(prim))
             for name, values, desc in settings[prim]:
                 nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}".format(prim, name), values,
-                    lambda x: get_substs(mode=prim, kv=(name, x)), False,
+                    lambda x,name=name,prim=prim: get_substs(mode=prim, kv=(name, x)), False,
                     desc=desc)
             if prim in words:
                 for name, width, desc in words[prim]:
                     nonrouting.fuzz_word_setting(cfg, "{}.{}".format(prim, name), width,
-                        lambda x: get_substs(mode=prim, kv=(name, "0b" + "".join(reversed(["1" if b else "0" for b in x])))),
+                        lambda x,name=name,prim=prim: get_substs(mode=prim, kv=(name, "0b" + "".join(reversed(["1" if b else "0" for b in x])))),
                         desc=desc)
         fuzzloops.parallel_foreach(sites, per_site)
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)
 

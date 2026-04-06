@@ -1,16 +1,26 @@
-use std::collections::BTreeSet;
 use crate::chip::*;
 use crate::database::TileBitsDatabase;
+use itertools::Itertools;
+use std::collections::BTreeSet;
 use std::convert::TryInto;
+use log::{debug, warn};
+use serde::{Deserialize, Serialize};
+
+fn default<T: Default + PartialEq>(t: &T) -> bool {
+    *t == Default::default()
+}
 
 // A reference to a wire in a relatively located tile
-#[derive(Clone)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub struct RelWire {
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_x: i32,   // (bel.x + rel_x == tile.x)
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_y: i32,   // (bel.y + rel_y == tile.y)
     pub name: String, // wire name in tile
 }
-
 impl RelWire {
     pub fn prefix(total_rel_x : i32, total_rel_y : i32) -> String {
         let mut prefix = String::new();
@@ -41,16 +51,18 @@ impl RelWire {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Ord, PartialOrd, Debug, Deserialize, Serialize)]
 pub enum PinDir {
     INPUT = 0,
     OUTPUT = 1,
     INOUT = 2,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub struct BelPin {
     pub name: String,  // name of pin on bel
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub desc: String,  // description for documentation
     pub dir: PinDir,   // direction
     pub wire: RelWire, // reference to wire in tile
@@ -119,13 +131,19 @@ impl BelPin {
         }
     }
 }
-
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Deserialize, Serialize, Debug)]
 pub struct Bel {
     pub name: String,
     pub beltype: String,
     pub pins: Vec<BelPin>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_x: i32,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub rel_y: i32,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "default")]
     pub z: u32,
 }
 
@@ -445,6 +463,7 @@ impl Bel {
         }
     }
 
+
     pub fn make_diffio18() -> Bel {
         let postfix = format!("DIFFIO18_CORE_IOA");
         Bel {
@@ -530,6 +549,37 @@ impl Bel {
         }
     }
 
+    pub fn make_wdt(_tiledata: &TileBitsDatabase) -> Bel {
+        /*
+        Wires look like this for the lifcl devices:
+
+        Node: JWDT_RST_CONFIG_WDT_CORE_CONFIG_WDT
+        Node: JWDT_CLK_CONFIG_WDT_CORE_CONFIG_WDT
+        Node: JCIBWDTRELOAD_CONFIG_WDT_CORE_CONFIG_WDT
+        */
+        let postfix = "CONFIG_WDT_CORE_CONFIG_WDT".to_string();
+        Bel {
+            name: "WDT".to_string(),
+            beltype: "WDT".to_string(),
+            pins: vec![
+                input!(&postfix, "WDT_CLK", "WDT clock input", -2, 0),
+                input!(&postfix, "WDT_RST", "WDT reset", -2, 0),
+                BelPin {
+                    name: "WDTRELOAD".to_string(),
+                    desc: "WDT reload".to_string(),
+                    dir: PinDir::INPUT,
+                    wire: RelWire {
+                        rel_x: -2,
+                        rel_y: 0,
+                        name: "JCIBWDTRELOAD_CONFIG_WDT_CORE_CONFIG_WDT".to_string()
+                    },
+                }
+            ],
+            rel_x: 0,
+            rel_y: 0,
+            z: 0
+        }
+    }
     pub fn make_iol(tiledata: &TileBitsDatabase, s: bool, z: usize) -> Bel {
         let ch = Z_TO_CHAR[z];
         let postfix = if s {
@@ -658,9 +708,27 @@ impl Bel {
             z: 0,
         }
     }
+
+    pub fn with_rel(self, rel: (i32, i32)) -> Bel {
+        Bel {
+            rel_x: rel.0,
+            rel_y: rel.1,
+            ..self
+        }
+    }
 }
 
-pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
+pub fn get_tile_bels(full_tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
+    // Tiletypes constructed from overlays are named like so: <tiletype>/<id>
+    if tiledata.bels.len() > 0{
+        let mut bels = tiledata.bels.iter().cloned().collect_vec();
+        for (idx, bel) in bels.iter_mut().enumerate() {
+            bel.z = idx as u32;
+        }
+        return bels.into_iter().collect_vec();
+    }
+
+    let tiletype = full_tiletype.split("/").next().unwrap();
     let mut stt = tiletype;
     if tiletype.ends_with("_EVEN") || tiletype.ends_with("_ODD") {
         stt = &tiletype[0..tiletype.rfind('_').unwrap()];
@@ -681,17 +749,18 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             })
             .flatten()
             .collect(),
-        "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
-        | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C"
-        | "SYSIO_B0_0_15K" | "SYSIO_B1_0_15K" => {
-            vec![Bel::make_seio33(0), Bel::make_seio33(1), Bel::make_iol(tiledata, true, 0), Bel::make_iol(tiledata, true, 1)]
-        },
-        "SYSIO_B1_DED" | "SYSIO_B1_DED_15K" => vec![Bel::make_seio33(1)],
-        "SYSIO_B3_0" | "SYSIO_B3_0_DLY30_V18" | "SYSIO_B3_0_DQS1" | "SYSIO_B3_0_DQS3"
-        | "SYSIO_B4_0" | "SYSIO_B4_0_DQS1" | "SYSIO_B4_0_DQS3" | "SYSIO_B4_0_DLY50" | "SYSIO_B4_0_DLY42"
-        |  "SYSIO_B5_0" | "SYSIO_B5_0_15K_DQS52" | "SYSIO_B4_0_15K_DQS42"
-        | "SYSIO_B4_0_15K_BK4_V42" | "SYSIO_B4_0_15K_V31" | "SYSIO_B3_0_15K_DQS32" => vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18(),
-            Bel::make_iol(tiledata, false, 0), Bel::make_iol(tiledata, false, 1)],
+        // "SYSIO_B0_0" | "SYSIO_B1_0" | "SYSIO_B1_0_C" | "SYSIO_B2_0" | "SYSIO_B2_0_C"
+        // | "SYSIO_B6_0" | "SYSIO_B6_0_C" | "SYSIO_B7_0" | "SYSIO_B7_0_C"
+        // | "SYSIO_B0_0_15K" | "SYSIO_B1_0_15K" => {
+        //     vec![Bel::make_seio33(0), Bel::make_seio33(1), Bel::make_iol(tiledata, true, 0), Bel::make_iol(tiledata, true, 1)]
+        // },
+      //   "SYSIO_B1_DED" | "SYSIO_B1_DED_15K" => vec![Bel::make_seio33(1)],
+      //   "SYSIO_B3_0" | "SYSIO_B3_0_DLY30_V18" | "SYSIO_B3_0_DQS1" | "SYSIO_B3_0_DQS3"
+      //   | "SYSIO_B4_0" | "SYSIO_B4_0_DQS1" | "SYSIO_B4_0_DQS3" | "SYSIO_B4_0_DLY50" | "SYSIO_B4_0_DLY42"
+      //   |  "SYSIO_B5_0" | "SYSIO_B5_0_15K_DQS52" | "SYSIO_B4_0_15K_DQS42"
+      //   | "SYSIO_B4_0_15K_BK4_V42" | "SYSIO_B4_0_15K_V31" | "SYSIO_B3_0_15K_DQS32" =>
+	  // vec![Bel::make_seio18(0), Bel::make_seio18(1), Bel::make_diffio18(), Bel::make_iol(tiledata, false, 0), Bel::make_iol(tiledata, false, 1)],
+
         "EFB_0" => vec![
             Bel::make_config(&tiledata, "CONFIG_MULTIBOOT_CORE", "_CONFIG_MULTIBOOT_CORE_CONFIG_MULTIBOOT", -2, 0, 0),
             Bel::make_config(&tiledata, "CONFIG_HSE_CORE", "_CONFIG_HSE_CORE_CONFIG_HSE", -2, 0, 1),
@@ -706,7 +775,7 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             Bel::make_config(&tiledata, "CONFIG_CLKRST_CORE", "_CONFIG_CLKRST_CORE_CONFIG_CLKRST", -14, 0, 3),
         ],
 
-        "EFB_1_OSC" | "OSC_15K" => vec![Bel::make_osc_core()],
+        "EFB_1_OSC" | "OSC_15K" | "OSC"	 => vec![Bel::make_osc_core()],
         "EBR_1" => vec![Bel::make_ebr(&tiledata, 0)],
         "EBR_4" => vec![Bel::make_ebr(&tiledata, 1)],
         "EBR_7" => vec![Bel::make_ebr(&tiledata, 2)],
@@ -763,7 +832,7 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "RMID_DLY20" | "RMID_PICB_DLY10" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
         "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),
         "BMID_0_ECLK_1" => (0..18).map(|x| Bel::make_dcc("B", x)).collect(),
-        "CMUX_0" => {
+        "CMUX_0" | "CMUX_0_TL" | "CMUX_1_GSR_TR" | "CMUX_2" | "CMUX_3" => {
                 let mut bels = (0..4).map(|x| Bel::make_dcc("C", x)).collect::<Vec<Bel>>();
                 bels.push(Bel::make_dcs());
                 bels
@@ -782,36 +851,74 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "LRAM_3_15K" => vec![Bel::make_lram_core("LRAM3", &tiledata, 0, -1)],
         "LRAM_4_15K" => vec![Bel::make_lram_core("LRAM4", &tiledata, 0, -1)],
 
+        "LRAM_0_33K" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, 0)],
+        "LRAM_1_33K" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, 0)],
+        "LRAM_2_33K" => vec![Bel::make_lram_core("LRAM2", &tiledata, -1, 0)],
+        "LRAM_3_33K" => vec![Bel::make_lram_core("LRAM3", &tiledata, -1, 0)],
+        "LRAM_4_33K" => vec![Bel::make_lram_core("LRAM4", &tiledata, -1, 0)],
+
         "MIPI_DPHY_0" => vec![Bel::make_dphy_core("TDPHY_CORE2", &tiledata, -2, 0)],
         "MIPI_DPHY_1" => vec![Bel::make_dphy_core("TDPHY_CORE26", &tiledata, -2, 0)],
-        _ => vec![],
+        "MIB_T_TAP" | "TAP_CIBT" | "TAP_CIB" | "TAP_PLC" | "CIB" | "MIB_LR" => vec![], // Silence warnings
+        _ => {
+            let bel_relative_location = tiledata.tile_configures_external_tiles.iter().next().cloned().unwrap_or((0, 0));
+
+            let enum_bels = tiledata.enums.iter().flat_map(|(key, _value)|match key.as_str() {
+                "PIOA.BASE_TYPE" => vec![Bel::make_seio33(0)],
+                "PIOB.BASE_TYPE" => vec![Bel::make_seio33(1)],
+                "PIOA.SEIO18.BASE_TYPE" => vec![Bel::make_seio18(0)],
+                "PIOB.SEIO18.BASE_TYPE" => vec![Bel::make_seio18(1)],
+                "PIOA.DIFFIO18.BASE_TYPE" => vec![Bel::make_diffio18()],
+                "SIOLOGICA.GSR" => vec![Bel::make_iol(tiledata, true, 0)],
+                "SIOLOGICB.GSR" => vec![Bel::make_iol(tiledata, true, 1)],
+                "IOLOGICA.GSR" => vec![Bel::make_iol(tiledata, false, 0)],
+                "IOLOGICB.GSR" => vec![Bel::make_iol(tiledata, false, 1)],
+                "TCONFIG_WDT_CORE31.WDTEN" | "CONFIG_WDT_CORE.WDTEN" => vec![Bel::make_wdt(tiledata)],
+                _ => vec![]
+            }).map(|x| {
+                x.with_rel(bel_relative_location)
+            });
+            let inferred_bels = enum_bels.collect_vec();
+            if inferred_bels.is_empty() {
+                debug!("No BEL for tile type {}", &stt);
+            }
+            inferred_bels
+	  },
     }
 }
 
 // Get the tiles that a bel's configuration might be split across
-pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
+pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel, rel: &Option<(i32, i32)>) -> Vec<String> {
     let tn = tile.name.to_string();
     let rel_tile = |dx: i32, dy: i32, tt: &str| {
         chip.tile_by_xy_type((tile.x as i32 + dx).try_into().unwrap(),
             (tile.y as i32 + dy).try_into().unwrap(), tt).unwrap().name.to_string()
     };
 
-    let rel_tile_prefix = |dx, dy, tt_prefix| {
-        for tile in chip.tiles_by_xy(tile.x + dx, tile.y + dy).iter() {
+    let rel_tile_prefix = |dx:i32, dy:i32, tt_prefix| {
+        let nx = tile.x.checked_add_signed(dx).unwrap();
+        let ny = tile.y.checked_add_signed(dy).unwrap();
+        for tile in chip.tiles_by_xy(nx, ny).iter() {
             if tile.tiletype.starts_with(tt_prefix) {
                 return tile.name.to_string();
             }
         }
-        panic!("no tile matched prefix ({}, {}, {})", tile.x + dx, tile.y + dy, tt_prefix);
+        warn!("no tile matched prefix ({}, {}, {}) for {}", nx, ny, tt_prefix, tile.name);
+        "".to_string()
     };
-    let rel_tile_suffix = |dx, dy, tt_suffix| {
-        for tile in chip.tiles_by_xy(tile.x + dx, tile.y + dy).iter() {
-            if tile.tiletype.ends_with(tt_suffix) {
-                return tile.name.to_string();
-            }
+    let rel_tile_suffix = |dx, dy| {
+        let nx = tile.x.checked_add_signed(dx).unwrap();
+        let ny = tile.y.checked_add_signed(dy).unwrap();
+        for tile in chip.tiles_by_xy(nx, ny).iter() {
+            return tile.name.to_string();
         }
-        panic!("no tile matched suffix ({}, {}, {})", tile.x + dx, tile.y + dy, tt_suffix);
+        warn!("no tile matched suffix ({}, {}) for {}", nx, ny, tile.name);
+        "".to_string()
     };
+
+    if let Some(rel_offset) = rel {
+        return vec![rel_tile_suffix(rel_offset.0, rel_offset.1)];
+    }
 
     let tt = &tile.tiletype[..];
     match &bel.beltype[..] {
@@ -831,7 +938,7 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             0 => vec![rel_tile(0, 0, "EBR_1"), rel_tile(1, 0, "EBR_2")],
             1 => vec![rel_tile(0, 0, "EBR_4"), rel_tile(1, 0, "EBR_5")],
             2 => vec![rel_tile(0, 0, "EBR_7"), rel_tile(1, 0, "EBR_8")],
-            3 => vec![rel_tile(0, 0, "EBR_9"), rel_tile_suffix(1, 0, "EBR_10")],
+            3 => vec![rel_tile(0, 0, "EBR_9"), rel_tile_suffix(1, 0)],
             _ => panic!("unknown EBR z-index")
         }
         "PREADD9_CORE" | "MULT9_CORE" | "MULT18_CORE" | "REG18_CORE" |

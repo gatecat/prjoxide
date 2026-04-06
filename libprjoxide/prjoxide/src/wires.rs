@@ -1,3 +1,4 @@
+use log::warn;
 // Wire normalisation for Nexus
 use crate::chip::*;
 use regex::Regex;
@@ -77,6 +78,9 @@ pub fn handle_edge_name(
             "01" => {
                 // H01xyy00 --> x+1, H01xyy01
                 if tx == max_x - 1 {
+                    if hm[4].to_string() != "00" {
+                        warn!("Invalid edge name {wn} - {hm:?}. hm[4] == '00'")
+                    }
                     assert_eq!(hm[4].to_string(), "00");
                     return (format!("H01{}{}01", &hm[2], &hm[3]), wx + 1, wy);
                 }
@@ -265,20 +269,46 @@ pub fn normalize_wire(chip: &Chip, tile: &Tile, wire: &str) -> String {
         spw[2].parse::<i32>().unwrap(),
         &spw[3],
     );
-    if wn.ends_with("VCCHPRX") || wn.ends_with("VCCHPBX") || wn.ends_with("VCC") {
+    if wn.ends_with("VCCHPRX") || wn.ends_with("VCCHPBX") || wn.ends_with("VCC")
+        // LIFCL-33 has VCCSPINEs which connect to VCCHPRX
+        || wn.ends_with("VCCVSPINE") {
         return "G:VCC".to_string();
     }
     let tx = tile.x as i32;
     let ty = tile.y as i32;
-    if tile.name.contains("TAP") && wn.starts_with("H") {
-        if wx < tx {
-            return format!("BRANCH_L:{}", wn);
-        } else if wx > tx {
-            return format!("BRANCH_R:{}", wn);
-        } else {
-            panic!("unable to determine TAP side of {} in {}", wire, tile.name);
-        }
+
+    if tile.name.contains("TAP") && (wn.starts_with("HPRX") || wn.starts_with("HPBX")) && !wn.starts_with("HFIE") {
+        let branch_dir = match chip.device.as_str() {
+            "LIFCL-40" | "LIFCL-17" | "LFD2NX-40" | "LFCPNX-100" =>
+                if wx < tx {
+                    Some("L")
+                } else if wx > tx {
+                    Some("R")
+                } else {
+                    None
+                }
+
+            // On every device except the 33's, the column the tap is on is the first column of the R side.
+            // Probably the real fix is to pass the globals database in and have it sort it with that data.
+            "LIFCL-33U" | "LIFCL-33" => {
+                let first_r_col = match tx {
+                    // Column tap is on -> First column of the R side of the tap
+                    14 => 14,
+                    26 => 38,
+                    _ => panic!("Invalid tap column given: {} {}", wx, tx)
+                };
+                if wx >= first_r_col {
+                    Some("R")
+                } else {
+                    Some("L")
+                }
+            }
+            _ => None,
+        }.expect(format!("unable to determine TAP side of {} in {}", wire, tile.name).as_str());
+
+        return format!("BRANCH_{}:{}", branch_dir, wn);
     }
+
     if GLB_HBRANCH_RE.is_match(wn) {
         return format!("BRANCH:{}", wn);
     } else if GLB_SPINE_RE.is_match(wn) {

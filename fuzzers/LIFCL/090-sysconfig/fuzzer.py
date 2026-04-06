@@ -12,7 +12,7 @@ cfgs = [
         "CIB_R0C72:I2C_15K", "CIB_R0C71:OSC_15K", "CIB_R0C70:PMU_15K", "CIB_R0C66:EFB_15K"])
 ]
 
-def main():
+def main(executor):
     for cfg in cfgs:
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
@@ -23,34 +23,34 @@ def main():
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.MASTER_SPI_PORT", ["DISABLE", "SERIAL", "DUAL", "QUAD"],
                                 lambda x: get_substs("MASTER_SPI_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="status of master SPI port after configuration")
+                                desc="status of master SPI port after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.SLAVE_SPI_PORT", ["DISABLE", "SERIAL", "DUAL", "QUAD"],
                                 lambda x: get_substs("SLAVE_SPI_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="status of slave SPI port after configuration")
+                                desc="status of slave SPI port after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.SLAVE_I2C_PORT", ["DISABLE", "ENABLE"],
                                 lambda x: get_substs("SLAVE_I2C_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="status of slave I2C port after configuration")
+                                desc="status of slave I2C port after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.SLAVE_I3C_PORT", ["DISABLE", "ENABLE"],
                                 lambda x: get_substs("SLAVE_I3C_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="status of slave I3C port after configuration")
+                                desc="status of slave I3C port after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.JTAG_PORT", ["DISABLE", "ENABLE"],
                                 lambda x: get_substs("JTAG_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="status of JTAG port after configuration")
+                                desc="status of JTAG port after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.DONE_PORT", ["DISABLE", "ENABLE"],
                                 lambda x: get_substs("DONE_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="use DONE output after configuration")
+                                desc="use DONE output after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.INITN_PORT", ["DISABLE", "ENABLE"],
                                 lambda x: get_substs("INITN_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="use INITN input after configuration")
+                                desc="use INITN input after configuration",executor=executor)
         nonrouting.fuzz_enum_setting(cfg, empty, "SYSCONFIG.PROGRAMN_PORT", ["DISABLE", "ENABLE"],
                                 lambda x: get_substs("PROGRAMN_PORT", x), False,
                                 assume_zero_base=True,
-                                desc="use PROGRAMN input after configuration")
+                                desc="use PROGRAMN input after configuration",executor=executor)
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)

@@ -1,12 +1,21 @@
 use std::cmp::Eq;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::iter::FromIterator;
 
 pub struct IndexedSet<T: Eq + Hash + Clone> {
     keys: Vec<T>,
     key_to_index: HashMap<T, usize>,
 }
-
+impl<T: Eq + Hash + Clone> FromIterator<T> for IndexedSet<T> {
+    fn from_iter<S: IntoIterator<Item=T>>(iter: S) -> Self {
+        let mut rtn : IndexedSet<T> = IndexedSet::new();
+        for x in iter {
+            rtn.add(&x);
+        }
+        rtn
+    }
+}
 impl<T: Eq + Hash + Clone> IndexedSet<T> {
     pub fn new() -> IndexedSet<T> {
         IndexedSet::<T> {

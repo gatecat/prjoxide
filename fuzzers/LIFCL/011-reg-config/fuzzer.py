@@ -14,7 +14,7 @@ def main():
         for r in range(2):
             def get_substs(regset="SET", sel="DL", lsrmode="LSR", srmode="LSR_OVER_CE", gsr="DISABLED", mux="", used="", arc=""):
                 return dict(z=slicen, k=str(r), mux=mux, regset=regset,
-                    sel=sel, lsrmode=lsrmode, srmode=srmode, gsr=gsr, used=used, arc=arc)
+                            sel=sel, lsrmode=lsrmode, srmode=srmode, gsr=gsr, used=used, arc=arc, q_used_comment="//" if used == "" else "" )
             def get_used_substs(used):
                 u = ""
                 arc = ""

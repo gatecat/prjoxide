@@ -1,3 +1,5 @@
+import logging
+
 import fuzzconfig
 import nonrouting
 import fuzzloops
@@ -26,6 +28,61 @@ cfgs = [
     #         ("LRAM_CORE_R40C86", "LRAM_CORE"),
     #     ]
     # ),
+    (fuzzconfig.FuzzConfig(job="IPADDR33", device="LIFCL-33", sv="ip33.v", tiles=[]),
+        [
+            ("PLL_LLC", "PLL_CORE"),
+#            ("PLL_LRC", "PLL_CORE"),
+#            ("PMU_CORE_R1C70", "PMU_CORE"),
+#            ("SGMIICDR_CORE_R28C5", "SGMIICDR_CORE"),
+#            ("SGMIICDR_CORE_R28C4", "SGMIICDR_CORE"),
+            ("I2CFIFO_CORE_R1C37", "I2CFIFO_CORE"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID0"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID1"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID2047"),
+            ("LRAM_CORE_R2C1", "LRAM_CORE"),
+            ("LRAM_CORE_R11C1", "LRAM_CORE"),
+            ("LRAM_CORE_R20C1", "LRAM_CORE"),
+            ("LRAM_CORE_R15C74", "LRAM_CORE"),
+            ("LRAM_CORE_R16C74", "LRAM_CORE"),
+        ]
+     ),
+    (fuzzconfig.FuzzConfig(job="IPADDR33U", device="LIFCL-33U", sv="ip_33u.v", tiles=[]),
+        [
+            ("PLL_LLC", "PLL_CORE"),
+#            ("PLL_LRC", "PLL_CORE"),
+#            ("PMU_CORE_R1C70", "PMU_CORE"),
+#            ("SGMIICDR_CORE_R28C5", "SGMIICDR_CORE"),
+#            ("SGMIICDR_CORE_R28C4", "SGMIICDR_CORE"),
+            ("I2CFIFO_CORE_R1C37", "I2CFIFO_CORE"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID0"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID1"),
+            ("EBR_CORE_R10C5", "EBR_CORE_WID2047"),
+            ("LRAM_CORE_R2C1", "LRAM_CORE"),
+            ("LRAM_CORE_R11C1", "LRAM_CORE"),
+            ("LRAM_CORE_R20C1", "LRAM_CORE"),
+            ("LRAM_CORE_R15C74", "LRAM_CORE"),
+            ("LRAM_CORE_R16C74", "LRAM_CORE"),
+        ]
+     ),    
+    
+    # (fuzzconfig.FuzzConfig(job="IPADDR33U", device="LIFCL-33U", sv="ip_33u.v", tiles=[]),
+    #     [
+    #         ("PLL_LLC", "PLL_CORE"),
+    #         # ("PLL_LRC", "PLL_CORE"),
+    #         # ("PMU_CORE_R1C70", "PMU_CORE"),
+    #         # ("SGMIICDR_CORE_R28C5", "SGMIICDR_CORE"),
+    #         # ("SGMIICDR_CORE_R28C4", "SGMIICDR_CORE"),
+    #         # ("I2CFIFO_CORE_R1C72", "I2CFIFO_CORE"),
+    #         # ("EBR_CORE_R10C5", "EBR_CORE_WID0"),
+    #         # ("EBR_CORE_R10C5", "EBR_CORE_WID1"),
+    #         # ("EBR_CORE_R10C5", "EBR_CORE_WID2047"),
+    #         # ("LRAM_CORE_R2C1", "LRAM_CORE"),
+    #         # ("LRAM_CORE_R11C1", "LRAM_CORE"),
+    #         # ("LRAM_CORE_R20C1", "LRAM_CORE"),
+    #         # ("LRAM_CORE_R15C74", "LRAM_CORE"),
+    #         # ("LRAM_CORE_R16C74", "LRAM_CORE"),
+    #     ]
+    #  ),    
     (fuzzconfig.FuzzConfig(job="IPADDR17", device="LIFCL-17", sv="ip.v", tiles=[]),
         [
             ("DPHY0", "DPHY_CORE"),
@@ -83,9 +140,14 @@ def main():
             if wid_idx != -1:
                 prim_type = prim_type[0:wid_idx]
             bit = cfg.build_design(cfg.sv, dict(cmt="", prim=prim_type, site=site, config=ip_settings[prim]))
-            chip = libpyprjoxide.Chip.from_bitstream(fuzzconfig.db, bit)
-            ipv = chip.get_ip_values()
-            assert len(ipv) > 0
+            with fuzzconfig.db_lock() as db:
+                chip = libpyprjoxide.Chip.from_bitstream(db, bit.bitstream)
+                ipv = chip.get_ip_values()
+
+            logging.info(f"{bit.bitstream} {cfg.device} {site} {prim} has {len(ipv)} IP deltas")
+            if len(ipv) == 0:
+                continue
+
             addr = ipv[0][0]
             ip_name = site
             if "EBR_CORE" in ip_name:
@@ -100,4 +162,5 @@ def main():
             print(json.dumps(dict(regions=ip_base), sort_keys=True, indent=4), file=jf)
     
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)
+

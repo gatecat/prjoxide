@@ -142,7 +142,7 @@ impl BBAExport {
         }
 
         let speed_grades = vec!["4", "5", "6", "10", "11", "12", "M"];
-        let devices = vec!["LIFCL-40", "LFD2NX-40", "LIFCL-17"];
+        let devices = vec!["LIFCL-40", "LFD2NX-40", "LIFCL-17", "LIFCL-33", "LIFCL-33U"];
         let mut db = Database::new_builtin(DATABASE_DIR);
 
         let tts = TileTypes::new(&mut db, &mut ids, "LIFCL", &devices);
@@ -218,6 +218,8 @@ impl InterchangeExport {
 }
 
 fn main() -> Result<()> {
+    env_logger::init();
+
     let opts: Opts = Opts::parse();
     match opts.subcmd {
         SubCommand::Pack(t) => {

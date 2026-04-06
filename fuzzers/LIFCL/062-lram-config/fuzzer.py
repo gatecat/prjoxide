@@ -2,79 +2,64 @@ from fuzzconfig import FuzzConfig
 import nonrouting
 import fuzzloops
 import re
+import database
+from primitives import lram_core
+import tiles
+from tqdm.asyncio import tqdm
+import asyncio
 
-configs = [
-    ("LRAM_CORE_R18C86", "LRAM0", FuzzConfig(job="LRAM0", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R23C87:LRAM_0" ])),
-    ("LRAM_CORE_R40C86", "LRAM1", FuzzConfig(job="LRAM1", device="LIFCL-40", sv="../shared/empty_40.v", tiles=["CIB_R41C87:LRAM_1", ])),
+def create_device_lram_configs(device):
+    # Find all the tiles where the LRAM_CORE primitive lives
+    bel_tiles = sorted(tiles.get_tiles_by_primitive(device, "LRAM_CORE").keys(), key = lambda x: tiles.get_rc_from_name(device, x[0]))
+    print("bel", device, bel_tiles, list(enumerate(bel_tiles)))
 
-    ("LRAM_CORE_R15C74", "LRAM0", FuzzConfig(job="LRAM0_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R15C75:LRAM_0_15K"])),
-    ("LRAM_CORE_R16C74", "LRAM1", FuzzConfig(job="LRAM1_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R16C75:LRAM_1_15K"])),
-    ("LRAM_CORE_R2C1", "LRAM2", FuzzConfig(job="LRAM2_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R3C0:LRAM_2_15K"])),
-    ("LRAM_CORE_R11C1", "LRAM3", FuzzConfig(job="LRAM3_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R12C0:LRAM_3_15K"])),
-    ("LRAM_CORE_R20C1", "LRAM4", FuzzConfig(job="LRAM4_17", device="LIFCL-17", sv="../shared/empty_17.v", tiles=["CIB_R21C0:LRAM_4_15K"])),
-]
+    # All the LRAM's have different tiles which do the configuration. These are the LRAM_* tile types
+    lram_config_tiles = list(tiles.get_tiles_by_filter(device, lambda k,v: v["tiletype"].startswith("LRAM_")).keys())
+    
+    return [(bel_site, lram, FuzzConfig(job=bel_site, device=device, tiles=[bel_tile] + lram_config_tiles))
+            for (lram,(bel_site,bel_tile)) in enumerate(bel_tiles)
+        ]
+    
+
+configs = [cfg
+           for device in database.get_device_list() if device.startswith("LIFCL")
+           for cfg in create_device_lram_configs(device)]
 
 def main():
     def per_config(x):
-        site, lram, cfg = x
+        site, lram_idx, cfg = x
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
         cfg.sv = "lram.v"
 
-        def get_substs(mode="NONE", kv=None, mux=False):
+        lram = f"LRAM{lram_idx}"
+        def get_substs(mode="NONE", kv=None):
             if kv is None:
                 config = ""
-            elif mux:
-                val = "#SIG"
-                if kv[1] in ("0", "1"):
-                    val = kv[1]
-                if kv[1] == "INV":
-                    val = "#INV"
-                config = "{}::::{}={}".format(mode, kv[0], val)
             else:
-                config = "{}:::{}={}".format(mode, kv[0], kv[1])
-            return dict(cmt="//" if mode == "NONE" else "", config=config, site=site)
-        modes = ["NONE", "LRAM_CORE"]
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(lram), modes,
-            lambda x: get_substs(mode=x), False,
-            desc="{} primitive mode".format(lram))
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.ASYNC_RST_RELEASE".format(lram), ["SYNC", "ASYNC"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("ASYNC_RST_RELEASE", x)), False,
-            desc="LRAM reset release configuration")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.DATA_PRESERVE".format(lram), ["DISABLE", "ENABLE"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("DATA_PRESERVE", x)), False,
-            desc="LRAM data preservation across resets")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.EBR_SP_EN".format(lram), ["DISABLE", "ENABLE"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("EBR_SP_EN", x)), False,
-            desc="EBR single port mode")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.ECC_BYTE_SEL".format(lram), ["ECC_EN", "BYTE_EN"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("ECC_BYTE_SEL", x)), False,
-            desc="")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(lram), ["ENABLED", "DISABLED"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("GSR", x)), False,
-            desc="LRAM global set/reset mask")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.OUT_REGMODE_A".format(lram), ["NO_REG", "OUT_REG"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("OUT_REGMODE_A", x)), False,
-            desc="LRAM output pipeline register A enable")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.OUT_REGMODE_B".format(lram), ["NO_REG", "OUT_REG"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("OUT_REGMODE_B", x)), False,
-            desc="LRAM output pipeline register B enable")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.RESETMODE".format(lram), ["SYNC", "ASYNC"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("RESETMODE", x)), False,
-            desc="LRAM sync/async reset select")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.RST_AB_EN".format(lram), ["RESET_AB_DISABLE", "RESET_AB_ENABLE"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("RST_AB_EN", x)), False,
-            desc="LRAM reset A/B enable")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.SP_EN".format(lram), ["DISABLE", "ENABLE"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("SP_EN", x)), False,
-            desc="LRAM single port mode")
-        nonrouting.fuzz_enum_setting(cfg, empty, "{}.UNALIGNED_READ".format(lram), ["DISABLE", "ENABLE"],
-            lambda x: get_substs(mode="LRAM_CORE", kv=("UNALIGNED_READ", x)), False,
-            desc="LRAM unaligned read support")
-        for port in ("CLK", "CSA", "CSB", "CEA", "CEB", "RSTA", "RSTB", "OCEA", "OCEB", "WEA", "WEB"):
-            nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(lram, port), [port, "INV"],
-                lambda x: get_substs(mode="LRAM_CORE", kv=(port, x), mux=True), False,
-                desc="LRAM {} inversion control".format(port))
+                key = kv[0]
+                if key.endswith("MUX"):
+                    key = ":" + key[:-3]                    
+                config = f"{mode}:::{key}={kv[1]}"
+            return dict(cmt="//" if mode == "NONE" else "",
+                        config=config,
+                        site=site)
+
+        for setting in lram_core.settings:
+            subs_fn = lambda x,name=setting.name: get_substs(mode="LRAM_CORE", kv=(name, x))
+            if setting.name == "MODE":
+                subs_fn = lambda x: get_substs(mode=x)
+
+            mark_relative_to = None
+            if cfg.tiles[0] != cfg.tiles[-1]:
+                mark_relative_to = cfg.tiles[0]
+                nonrouting.fuzz_enum_setting(cfg, empty, f"{lram}.{setting.name}", setting.values,
+                                             subs_fn,
+                                             False,
+                                             desc=setting.desc, mark_relative_to=mark_relative_to)
+
+
     fuzzloops.parallel_foreach(configs, per_config)
+
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)

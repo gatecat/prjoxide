@@ -4,12 +4,18 @@ use crate::database::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::iter::FromIterator;
 
+use ron::ser::PrettyConfig;
+use std::fs::File;
+use std::io::prelude::*;
+use log::error;
+use serde::Serialize;
+
 pub enum IPFuzzMode {
     Word { name: String, width: usize, inverted_mode: bool },
     Enum { name: String },
 }
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Serialize, PartialEq, Eq, PartialOrd, Ord, Clone)]
 enum IPFuzzKey {
     WordKey { bits: Vec<bool> },
     EnumKey { option: String },
@@ -22,6 +28,7 @@ pub struct IPFuzzer {
     base: Chip,                           // bitstream with nothing set
     deltas: BTreeMap<IPFuzzKey, IPDelta>, // used for words and enums
     desc: String,                         // description of the setting being fuzzed
+    overlay: String,
 }
 
 impl IPFuzzer {
@@ -34,6 +41,7 @@ impl IPFuzzer {
         desc: &str,
         width: usize,
         inverted_mode: bool,
+        overlay: &str,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Word {
@@ -46,6 +54,7 @@ impl IPFuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string(),
         }
     }
     pub fn init_enum_fuzzer(
@@ -54,6 +63,7 @@ impl IPFuzzer {
         fuzz_iptype: &str,
         name: &str,
         desc: &str,
+        overlay: &str,
     ) -> IPFuzzer {
         IPFuzzer {
             mode: IPFuzzMode::Enum {
@@ -64,15 +74,21 @@ impl IPFuzzer {
             base: base_bit.clone(),
             deltas: BTreeMap::new(),
             desc: desc.to_string(),
+            overlay: overlay.to_string(),
         }
     }
     fn add_sample(&mut self, db: &mut Database, key: IPFuzzKey, bitfile: &str) {
         let parsed_bitstream = BitstreamParser::parse_file(db, bitfile).unwrap();
-        let addr = db
+        let addr_opt = db
             .device_baseaddrs(&parsed_bitstream.family, &parsed_bitstream.device)
             .regions
-            .get(&self.ipcore)
-            .unwrap();
+            .get(&self.ipcore);
+
+        if addr_opt.is_none() {
+            error!("Sample added for {} {} for ip core {} but base address is not known for it.", parsed_bitstream.family, parsed_bitstream.device, self.ipcore);
+        }
+
+        let addr = addr_opt.unwrap();
         let delta: IPDelta =
             parsed_bitstream.ip_delta(&self.base, addr.addr, addr.addr + (1 << addr.abits));
         self.deltas.insert(key, delta);
@@ -132,7 +148,7 @@ impl IPFuzzer {
                                     .collect();
                                 // Add the enum to the tile data
                                 let iptype_db = db.ip_bitdb(&self.base.family, &self.iptype);
-                                iptype_db.add_enum_option(name, &option, &self.desc, b);
+                                iptype_db.add_enum_option(name, &option, &self.desc, b).unwrap();
                             }
                         }
                     }
@@ -172,9 +188,25 @@ impl IPFuzzer {
                     used_bits.append(&mut is.clone());
                 }
                 let iptype_db = db.ip_bitdb(&self.base.family, &self.iptype);
-                iptype_db.add_word(&name, &self.desc, cbits);
+                iptype_db.add_word(&name, &self.desc, cbits).unwrap();
             }
         }
         db.flush();
+    }
+
+    pub fn serialize_deltas(&mut self, filename: &str) {
+            let pretty = PrettyConfig {
+                depth_limit: 5,
+                new_line: "\n".to_string(),
+                indentor: "  ".to_string(),
+                enumerate_arrays: false,
+                separate_tuple_members: false,
+            };
+        
+            let buf = ron::ser::to_string_pretty(&self.deltas, pretty).unwrap();
+            File::create(format!("{}.ron", filename))
+            .unwrap()
+            .write_all(buf.as_bytes())
+            .unwrap();
     }
 }

@@ -56,4 +56,5 @@ def main():
     fuzz_interconnect(config=cfg, nodenames=nodes, regex=False, bidir=True, full_mux_style=False)
 
 if __name__ == '__main__':
-    main()
+    fuzzloops.FuzzerMain(main)
+

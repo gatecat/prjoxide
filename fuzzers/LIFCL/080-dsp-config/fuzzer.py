@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 from fuzzconfig import FuzzConfig
 import nonrouting
 import fuzzloops
@@ -138,8 +141,8 @@ misc_config = {
     ]
 }
 
-def main():
-    def per_config(x):
+async def main(executor):
+    async def per_config(x):
         rc, cfg = x
         r, c = rc
         locs = [
@@ -187,7 +190,7 @@ def main():
         cfg.setup()
         empty = cfg.build_design(cfg.sv, {})
         cfg.sv = "dsp.v"
-        def per_loc(l):
+        async def per_loc(l):
             dsp, prim, site = l
             def get_substs(mode="NONE", default_cfg=False, kv=None, mux=False, extra_sigs=""):
                 if default_cfg:
@@ -204,47 +207,57 @@ def main():
                 else:
                     config = "{}:::{}={}".format(mode, kv[0], kv[1])
                 return dict(mode=mode, cmt="//" if mode == "NONE" else "", config=config, prim=prim, site=site)
+
+            futures = []
+            def fuzz_enum_setting(*args, **kwargs):
+                futures.append(asyncio.wrap_future(executor.submit(nonrouting.fuzz_enum_setting, cfg, empty, *args, **kwargs, executor=executor)))
+
+
             if prim == "ACC54_CORE":
                 # Use 'cover' to get a minimal bit set
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
+                fuzz_enum_setting("{}.MODE".format(dsp), ["NONE", prim],
                         lambda x: get_substs(x[0], default_cfg=True, extra_sigs=x[1]), False, assume_zero_base=True,
                         min_cover={"NONE": [""], "ACC54_CORE": [" ACC54_CORE::::RSTCTRL=0", " ACC54_CORE::::RSTCTRL=#SIG"]},
                         desc="{} primitive mode".format(dsp))
             else:
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODE".format(dsp), ["NONE", prim],
+                fuzz_enum_setting("{}.MODE".format(dsp), ["NONE", prim],
                     lambda x: get_substs(x, default_cfg=True), False, assume_zero_base=True,
                     desc="{} primitive mode".format(dsp))
             if prim not in ("MULT18_CORE", "MULT18X36_CORE", "MULT36_CORE"):
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.GSR".format(dsp), ["ENABLED", "DISABLED"],
+                fuzz_enum_setting("{}.GSR".format(dsp), ["ENABLED", "DISABLED"],
                             lambda x: get_substs(mode=prim, kv=("GSR", x)), False,
                             desc="if `ENABLED` primitive is reset by user GSR")
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.RESET".format(dsp), ["SYNC", "ASYNC"],
+                fuzz_enum_setting("{}.RESET".format(dsp), ["SYNC", "ASYNC"],
                             lambda x: get_substs(mode=prim, kv=("RESET", x)), False,
                             desc="selects synchronous or asynchronous reset for DSP registers")
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.CLKMUX".format(dsp), ["0", "CLK", "INV"],
+                fuzz_enum_setting("{}.CLKMUX".format(dsp), ["0", "CLK", "INV"],
                             lambda x: get_substs(mode=prim, kv=("CLK", x), mux=True),
                             False, assume_zero_base=True,
                             desc="clock gating and inversion control")
             for ce in ce_sigs[prim]:
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(dsp, ce), ["1", ce, "INV"],
-                        lambda x: get_substs(mode=prim, kv=(ce, x), mux=True, extra_sigs=",CLK=#SIG"),
+                fuzz_enum_setting("{}.{}MUX".format(dsp, ce), ["1", ce, "INV"],
+                        lambda x,ce=ce: get_substs(mode=prim, kv=(ce, x), mux=True, extra_sigs=",CLK=#SIG"),
                         False, assume_zero_base=True,
                         desc="{} gating and inversion control".format(ce))
             for rst in rst_sigs[prim]:
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}MUX".format(dsp, rst), ["0", rst, "INV"],
-                        lambda x: get_substs(mode=prim, kv=(rst, x), mux=True, extra_sigs=",CLK=#SIG"),
+                fuzz_enum_setting("{}.{}MUX".format(dsp, rst), ["0", rst, "INV"],
+                        lambda x,rst=rst: get_substs(mode=prim, kv=(rst, x), mux=True, extra_sigs=",CLK=#SIG"),
                         False, assume_zero_base=True,
                         desc="{} gating and inversion control".format(rst))
             for reg in regs[prim]:
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.REGBYPS{}".format(dsp, reg), ["REGISTER", "BYPASS"],
-                            lambda x: get_substs(mode=prim, kv=("REGBYPS{}".format(reg), x)), False, assume_zero_base=True,
+                fuzz_enum_setting("{}.REGBYPS{}".format(dsp, reg), ["REGISTER", "BYPASS"],
+                            lambda x,reg=reg: get_substs(mode=prim, kv=("REGBYPS{}".format(reg), x)), False, assume_zero_base=True,
                             desc="register enable or bypass{}{}".format(" for " if reg != "" else "", reg))
             for name, opts, desc in misc_config[prim]:
-                nonrouting.fuzz_enum_setting(cfg, empty, "{}.{}".format(dsp, name), opts,
-                            lambda x: get_substs(mode=prim, kv=(name, x)), False, assume_zero_base=True,
+                fuzz_enum_setting("{}.{}".format(dsp, name), opts,
+                            lambda x,desc=desc,name=name: get_substs(mode=prim, kv=(name, x)), False, assume_zero_base=True,
                             desc=desc)
-        fuzzloops.parallel_foreach(locs, per_loc)
-    fuzzloops.parallel_foreach(configs, per_config)
+
+            await asyncio.gather(*futures)
+        await asyncio.gather(*[per_loc(l) for l in locs])
+    await asyncio.gather(*[per_config(config) for config in configs])
 
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerAsyncMain(main)
+
+

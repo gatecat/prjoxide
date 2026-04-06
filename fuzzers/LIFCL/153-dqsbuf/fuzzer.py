@@ -115,5 +115,5 @@ def per_loc(x):
 def main():
     fuzzloops.parallel_foreach(configs, per_loc)
 if __name__ == "__main__":
-    main()
+    fuzzloops.FuzzerMain(main)
 
