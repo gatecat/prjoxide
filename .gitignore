@@ -9,5 +9,4 @@ __pycache__
 *.vo
 /user_environment.sh
 libprjoxide/target
-Cargo.lock
 .bitstreamcache/
