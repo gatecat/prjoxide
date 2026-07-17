@@ -23,7 +23,7 @@ lazy_static! {
     // Edge clock sources
     static ref ECLK_MUXIN_RE: Regex = Regex::new(r"^J(MUXIN(\d+)|[LU][LR]CLKO[PS]\d?|PCLK[TC]\d+)_ECLKBANK_CORE_ECLKBANK(\d+)$").unwrap();
     // Edge clock feedback
-    static ref ECLK_FEEDBACK_RE: Regex = Regex::new(r"^J[LU][LR]CLKO[PS]\d?_ECLKLOGICMUXPLLFB_CORE_ECLKPLLFBR$").unwrap();
+    static ref ECLK_FEEDBACK_RE: Regex = Regex::new(r"^J[LU][LR]CLKO[PS]\d?_ECLKLOGICMUXPLLFB_CORE_ECLKPLLFB[LR]$").unwrap();
     // Edge clock to DDRDLL
     static ref ECLK_DDRDLL_RE: Regex = Regex::new(r"^JCLKOUT_ECLKDDR[RL]_\d$").unwrap();
     // DDR delay code signals
