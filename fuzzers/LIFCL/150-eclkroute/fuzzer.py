@@ -43,7 +43,7 @@ def main():
         def pip_filter(x, nodes):
             src, snk = x
             return "PLL_CORE" not in src and "FBMUX_CORE" not in src and "FBMUX_CORE" not in snk \
-                and "I217" not in snk and "I218" not in snk and "ECLKDDR" not in src \
+                and "I217" not in snk and "I218" not in snk and "CLKOUT_ECLKDDR" not in src \
                 and "DQS_TOP" not in snk and "PADDI" not in src and "INCK_IOLOGIC" not in src
         fuzz_interconnect(config=cfg, nodenames=nodes, nodename_predicate=nodename_filter, pip_predicate=pip_filter, regex=True, bidir=True, ignore_tiles=ignore_tiles)
 
