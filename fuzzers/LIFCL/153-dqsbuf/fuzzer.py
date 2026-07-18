@@ -74,6 +74,9 @@ def per_loc(x):
     nonrouting.fuzz_enum_setting(cfg, empty, "DQSBUF.RX_CENTERED", ["ENABLED", "DISABLED"],
         lambda x: get_substs(kv=("RX_CENTERED", x)), False)
 
+    nonrouting.fuzz_enum_setting(cfg, empty, "DQSBUF.WRITE_ENABLE", ["ENABLED", "DISABLED"],
+        lambda x: get_substs(kv=("WRITE_ENABLE", x)), False)
+
     def intval(vec):
         x = 0
         for i, b in enumerate(vec):
