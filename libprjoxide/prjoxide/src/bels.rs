@@ -658,6 +658,28 @@ impl Bel {
             z: 0,
         }
     }
+
+    pub fn make_eclksync(tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32, bank: u32, z: u32) -> Bel {
+        Bel {
+            name: format!("ECLKSYNC{}{}", bank, Z_TO_CHAR[z as usize]),
+            beltype: "ECLKSYNC_CORE".to_string(),
+            pins: Bel::get_io(&tiledata, &format!("_ECLKSYNC_CORE_ECLKSYNC{}_{}", bank, z), rel_x, rel_y),
+            rel_x: rel_x,
+            rel_y: rel_y,
+            z: 24 + z, // Z-offset to avoid conflict with DCCs
+        }
+    }
+
+    pub fn make_eclkdiv(tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32, bank: u32, z: u32) -> Bel {
+        Bel {
+            name: format!("ECLKDIV{}{}", bank, Z_TO_CHAR[z as usize]),
+            beltype: "ECLKDIV_CORE".to_string(),
+            pins: Bel::get_io(&tiledata, &format!("_ECLKDIV_CORE_ECLKDIVB{}_{}", bank, z), rel_x, rel_y),
+            rel_x: rel_x,
+            rel_y: rel_y,
+            z: 28 + z,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
@@ -762,7 +784,6 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "LMID" | "LMID_RBB_5_15K" => (0..12).map(|x| Bel::make_dcc("L", x)).collect(),
         "RMID_DLY20" | "RMID_PICB_DLY10" => (0..12).map(|x| Bel::make_dcc("R", x)).collect(),
         "TMID_0" => (0..16).map(|x| Bel::make_dcc("T", x)).collect(),
-        "BMID_0_ECLK_1" => (0..18).map(|x| Bel::make_dcc("B", x)).collect(),
         "CMUX_0" => {
                 let mut bels = (0..4).map(|x| Bel::make_dcc("C", x)).collect::<Vec<Bel>>();
                 bels.push(Bel::make_dcs());
@@ -775,6 +796,23 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
         "GPLL_LRC_15K" => vec![Bel::make_pll_core("PLL_LRC", &tiledata, 0, -1)],
         "LRAM_0" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, -5)],
         "LRAM_1" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, -1)],
+
+        "ECLK_0" => {
+            let mut bels = (0..4).map(|x| Bel::make_eclksync(&tiledata, 0, -1, 5, x)).collect::<Vec<Bel>>();
+            bels.extend((0..4).map(|x| Bel::make_eclkdiv(&tiledata, 0, -1, 5, x)).collect::<Vec<Bel>>());
+            bels
+        },
+        "BMID_0_ECLK_1" => {
+            let mut bels = (0..18).map(|x| Bel::make_dcc("B", x)).collect::<Vec<Bel>>();
+            bels.extend((0..4).map(|x| Bel::make_eclksync(&tiledata, 0, -1, 4, x)).collect::<Vec<Bel>>());
+            bels.extend((0..4).map(|x| Bel::make_eclkdiv(&tiledata, 0, -1, 4, x)).collect::<Vec<Bel>>());
+            bels
+        }
+        "BMID_1_ECLK_2" => {
+            let mut bels = (0..4).map(|x| Bel::make_eclksync(&tiledata, 0, -1, 3, x)).collect::<Vec<Bel>>();
+            bels.extend((0..4).map(|x| Bel::make_eclkdiv(&tiledata, 0, -1, 3, x)).collect::<Vec<Bel>>());
+            bels
+        },
 
         "LRAM_0_15K" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, 0)],
         "LRAM_1_15K" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, 0)],
@@ -866,6 +904,13 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             _ => { // default: -17 case
                 vec![tn]
             }
+        }
+        "ECLKSYNC_CORE" | "ECLKDIV_CORE" => match tt {
+            "ECLK_0" => vec![rel_tile(1, 0, "BMID_0_ECLK_1"), rel_tile(2, 0, "BMID_1_ECLK_2")],
+            "BMID_0_ECLK_1" => vec![rel_tile(0, 0, "BMID_0_ECLK_1"), rel_tile(1, 0, "BMID_1_ECLK_2")],
+            "BMID_1_ECLK_2" => vec![rel_tile(-1, 0, "BMID_0_ECLK_1"), rel_tile(0, 0, "BMID_1_ECLK_2")],
+
+            _ => panic!("bad ECLK tile {}", &tile.tiletype)
         }
         _ => vec![tn]
     }
