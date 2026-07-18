@@ -10,7 +10,7 @@ pub struct BBAStructs<'a> {
 }
 
 // *MUST* update this here and in nextpnr whenever making changes
-pub const BBA_VERSION: u32 = 11;
+pub const BBA_VERSION: u32 = 12;
 
 // Wire flags
 pub const WIRE_PRIMARY: u32 = 0x80000000;
@@ -26,6 +26,7 @@ pub const REL_LOC_BRANCH_R: u8 = 4;
 pub const REL_LOC_SPINE: u8 = 5;
 pub const REL_LOC_HROW: u8 = 6;
 pub const REL_LOC_VCC: u8 = 7;
+pub const REL_LOC_DQS: u8 = 8;
 // Tile location flags
 pub const LOC_LOGIC: u32 = 0x000001;
 pub const LOC_IO18: u32 = 0x000002;
@@ -221,6 +222,14 @@ impl<'a> BBAStructs<'a> {
         self.out.label(label)?;
         for &x in spine_cols {
             self.out.u32_val(x.try_into().unwrap())?;
+        }
+        Ok(())
+    }
+
+    pub fn col_dqs_list(&mut self, label: &str, col_dqs_group: &[i16]) -> Result<()> {
+        self.out.label(label)?;
+        for &x in col_dqs_group {
+            self.out.i16_val(x.try_into().unwrap())?;
         }
         Ok(())
     }
@@ -422,6 +431,7 @@ impl<'a> BBAStructs<'a> {
         globals_ref: &str,
         pads_ref: &str,
         pkgs_ref: &str,
+        col_dqs_group_ref: &str,
     ) -> Result<()> {
         self.out.str_val(device_name)?;
         self.out.u16_val(width.try_into().unwrap())?;
@@ -430,6 +440,7 @@ impl<'a> BBAStructs<'a> {
         self.out.ref_label(globals_ref)?;
         self.out.ref_slice(pads_ref, num_pads)?;
         self.out.ref_slice(pkgs_ref, num_pkgs)?;
+        self.out.ref_slice(col_dqs_group_ref, width)?;
         Ok(())
     }
 

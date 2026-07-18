@@ -75,7 +75,8 @@ pub struct LocationGrid {
     pub height: usize,
     tiles: Vec<TileLocation>,
     glb: DeviceGlobalsData,
-    iodb: DeviceIOData
+    iodb: DeviceIOData,
+    col_dqs_group: Vec<i16>,
 }
 
 impl LocationGrid {
@@ -88,12 +89,19 @@ impl LocationGrid {
             .cartesian_product(0..width)
             .map(|(y, x)| TileLocation::setup(ch, x as u32, y as u32, globals, tts))
             .collect();
+        let mut col_dqs_group = vec![-1; width as usize];
+        for pad in iodb.pads.iter() {
+            if !pad.dqs.is_empty() {
+                col_dqs_group[pad.offset as usize] = pad.dqs[1] as i16;
+            };
+        }
         LocationGrid {
             width: width as usize,
             height: height as usize,
             tiles: locs,
             glb: globals.clone(),
             iodb: iodb,
+            col_dqs_group: col_dqs_group,
         }
     }
     pub fn get(&self, x: usize, y: usize) -> Option<&TileLocation> {
@@ -153,7 +161,14 @@ impl LocationGrid {
             }
             Neighbour::Spine => return Some(self.glb.spine_sink_to_origin(x, y).unwrap()),
             Neighbour::HRow => return Some(self.glb.hrow_sink_to_origin(x, y).unwrap()),
-            _ => None,
+            Neighbour::DQSGroup => {
+                let dqs_group = self.col_dqs_group[x];
+                if dqs_group == -1 {
+                    None
+                } else {
+                    Some((dqs_group as usize, y))
+                }
+            }
         }
     }
     // Make the neighbour array symmetric
@@ -305,6 +320,8 @@ impl LocationGrid {
 
         out.list_begin(&format!("d{}_pads", device_idx))?;
 
+        let mut col_dqs_group = vec![-1; self.width];
+
         for (i, pad) in self.iodb.pads.iter().enumerate() {
             let side: i8 = match &pad.side[..] {
                 "L" => 0,
@@ -319,6 +336,9 @@ impl LocationGrid {
             } else {
                 (pad.dqs[0], pad.dqs[1])
             };
+            if dqs_group != -1 {
+                col_dqs_group[pad.offset as usize] = dqs_group;
+            }
             out.pad_info(
                 pad.offset,
                 side,
@@ -338,6 +358,8 @@ impl LocationGrid {
         for package in self.iodb.packages.iter() {
             out.package_info(package, &Chip::get_package_short_name(package))?;
         }
+
+        out.col_dqs_list(&format!("d{}_col_dqs_group", device_idx), &self.col_dqs_group)?;
 
         Ok(())
     }
@@ -360,6 +382,7 @@ impl LocationGrid {
             &format!("d{}_globals", device_idx),
             &format!("d{}_pads", device_idx),
             &format!("d{}_packages", device_idx),
+            &format!("d{}_col_dqs_group", device_idx),
         )?;
         Ok(())
     }
@@ -893,7 +916,9 @@ impl LocationTypes {
                             Neighbour::HRow => {
                                 rel_type = REL_LOC_HROW;
                             }
-                            _ => continue,
+                            Neighbour::DQSGroup => {
+                                rel_type = REL_LOC_DQS;
+                            }
                         }
                         let mut arc_flags = 0;
 
