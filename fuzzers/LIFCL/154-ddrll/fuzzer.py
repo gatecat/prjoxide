@@ -69,5 +69,7 @@ def main():
             lambda x: get_substs(kv=("FORCE_MAX_DELAY", x)), False)
         nonrouting.fuzz_enum_setting(cfg, empty, "DDRDLL.RSTMUX", ["RST", "INV"],
             lambda x: get_substs(kv=("RST", x), mux=True), False)
+        nonrouting.fuzz_enum_setting(cfg, empty, "DDRDLL.ENA_OSC", ["ENABLED", "DISABLED"],
+            lambda x: get_substs(kv=("ENA_OSC", x)), False)
 if __name__ == "__main__":
     main()
