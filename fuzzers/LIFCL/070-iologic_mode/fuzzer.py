@@ -207,7 +207,7 @@ def main():
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.MIDDRXN.DDRMODE".format(prim), ["NONE", "MIDDRX2", "MIDDRX4"],
                 lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x), scope="MIDDRXN"), False)
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.MODDRXN.DDRMODE".format(prim), ["NONE", "MOSHX2", "MOSHX4", "MODDRX2_DQSW", "MODDRX4_DQSW", "MODDRX2_DQSW270", "MODDRX4_DQSW270"],
-                lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x), scope="MODDRXN", dqs=True), False)
+                lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x), scope="MODDRXN", dqs=True, pinconn=(".DOUT(sig), .LSRIN(sig)" if x != "#OFF" else "")), False)
             nonrouting.fuzz_enum_setting(cfg, empty, "{}.MTDDRXN.DDRMODE".format(prim), ["NONE", "MTSHX2", "MTSHX4"],
                 lambda x: get_substs(mode="MIDDRXN_MODDRXN", kv=("DDRMODE", "#OFF" if x == "NONE" else x + " TOUTMUX:MTDDR"), scope="MTDDRXN"), False)
     fuzzloops.parallel_foreach(configs, per_config)
