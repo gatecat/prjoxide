@@ -705,7 +705,7 @@ impl Bel {
 
     pub fn make_ddrdll(tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32) -> Bel {
         Bel {
-            name: "DDRDLL_CORE".to_string(),
+            name: "DDRDLL".to_string(),
             beltype: "DDRDLL_CORE".to_string(),
             pins: Bel::get_io(&tiledata, "_DDRDLL_CORE_I1", rel_x, rel_y),
             rel_x: rel_x,
