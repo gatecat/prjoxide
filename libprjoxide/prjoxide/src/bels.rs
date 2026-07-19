@@ -680,6 +680,39 @@ impl Bel {
             z: 28 + z,
         }
     }
+
+    pub fn make_dqsbuf(tiledata: &TileBitsDatabase) -> Bel {
+        let mut base_pins = Bel::get_io(&tiledata, &format!("_DQSBUF_CORE_I_DQS_TOP"), -5, -1);
+        base_pins.push(BelPin::new("DQSR90", "", PinDir::OUTPUT, "JDQSR90_DQSBUF_CORE_I_DQS_TOP", 6, 1));
+        base_pins.push(BelPin::new("DQSW270", "", PinDir::OUTPUT, "JDQSW270_DQSBUF_CORE_I_DQS_TOP", 6, 1));
+        base_pins.push(BelPin::new("DQSW", "", PinDir::OUTPUT, "JDQSW_DQSBUF_CORE_I_DQS_TOP", 6, 1));
+
+        for i in 0..3 {
+            base_pins.push(BelPin::new(&format!("RDPNTR{}", i), "", PinDir::OUTPUT, &format!("JRDPNTR{}_DQSBUF_CORE_I_DQS_TOP", i), 6, 1));
+            base_pins.push(BelPin::new(&format!("WRPNTR{}", i), "", PinDir::OUTPUT, &format!("JWRPNTR{}_DQSBUF_CORE_I_DQS_TOP", i), 6, 1));
+        }
+
+        Bel {
+            name: "DQSBUF".to_string(),
+            beltype: "DQSBUF_CORE".to_string(),
+            pins: base_pins,
+            rel_x: -5,
+            rel_y: -1,
+            z: 5,
+        }
+
+    }
+
+    pub fn make_ddrdll(tiledata: &TileBitsDatabase, rel_x: i32, rel_y: i32) -> Bel {
+        Bel {
+            name: "DDRDLL_CORE".to_string(),
+            beltype: "DDRDLL_CORE".to_string(),
+            pins: Bel::get_io(&tiledata, "_DDRDLL_CORE_I1", rel_x, rel_y),
+            rel_x: rel_x,
+            rel_y: rel_y,
+            z: 0,
+        }
+    }
 }
 
 pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
@@ -814,6 +847,11 @@ pub fn get_tile_bels(tiletype: &str, tiledata: &TileBitsDatabase) -> Vec<Bel> {
             bels
         },
 
+        "SYSIO_B4_1_DQS0" | "SYSIO_B3_1_DQS0" => vec![Bel::make_dqsbuf(&tiledata)],
+
+        "DOSCL_P18_V18" => vec![Bel::make_ddrdll(&tiledata, 0, -1)],
+        "DDR_OSC_R" => vec![Bel::make_ddrdll(&tiledata, -1, 0)],
+
         "LRAM_0_15K" => vec![Bel::make_lram_core("LRAM0", &tiledata, -1, 0)],
         "LRAM_1_15K" => vec![Bel::make_lram_core("LRAM1", &tiledata, -1, 0)],
         "LRAM_2_15K" => vec![Bel::make_lram_core("LRAM2", &tiledata, 0, -1)],
@@ -911,6 +949,14 @@ pub fn get_bel_tiles(chip: &Chip, tile: &Tile, bel: &Bel) -> Vec<String> {
             "BMID_1_ECLK_2" => vec![rel_tile(-1, 0, "BMID_0_ECLK_1"), rel_tile(0, 0, "BMID_1_ECLK_2")],
 
             _ => panic!("bad ECLK tile {}", &tile.tiletype)
+        }
+        "DQSBUF_CORE" => match tt {
+            "SYSIO_B3_1_DQS0" => vec![rel_tile(0, 0, "SYSIO_B3_1_DQS0"), rel_tile(1, 0, "SYSIO_B3_0_DQS1"), rel_tile(2, 0, "SYSIO_B3_1_DQS2"),
+                rel_tile(3, 0, "SYSIO_B3_0_DQS3"), rel_tile(4, 0, "SYSIO_B3_1_DQS4")],
+            "SYSIO_B4_1_DQS0" => vec![rel_tile(0, 0, "SYSIO_B4_1_DQS0"), rel_tile(1, 0, "SYSIO_B4_0_DQS1"), rel_tile(2, 0, "SYSIO_B4_1_DQS2"),
+                rel_tile(3, 0, "SYSIO_B4_0_DQS3"), rel_tile(4, 0, "SYSIO_B4_1_DQS4")],
+            _ => panic!("bad DQSBUF tile {}", &tile.tiletype)
+
         }
         _ => vec![tn]
     }
